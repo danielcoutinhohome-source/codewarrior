@@ -3,6 +3,7 @@
 export type Kind = "predict" | "fill" | "choice" | "order";
 
 export type Question = {
+  tier?: Tier;
   id: string; // stable per skill + variant
   skill: string; // what a teacher would call it, e.g. "Integer division"
   kind: Kind;

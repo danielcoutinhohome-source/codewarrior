@@ -1,6 +1,7 @@
 // Pure battle rules. The battle screen calls these and animates the events they return.
 import { BOSS, PLAYER_HP, enemyHit } from "./game";
 import type { Question } from "./questions/core";
+import { freshBattleQuestions } from "./questions";
 
 export const FULL_HIT = 100; // damage for a first-try answer
 export const RETRY_HIT = 60; // damage when right on the second try
@@ -13,7 +14,7 @@ export type BattleState = {
   questions: Question[];
   queue: number[]; // indexes into questions, in play order
   pos: number; // position in queue
-  round: number; // 0 = first pass; later rounds replay missed questions
+  round: number; // 0 = first pass; later rounds use fresh questions
   attempt: number; // 0 or 1 on the current question
   hinted: boolean; // hint scroll used on the current question
   playerHp: number;
@@ -111,14 +112,15 @@ export function answer(s: BattleState, right: boolean): { state: BattleState; ev
 }
 
 // Moves to the next question. When the queue runs out and the enemy still stands,
-// every question not answered cleanly comes back for another round.
+// fresh questions extend the battle; previous questions never return.
 export function advance(s: BattleState): BattleState {
   if (s.over) return s;
   const n = { ...s, attempt: 0, hinted: false };
   if (s.pos + 1 < s.queue.length) return { ...n, pos: s.pos + 1 };
-  const missed = s.questions.map((_, i) => i).filter((i) => !s.cleared[i]);
-  const again = missed.length ? missed : s.questions.map((_, i) => i);
-  return { ...n, queue: again, pos: 0, round: s.round + 1 };
+  const fresh = freshBattleQuestions(s.world, s.battle, s.questions.length * 3571 + s.round * 97, 5, s.questions);
+  if (!fresh.length) throw new Error("No unseen battle questions available");
+  const start = s.questions.length;
+  return { ...n, questions: [...s.questions, ...fresh], queue: fresh.map((_, i) => start + i), pos: 0, round: s.round + 1 };
 }
 
 export function useHint(s: BattleState): BattleState {

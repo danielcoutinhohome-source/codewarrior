@@ -134,7 +134,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           {details.props.map((d, i) => (
             <Placed decorative key={`s${i}`} cam={cam} z={d.z} lat={d.lat} g={g} w={W * d.size} h={W * d.size} zIndex={Math.round(400 - d.z * 10)}>
               <div aria-hidden className="pointer-events-none h-full w-full">
-                <Scenery kind={d.kind} />
+                <Scenery kind={d.kind} scene={t.scene} />
               </div>
             </Placed>
           ))}
@@ -161,7 +161,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             const won = !!stars[b];
             const open = unlocked[b];
             const next = open && !won;
-            const hidden = boss && !stars[BOSS];
+            const hidden = !won && (!open || (boss && !approach.ready));
             const size = boss ? Math.min(W * 0.5, 460) : Math.min(W * 0.3, 270);
             const padW = Math.max(W*.12, roadHalf0 * 0.95);
             const zi = boss ? (hidden ? 285 : 400 - Math.round(z * 10)) : 400 - Math.round(z * 10);
@@ -190,12 +190,12 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
                     transition={{ duration: 0.25, ease }}
                   >
                     {selected === b && !hidden && <span className="absolute bottom-[1%] left-[16%] h-[11%] w-[68%] rounded-[50%] border-[5px] border-white/90" style={{ boxShadow: "0 0 0 5px rgba(255,138,0,.6)" }} />}
-                    <span className="block" style={{ filter: won ? "grayscale(1)" : !open && !hidden ? "saturate(0.6)" : undefined, opacity: won ? 0.8 : 1 }}>
+                    <span className="block" style={{ filter: won ? "grayscale(1)" : hidden ? "brightness(0)" : undefined, opacity: won ? 0.8 : 1 }}>
                       {won ? (
                         <span className="block" data-defeated={enemy.design} style={{ transform: "translateY(10%) rotate(70deg) scale(0.85)", transformOrigin: "50% 70%" }}>
                           <MonsterArt enemy={enemy} boss={boss} size={size} idle={false} hurt />
                         </span>
-                      ) : (boss || open || b===selected+1) ? <MonsterArt enemy={enemy} boss={boss} size={size} silhouette={hidden || !open} idle={open&&!reduced} /> : <div aria-hidden className="absolute inset-x-[40%] bottom-[3%] h-[18%] rounded-full" style={{background:"#263046",opacity:.3}}/>}
+                      ) : <MonsterArt enemy={enemy} boss={boss} size={size} silhouette={hidden || !open} idle={!hidden&&!reduced} />}
                     </span>
                     {next && !hidden && (
                       <motion.span className="absolute left-1/2 top-[-6%] grid h-[15%] w-[15%] min-w-[26px] -translate-x-1/2 place-items-center rounded-full bg-white font-display text-ember" style={{ boxShadow: "0 4px 0 #D96F00", fontSize: size * 0.1 }} animate={{ y: [0, -8, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>

@@ -209,7 +209,7 @@ function Battle() {
     if (!s || s.over) return;
     const n = advance(s);
     if (n.round > s.round) {
-      setBanner(`${enemy.name} is still standing! Missed questions come back.`);
+      setBanner(`${enemy.name} is still standing! A fresh set of questions is ready.`);
       setTimeout(() => setBanner(null), 2600);
     }
     setBs(n);
@@ -285,13 +285,13 @@ function Battle() {
           </div>
           <div className="flex flex-wrap gap-1.5" aria-label={`Question ${Math.min(bs.pos + 1, bs.queue.length)} of ${bs.queue.length}`}>
             {bs.questions.map((_, i) => {
-              const done = i in bs.firstTry;
+              const done = i in bs.firstTry || i in bs.cleared;
               const isNow = bs.queue[bs.pos] === i && !bs.over;
               return (
                 <motion.span
                   key={i}
                   className="h-3.5 w-7 rounded-full"
-                  animate={{ scale: isNow ? 1.15 : 1, background: isNow ? "#FF8A00" : done ? (bs.firstTry[i] ? "#3EC46D" : "#FF5A5F") : "#CFDAE8" }}
+                  animate={{ scale: isNow ? 1.15 : 1, background: isNow ? "#FF8A00" : done ? ((bs.firstTry[i] ?? bs.cleared[i]) ? "#3EC46D" : "#FF5A5F") : "#CFDAE8" }}
                   transition={{ type: "spring", stiffness: 400, damping: 20 }}
                 />
               );
