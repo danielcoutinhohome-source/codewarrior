@@ -34,12 +34,22 @@ export function useWarrior() {
       router.replace("/");
       return;
     }
+    // Tell the save watchdog (DbStatus) that a screen is waiting on the save.
+    const say = (detail: unknown) => window.dispatchEvent(new CustomEvent("cw-load", { detail }));
+    say("loading");
     (async () => {
-      await touchStreak(id);
-      const r = await refresh();
-      if (!r?.account || !r.progress) {
-        logOut();
-        router.replace("/");
+      try {
+        await touchStreak(id);
+        const r = await refresh();
+        if (!r?.account || !r.progress) {
+          say("ready");
+          logOut();
+          router.replace("/");
+          return;
+        }
+        say("ready");
+      } catch (e) {
+        say({ error: e });
       }
     })();
   }, [router, refresh]);
