@@ -54,6 +54,25 @@ const fresh = base({ coins: 50, inventory: {}, updatedAt: 0 });
 m = mergeProgress(server, fresh);
 check("a fresh device takes the server's coins and items", m.coins === 200 && m.inventory.heal === 2, m);
 
+// Equipment changes ride on the timestamp too (equip() bumps it).
+const equipped = base({ avatar: { body: "bot", weapon: "axe" }, updatedAt: 2000 });
+m = mergeProgress(server, equipped);
+check("a newer equipment change survives the merge", (m.avatar as { weapon?: string }).weapon === "axe", m.avatar);
+
+// A missed day resets the streak; the stale higher streak elsewhere must not come back.
+const reset = base({ streak: 1, lastActiveDay: "2026-11-02", updatedAt: 900 });
+const stale = base({ streak: 9, lastActiveDay: "2026-10-28", updatedAt: 1000 });
+m = mergeProgress(stale, reset);
+check("a reset streak isn't replaced by an older, longer one", m.streak === 1 && m.lastActiveDay === "2026-11-02", m);
+const playedYesterdayElsewhere = base({ streak: 6, lastActiveDay: "2026-11-01" });
+const staleDeviceToday = base({ streak: 1, lastActiveDay: "2026-11-02" });
+m = mergeProgress(playedYesterdayElsewhere, staleDeviceToday);
+check("a streak kept up on another device continues", m.streak === 7, m.streak);
+check("...and merging again doesn't add another day", mergeProgress(m, playedYesterdayElsewhere).streak === 7 && mergeProgress(staleDeviceToday, m).streak === 7);
+check("month boundary counts as consecutive", mergeProgress(base({ streak: 2, lastActiveDay: "2026-10-31" }), base({ streak: 1, lastActiveDay: "2026-11-01" })).streak === 3);
+m = mergeProgress(base({ streak: 4 }), base({ streak: 3 }));
+check("same day: the longer streak wins", m.streak === 4, m.streak);
+
 // Merging is stable: merging the result again with either input changes nothing.
 const once = mergeProgress(server, bought);
 check("merge is idempotent", JSON.stringify(mergeProgress(once, bought)) === JSON.stringify(once) && JSON.stringify(mergeProgress(server, once)) === JSON.stringify(once));

@@ -202,6 +202,21 @@ export type ProgressDoc = {
 // things never go backwards: stars, XP and owned items take the best of both. Spendable
 // counts (coins, items) take the larger value, so a purchase on one device and a battle on
 // another never erase each other; the cost is that a spend can occasionally be undone.
+// "YYYY-MM-DD" of the day before.
+const dayBefore = (d: string) => {
+  const t = new Date(`${d}T00:00:00Z`);
+  t.setUTCDate(t.getUTCDate() - 1);
+  return Number.isNaN(t.getTime()) ? "" : t.toISOString().slice(0, 10);
+};
+// The streak belongs to the copy that played most recently, since it can reset to 1. If the
+// other copy played the day before, that copy's streak continues (a device that sat unused
+// resets its own streak before it hears about yesterday's play elsewhere).
+function mergeStreak(a: ProgressDoc, b: ProgressDoc) {
+  if (a.lastActiveDay === b.lastActiveDay) return Math.max(a.streak, b.streak);
+  const [late, early] = a.lastActiveDay > b.lastActiveDay ? [a, b] : [b, a];
+  return early.lastActiveDay === dayBefore(late.lastActiveDay) ? Math.max(late.streak, early.streak + 1) : late.streak;
+}
+
 export function mergeProgress(a: ProgressDoc, b: ProgressDoc): ProgressDoc {
   const newer = a.updatedAt >= b.updatedAt ? a : b;
   const maxRec = (x: Record<string, number>, y: Record<string, number>) => {
@@ -220,7 +235,7 @@ export function mergeProgress(a: ProgressDoc, b: ProgressDoc): ProgressDoc {
     // Spendable values follow the newer copy so a purchase or used power-up isn't refunded by
     // an older copy. (Coins earned on a copy that is older and never synced are lost; rare.)
     coins: newer.coins,
-    streak: Math.max(a.streak, b.streak),
+    streak: mergeStreak(a, b),
     lastActiveDay: a.lastActiveDay > b.lastActiveDay ? a.lastActiveDay : b.lastActiveDay,
     stars: maxRec(a.stars || {}, b.stars || {}),
     inventory: { ...(newer.inventory || {}) },

@@ -119,6 +119,9 @@ export async function equip(id: string, itemId: string) {
     const [p, a] = await Promise.all([db.progress.get(id), db.accounts.get(id)]);
     if (!p || !a || !ownsItem(p, itemId)) return false;
     await db.accounts.update(id, { avatar: withEquipment(a.avatar, it) });
+    // Class accounts sync the avatar with the newer copy's timestamp, so a change must bump it
+    // or the next sync would put the old equipment back.
+    await db.progress.update(id, { updatedAt: Date.now() });
     return true;
   });
 }
