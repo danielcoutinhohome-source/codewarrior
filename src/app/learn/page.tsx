@@ -138,7 +138,7 @@ export default function LearnHome() {
               </Link>
             ))}
             <ButtonLink href="/learn/tutor/" tone="ocean" className="mt-1">
-              {status.state === "online" ? "OPEN THE TUTOR" : "TUTOR (OFFLINE)"}
+              {status.state === "online" ? "OPEN THE TUTOR" : "OPEN THE STUDY HELPER"}
             </ButtonLink>
           </section>
 

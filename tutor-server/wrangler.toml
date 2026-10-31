@@ -9,7 +9,7 @@ binding = "AI"
 
 [vars]
 TUTOR_PROVIDER = "workers-ai"
-TUTOR_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct"
+TUTOR_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8"
 ALLOWED_ORIGINS = "https://danielcoutinhohome-source.github.io"
 RATE_PER_10MIN = "20"
 RATE_PER_DAY = "60"

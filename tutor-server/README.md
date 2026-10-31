@@ -58,11 +58,13 @@ and uses **Workers AI**, which is included in the Workers Free plan with a daily
 charge; requests fail until the next day, and the site tells the student "Today's free tutor
 allowance is used up. It resets tomorrow." Lessons and practice keep working.
 
-The default model is Mistral Small 3.1 (Apache 2.0 licence). At Cloudflare's published
-rates a typical tutor reply (about 2,000 tokens in, 400 out) uses roughly 85 neurons, so the
-free allowance covers on the order of **100+ replies a day**. Switching `TUTOR_MODEL` to
-`@cf/meta/llama-3.1-8b-instruct-fp8` roughly doubles that, with weaker answers.
-`DAILY_LIMIT` (400) and `RATE_PER_DAY` (60 per student) keep usage spread out.
+The default model is Llama 3.1 8B (fast and cheap in neurons). At Cloudflare's published rates
+a typical reply (about 2,000 tokens in, 400 out) uses roughly 38 neurons, so the free allowance
+covers about **250 typed questions a day**. The site's built-in study helper (not AI) answers the
+tutor buttons (hints, explanations, examples, why was I wrong, boss prep) from the verified
+lessons, so those never use the allowance; when the allowance runs out, typed questions get the
+closest lesson instead. For better answers but about half as many, set `TUTOR_MODEL` to
+`@cf/mistralai/mistral-small-3.1-24b-instruct`.
 
 1. Create a free Cloudflare account at <https://dash.cloudflare.com/sign-up> and stay on the
    **Free** plan (do not add the paid Workers plan).

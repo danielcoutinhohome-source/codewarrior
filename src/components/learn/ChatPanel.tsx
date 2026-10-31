@@ -11,6 +11,7 @@ import { frontier } from "@/lib/progress";
 import { lessonById } from "@/lib/learn/lessons";
 import { recentMistakes, tutorContext } from "@/lib/learn/insights";
 import { appendMessages, addRecent, createConversation, getConversation } from "@/lib/learn/store";
+import { HELPER_ACTIONS, helperFallback, helperReply } from "@/lib/tutor/helper";
 import { askTutor, checkTutor, isTutorError, type TutorError, type TutorStatus } from "@/lib/tutor/client";
 import { useSpeechInput, useSpeechOutput } from "@/lib/tutor/voice";
 import type { TutorContext } from "../../../tutor-server/src/protocol";
@@ -118,6 +119,12 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
     const r = await askTutor(c.messages.map((m) => ({ role: m.role, content: m.content })), context(action, c.focus), ctl.current.signal);
     setBusy(false);
     if (isTutorError(r)) {
+      // Free allowance used up or the server is unreachable: answer from the built-in helper.
+      if (r.code === "rate_limited" || r.code === "network" || r.code === "unavailable" || r.code === "unconfigured") {
+        const last = c.messages[c.messages.length - 1];
+        await local(c, helperFallback(helperInput(c, last?.content || "", action), r.code === "rate_limited" ? "limit" : "offline"), action);
+        return;
+      }
       setError({ ...r, pending: { action } });
       return;
     }
@@ -129,10 +136,32 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
     }
   };
 
+  const helperInput = (c: Conversation, body: string, action?: string) => {
+    const f = progress ? frontier(progress) : null;
+    const w = f ? WORLDS[f.w] : null;
+    return {
+      action,
+      text: body,
+      focus: c.focus,
+      lesson: lessonById(c.lessonId || lessonId),
+      course: profile.course,
+      round: c.messages.filter((m) => m.role === "assistant" && m.meta?.action === action).length,
+      boss: f && w ? { name: w.enemies[BOSS].name, world: f.w, worldName: w.name, topic: w.topic } : undefined,
+    };
+  };
+
+  // Stores a built-in helper reply (not AI).
+  const local = async (c: Conversation, content: string, action?: string) => {
+    const next = await appendMessages(c.id, [{ role: "assistant", content, at: Date.now(), meta: { provider: "helper", action } }]);
+    if (next) {
+      setConvo(next);
+      onConversation?.(next);
+    }
+  };
+
   const send = async (raw: string, action?: string, extra: Partial<Conversation> = {}) => {
     const body = raw.trim();
     if (!body || busy) return;
-    if (!online) return;
     if (body.length > LIMITS.maxMessageChars) {
       setError({ code: "too_large", message: `That message is ${body.length} characters; the limit is ${LIMITS.maxMessageChars}. Shorten it or paste less code.`, pending: {} });
       return;
@@ -143,6 +172,10 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
     if (!withMsg) return;
     setConvo(withMsg);
     setText("");
+    // Buttons the helper can answer never use the AI (keeps the free AI allowance for real questions).
+    const canned = action && (HELPER_ACTIONS.has(action) || action === "check-reasoning") ? helperReply(helperInput(withMsg, body, action)) : null;
+    if (canned && (HELPER_ACTIONS.has(action!) || !online)) return local(withMsg, canned, action);
+    if (!online) return local(withMsg, helperFallback(helperInput(withMsg, body, action), "offline"), action);
     await request(withMsg, action);
   };
 
@@ -150,10 +183,6 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
   useEffect(() => {
     if (!seed || handled.current === seed.key || status.state === "checking") return;
     handled.current = seed.key;
-    if (!online) {
-      if (seed.text) setText(seed.text);
-      return;
-    }
     const startNew = !!seed.focus && seed.focus !== convoRef.current?.focus;
     const go = async () => {
       if (startNew && convoRef.current) {
@@ -220,9 +249,9 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
       {/* status bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-line bg-sky px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ background: online ? (status.test ? "#FFB84D" : "#3EC46D") : status.state === "checking" ? "#C5D7EC" : "#FF8A8F" }} />
+          <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ background: online ? (status.test ? "#FFB84D" : "#3EC46D") : status.state === "checking" ? "#C5D7EC" : "#FFB84D" }} />
           <span className="truncate text-sm font-black text-ink">
-            {status.state === "checking" ? "Connecting to the tutor…" : online ? (status.test ? "TEST MODE · mock replies, not a real AI" : "AI tutor online") : "AI tutor offline"}
+            {status.state === "checking" ? "Connecting to the tutor…" : online ? (status.test ? "TEST MODE · mock replies, not a real AI" : "AI tutor online · study helper built in") : "Study helper ready · AI tutor offline"}
           </span>
           {lesson && <span className="hidden truncate rounded-full bg-white px-2.5 py-0.5 text-xs font-black text-ocean-deep sm:inline">{lesson.title}</span>}
         </div>
@@ -256,21 +285,21 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
 
       {/* messages */}
       <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-4 sm:px-5" aria-live="polite">
-        {status.state === "unconfigured" || status.state === "offline" ? (
+        {(status.state === "unconfigured" || status.state === "offline") && !convo?.messages.length ? (
           <div className="rounded-2xl bg-[#FFF6E5] px-4 py-3 text-[15px] font-semibold text-[#6B4A00]">
-            <p className="font-black">The AI tutor isn&apos;t available right now.</p>
-            <p className="mt-1">{status.state === "offline" ? status.reason : "This site hasn't been connected to a tutor server yet."} Lessons, worked examples and verified practice all still work, and the practice buttons below don&apos;t need the AI.</p>
+            <p className="font-black">The AI tutor is offline, but the study helper works.</p>
+            <p className="mt-1">The buttons below (hints, explanations, examples, why was I wrong) are answered by the built-in study helper from the lessons and verified answers. It isn&apos;t AI, so typed questions get matched to the closest lesson.</p>
           </div>
         ) : null}
         {convo?.focus && (
           <details className="rounded-2xl bg-sky px-4 py-2 text-sm font-semibold text-ink-soft">
             <summary className="cursor-pointer font-black text-ink">About this question</summary>
-            <pre className="mt-2 whitespace-pre-wrap font-mono text-[13px]">{convo.focus.replace(/\n\nVerified correct answer:[\s\S]*$/, "")}</pre>
+            <pre className="mt-2 whitespace-pre-wrap font-mono text-[13px]">{convo.focus.replace(/\n\nVerified correct answer:[\s\S]*$/, "").replace(/\n\nQuestion hint:[^\n]*/, "")}</pre>
           </details>
         )}
-        {!convo?.messages.length && online && (
+        {!convo?.messages.length && status.state !== "checking" && (
           <div className="text-[15px] font-semibold text-ink-soft">
-            <p>Ask anything about {profile.course === "csa" ? "AP CSA Java" : "AP CSP"}: a concept, a mistake, or paste code you&apos;re stuck on.</p>
+            <p>{online ? <>Ask anything about {profile.course === "csa" ? "AP CSA Java" : "AP CSP"}: a concept, a mistake, or paste code you&apos;re stuck on.</> : "Pick a button below or type a topic."}</p>
           </div>
         )}
         {convo?.messages.map((m, i) => {
@@ -283,7 +312,7 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
             <div key={id} className="mr-auto w-full max-w-[96%] rounded-2xl rounded-bl-md bg-[#F3F7FD] px-4 py-3 text-[15.5px] font-semibold text-ink">
               <Markdown text={m.content} />
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-bold text-ink-mute">
-                <span>{m.meta?.provider === "mock" ? "Mock reply (test mode)" : "AI tutor · can make mistakes"}</span>
+                <span>{m.meta?.provider === "mock" ? "Mock reply (test mode)" : m.meta?.provider === "helper" ? "Study helper · built in, not AI · from verified lessons" : "AI tutor · can make mistakes"}</span>
                 {speech.supported && (
                   <button type="button" className="font-black text-ocean-deep hover:underline" onClick={() => (speech.speakingId === id ? speech.stop() : speech.speak(id, m.content))} aria-pressed={speech.speakingId === id}>
                     {speech.speakingId === id ? "■ Stop reading" : "▶ Read aloud"}
@@ -315,26 +344,26 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
       <div className="flex gap-2 overflow-x-auto border-t-2 border-line px-3 py-2 sm:flex-wrap" role="toolbar" aria-label="Tutor actions">
         {ACTIONS.filter((a) => (a.id !== "why-wrong" || hasMiss) && (a.id !== "boss-prep" || bossNext)).map((a) => {
           const verified = (a.id === "quiz" || a.id === "harder-problem") && lesson;
-          if (!online && verified)
+          if (verified)
             return (
               <Link key={a.id} href={practiceHref(a.id === "quiz" ? "mixed" : "exam")} className="flex-none rounded-full border-2 border-grass bg-white px-3 py-1.5 text-sm font-black text-[#2BA155] hover:bg-[#E3F9EA]">
                 {a.label} (verified practice)
               </Link>
             );
           return (
-            <button key={a.id} type="button" disabled={!online || busy} onClick={() => runAction(a)} className="flex-none rounded-full border-2 border-line bg-white px-3 py-1.5 text-sm font-black text-ink hover:border-ocean disabled:opacity-45">
+            <button key={a.id} type="button" disabled={busy || ((a.id === "quiz" || a.id === "harder-problem") && !online)} onClick={() => runAction(a)} className="flex-none rounded-full border-2 border-line bg-white px-3 py-1.5 text-sm font-black text-ink hover:border-ocean disabled:opacity-45">
               {a.label}
             </button>
           );
         })}
-        {online && lesson && (
+        {lesson && (
           <Link href={practiceHref("mixed")} className="flex-none rounded-full border-2 border-grass bg-white px-3 py-1.5 text-sm font-black text-[#2BA155] hover:bg-[#E3F9EA]">
             Verified practice set
           </Link>
         )}
       </div>
 
-      {suggestions.length > 0 && online && (
+      {suggestions.length > 0 && status.state !== "checking" && (
         <div className="flex flex-wrap gap-2 px-3 pb-2">
           {suggestions.map((s) => (
             <button key={s} type="button" onClick={() => send(s)} disabled={busy} className="rounded-xl bg-sky px-3 py-1.5 text-left text-sm font-bold text-ocean-deep hover:bg-ocean-soft disabled:opacity-50">
@@ -365,12 +394,11 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
             }
           }}
           rows={Math.min(8, Math.max(1, cleanText.split("\n").length))}
-          disabled={!online}
-          placeholder={online ? "Ask a question or paste code" : "The AI tutor is offline."}
+          placeholder={online ? "Ask a question or paste code" : "Type a topic, e.g. integer division"}
           className="min-h-[46px] flex-1 resize-none rounded-2xl border-[3px] border-line bg-white px-3.5 py-2.5 font-mono text-[15px] text-ink outline-none focus:border-ocean disabled:opacity-60"
           style={{ fontFamily: cleanText.includes("\n") || /[;{}]/.test(cleanText) ? undefined : "Nunito, sans-serif" }}
         />
-        {voice.supported && online && (
+        {voice.supported && (
           <button
             type="button"
             onClick={() => (voice.listening ? voice.stop() : voice.start())}
@@ -385,7 +413,7 @@ export default function ChatPanel({ accountId, profile, progress, attempts, conv
         {busy ? (
           <Button type="button" tone="white" onClick={stop}>STOP</Button>
         ) : (
-          <Button type="submit" disabled={!online || !cleanText.trim()}>SEND</Button>
+          <Button type="submit" disabled={!cleanText.trim()}>SEND</Button>
         )}
       </form>
       {(voice.listening || voice.error) && (

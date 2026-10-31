@@ -80,7 +80,7 @@ export function mock(delayMs = 250): Provider {
 // Workers Free plan: it includes a daily allowance, and past it requests fail with an error
 // instead of charging. Default model: Mistral Small 3.1 (Apache 2.0 licence).
 export type WorkersAI = { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
-export const WORKERS_AI_DEFAULT_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct";
+export const WORKERS_AI_DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
 export function workersAI(ai: WorkersAI, model: string): Provider {
   return {

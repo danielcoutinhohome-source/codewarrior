@@ -128,6 +128,7 @@ export function describeForTutor(item: PracticeItem, reveal: boolean, given?: st
   if (q.code) parts.push(`Code:\n${q.code}`);
   if (q.options) parts.push(`Options:\n${q.options.map((o, i) => `${i + 1}. ${o}`).join("\n")}`);
   if (q.lines) parts.push(`Lines to order (shown shuffled to the student):\n${q.lines.join("\n")}`);
+  parts.push(`Question hint: ${q.hint}`);
   if (given !== undefined) parts.push(`Student answered: ${given}`);
   if (reveal) parts.push(`Verified correct answer: ${answerText(q)}\nVerified explanation: ${q.explain}`);
   return parts.join("\n\n");

@@ -10,6 +10,7 @@ import { parseGrade, LIMITS } from "../tutor-server/src/protocol";
 import { ProviderError, providerFromEnv, workersAI, type Provider } from "../tutor-server/src/providers";
 import { systemPrompt } from "../tutor-server/src/prompt";
 import { fitHistory } from "../src/lib/tutor/client";
+import { HELPER_ACTIONS, helperFallback, helperReply, parseFocus, searchLessons } from "../src/lib/tutor/helper";
 import { PLAYER_MOVESETS } from "../src/lib/playerCombat";
 import { ENEMY_MOVESETS } from "../src/lib/enemyCombat";
 
@@ -180,7 +181,7 @@ async function server() {
   // Free Cloudflare Workers AI provider (binding, no key).
   const fakeAI = (impl: (m: string, i: Record<string, unknown>) => Promise<unknown>) => ({ run: impl });
   const wa = providerFromEnv({ AI: fakeAI(async () => ({ response: "ok" })) });
-  ok(wa?.name === "workers-ai" && wa.model.includes("mistral"), "Workers AI is the default when the binding exists");
+  ok(wa?.name === "workers-ai" && wa.model.includes("llama-3.1-8b"), "Workers AI is the default when the binding exists");
   let seenInput: Record<string, unknown> = {};
   r = await handle(post(chat("hi")), env, "w1", workersAI(fakeAI(async (_m, i) => { seenInput = i; return { response: "Free reply" }; }), "@cf/test"));
   ok(r.status === 200 && (await r.json()).reply === "Free reply", "Workers AI reply returned");
@@ -236,10 +237,50 @@ async function sounds() {
   checks++;
 }
 
+// ---- built-in study helper (no AI) ----
+function helper() {
+  for (const l of LESSONS) {
+    const base = { text: "help", lesson: l, course: l.course };
+    for (const action of ["hint", "explain-differently", "simpler-example"]) for (let round = 0; round < 4; round++) {
+      const r = helperReply({ ...base, action, round });
+      ok(r && r.length > 20, `${l.id}: helper ${action} round ${round} empty`);
+    }
+    ok(helperReply({ ...base, action: "simpler-example", round: 0 })!.includes(l.example.code.split("\n")[0]), `${l.id}: example missing`);
+    // Real practice questions from this lesson: hints never leak the answer before it's given,
+    // and "why wrong" states the verified answer.
+    const items = buildPracticeSet({ course: l.course, lessonId: l.id, difficulty: "mixed", count: 4, includeExplain: false, seed: 11 });
+    for (const it of items) {
+      if (it.type !== "question") continue;
+      const pre = describeForTutor(it, false, undefined);
+      const f = parseFocus(pre);
+      ok(f.hint === it.q.hint.trim(), `${l.id}: hint not parsed`);
+      ok(!f.answer, `${l.id}: answer leaked before answering`);
+      ok(helperReply({ ...base, action: "hint", round: 0, focus: pre })!.includes(it.q.hint.trim()), `${l.id}: first hint should be the question's hint`);
+      const post = describeForTutor(it, true, "wrong guess");
+      const why = helperReply({ ...base, action: "why-wrong", round: 0, focus: post });
+      const ans = it.q.kind === "choice" ? it.q.options![it.q.correct!] : it.q.kind === "order" ? it.q.lines![0] : it.q.answers![0];
+      ok(why && why.includes(ans) && why.includes("wrong guess"), `${l.id}: why-wrong missing verified answer`);
+    }
+  }
+  // Recent-mistake focus (from the dashboard) and boss prep.
+  const why = helperReply({ action: "why-wrong", text: "", course: "csa", round: 0, focus: "A question the student missed recently (practice, skill: Integer division): What does 7 / 2 print?\nStudent answered: 3.5\nVerified correct answer: 3" });
+  ok(why?.includes("`3`") && why.includes("Integer math"), "dashboard why-wrong");
+  ok(helperReply({ action: "boss-prep", text: "", course: "csa", round: 0, boss: { name: "B", world: 0, worldName: "W", topic: "t" } })?.includes("Integer math"), "boss prep lists lessons");
+  ok(helperReply({ action: "why-wrong", text: "", course: "csa", round: 0 }) === null, "why-wrong without a question must defer");
+  ok(helperReply({ action: undefined, text: "what is a loop", course: "csa", round: 0 }) === null, "free text goes to AI");
+  // Search finds the right lesson for common questions.
+  ok(searchLessons("integer division", "csa")[0]?.id === "csa-int-math", "search: integer division");
+  for (const l of LESSONS) ok(searchLessons(l.title, l.course)[0]?.id === l.id, `search: own title ${l.id}`);
+  ok(helperFallback({ text: "integer division", course: "csa", round: 0 }, "offline").includes("not AI"), "fallback labels itself");
+  ok(helperFallback({ text: "zzzz qqqq", course: "csa", round: 0 }, "limit").includes("couldn't match"), "fallback no match");
+  ok(HELPER_ACTIONS.has("hint") && !HELPER_ACTIONS.has("quiz"), "helper actions");
+}
+
 (async () => {
+  helper();
   await server();
   await sounds();
-  console.log(`learn tests passed: ${LESSONS.length} lessons, ${checks} checks (lessons, practice, insights, tutor server, sounds)`);
+  console.log(`learn tests passed: ${LESSONS.length} lessons, ${checks} checks (lessons, practice, insights, study helper, tutor server, sounds)`);
 })().catch((e) => {
   console.error(e);
   process.exit(1);
