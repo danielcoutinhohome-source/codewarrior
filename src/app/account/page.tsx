@@ -61,7 +61,6 @@ function AccountSettings() {
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <PasswordCard me={me} onChanged={(m) => { setCloud({ token: cloud.token, me: m }); if (m.role === "teacher") router.push("/teacher/"); }} />
         {!me.mustChangePassword && <NameCard me={me} token={cloud.token} />}
-        {!me.mustChangePassword && me.role === "teacher" && <InvitesCard />}
         {!me.mustChangePassword && me.role === "student" && <ImportCard />}
         <section className="card flex flex-col gap-3 p-5">
           <h2 className="font-display text-2xl">Sign out</h2>
@@ -151,48 +150,6 @@ function NameCard({ me, token }: { me: Me; token: string }) {
       {msg && <p role="status" className="text-sm font-black text-ink-soft">{msg}</p>}
       <Button type="submit" tone="white" disabled={!name.trim() || name === me.displayName}>SAVE NAME</Button>
     </form>
-  );
-}
-
-type Invite = { id: string; hint: string; createdAt: number; expiresAt: number; usedAt: number | null; usedBy: string | null; revoked: boolean };
-function InvitesCard() {
-  const [list, setList] = useState<Invite[] | null>(null);
-  const [fresh, setFresh] = useState<{ code: string; expiresAt: number } | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const load = useCallback(async () => {
-    try {
-      setList((await api<{ invites: Invite[] }>("GET", "/teacher/invites")).invites);
-    } catch (e) {
-      setErr(errorText(e));
-    }
-  }, []);
-  useEffect(() => void load(), [load]);
-  return (
-    <section className="card flex flex-col gap-3 p-5">
-      <h2 className="font-display text-2xl">Invite another teacher</h2>
-      <p className="text-sm font-bold text-ink-soft">Each invite works once and expires in 7 days. Share it only with the teacher it&apos;s for. They create their account at <span className="font-mono">/teacher/signup</span>.</p>
-      <Button tone="white" onClick={async () => { try { setFresh(await api("POST", "/teacher/invites")); await load(); } catch (e) { setErr(errorText(e)); } }}>CREATE INVITE CODE</Button>
-      {fresh && (
-        <div className="rounded-2xl bg-gold-soft px-3 py-2">
-          <div className="font-mono text-lg font-black tracking-wider">{fresh.code}</div>
-          <div className="text-xs font-bold text-ink-soft">Shown once. Expires {new Date(fresh.expiresAt).toLocaleDateString()}.</div>
-          <button type="button" className="mt-1 text-xs font-black text-ocean-deep" onClick={() => void navigator.clipboard?.writeText(fresh.code)}>Copy</button>
-        </div>
-      )}
-      {err && <p role="alert" className="text-sm font-black text-danger-deep">{err}</p>}
-      {!!list?.length && (
-        <ul className="flex flex-col gap-1 text-sm font-bold text-ink-soft">
-          {list.map((i) => (
-            <li key={i.id} className="flex flex-wrap items-center justify-between gap-2">
-              <span>…{i.hint} · {i.usedAt ? `used by ${i.usedBy}` : i.revoked ? "revoked" : i.expiresAt < Date.now() ? "expired" : `unused, expires ${new Date(i.expiresAt).toLocaleDateString()}`}</span>
-              {!i.usedAt && !i.revoked && i.expiresAt > Date.now() && (
-                <button type="button" className="text-xs font-black text-danger-deep" onClick={async () => { await api("DELETE", `/teacher/invites/${i.id}`); await load(); }}>Revoke</button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
 

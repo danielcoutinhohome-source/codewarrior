@@ -138,8 +138,7 @@ function Dashboard() {
         <Card title="Teacher dashboard">
           <p className="font-bold text-ink-soft">Sign in with your teacher account to see your classes. Results from your students&apos; devices appear here automatically.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <ButtonLink href="/login/">SIGN IN</ButtonLink>
-            <ButtonLink href="/teacher/signup/" tone="white">I HAVE A TEACHER INVITE</ButtonLink>
+            <ButtonLink href="/login/?as=teacher">TEACHER SIGN IN</ButtonLink>
           </div>
           <p className="mt-3 text-sm font-bold text-ink-mute">Not using class accounts? The <Link href="/teacher/codes/" className="font-black text-ocean-deep">offline progress-code table</Link> still works.</p>
         </Card>

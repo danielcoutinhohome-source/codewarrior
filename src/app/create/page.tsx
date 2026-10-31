@@ -74,7 +74,6 @@ export default function CreatePage() {
         <Link href="/" aria-label="CodeWarrior home"><Logo /></Link>
         <span className="font-bold">
           Already a warrior? <Link href="/login/" className="font-black text-ocean-deep underline-offset-4 hover:underline">Log in</Link>
-          {classroomEnabled() && <> · <Link href="/teacher/signup/" className="font-black text-ocean-deep underline-offset-4 hover:underline">Teacher with an invite?</Link></>}
         </span>
       </header>
 

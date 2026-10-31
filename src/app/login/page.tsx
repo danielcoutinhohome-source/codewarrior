@@ -20,9 +20,9 @@ export default function LoginPage() {
   const [pass, setPass] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"class" | "device">("device");
+  const [mode, setMode] = useState<"student" | "teacher" | "device">("device");
   useEffect(() => {
-    if (classroomEnabled()) setMode("class");
+    if (classroomEnabled()) setMode(new URLSearchParams(window.location.search).get("as") === "teacher" ? "teacher" : "student");
   }, []);
   const shake = useAnimationControls();
 
@@ -38,8 +38,13 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "class") {
+      if (mode !== "device") {
         const r = await api<{ token: string; me: Me }>("POST", "/auth/login", { username: name.trim(), password: pass }, { token: null });
+        // Teachers sign in on the Teacher tab, students on the Student tab.
+        if ((mode === "teacher") !== (r.me.role === "teacher")) {
+          await api("POST", "/auth/logout", undefined, { token: r.token }).catch(() => {});
+          throw new Error(r.me.role === "teacher" ? "That's a teacher account. Use the Teacher tab." : "That's a student account. Use the Student tab.");
+        }
         setCloud(r);
         if (r.me.mustChangePassword) return router.push("/account/?change=1");
         if (r.me.role === "teacher") return router.push("/teacher/");
@@ -68,17 +73,19 @@ export default function LoginPage() {
         <motion.form onSubmit={submit} animate={shake} className="card flex min-w-0 flex-[1_1_360px] flex-col gap-5 p-8">
           <h1 className="font-display text-[44px] leading-none">Welcome back</h1>
           {classroomEnabled() && (
-            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-sky p-1" role="tablist" aria-label="Account type">
-              {([["class", "Class account"], ["device", "This device"]] as const).map(([v, label]) => (
+            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-sky p-1" role="tablist" aria-label="Account type">
+              {([["student", "Student"], ["teacher", "Teacher"], ["device", "This device"]] as const).map(([v, label]) => (
                 <button key={v} type="button" role="tab" aria-selected={mode === v} onClick={() => { setMode(v); setError(null); }} className="rounded-xl py-2 text-sm font-black" style={{ background: mode === v ? "#FFFFFF" : "transparent", color: mode === v ? "#1F2440" : "#4A5175", boxShadow: mode === v ? "0 2px 0 #D5E4F5" : undefined }}>
                   {label}
                 </button>
               ))}
             </div>
           )}
-          {mode === "class" && <p className="-mt-2 text-sm font-bold text-ink-soft">Students and teachers with a class account sign in here, on any device.</p>}
+          {mode === "student" && <p className="-mt-2 text-sm font-bold text-ink-soft">Sign in to your class account, on any device.</p>}
+          {mode === "teacher" && <p className="-mt-2 text-sm font-bold text-ink-soft">Teacher accounts are set up by CodeWarrior. There&apos;s no sign-up for teachers.</p>}
+          {mode === "device" && classroomEnabled() && <p className="-mt-2 text-sm font-bold text-ink-soft">Warriors saved only in this browser.</p>}
           <label className="field-label" htmlFor="li-name">
-            {mode === "class" ? "Username" : "Warrior name"}
+            {mode === "device" ? "Warrior name" : "Username"}
             <input id="li-name" className="field" autoComplete="username" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="field-label" htmlFor="li-pass">
@@ -103,7 +110,7 @@ export default function LoginPage() {
           </Button>
         </motion.form>
 
-        <section className="card min-w-0 flex-[1_1_320px] p-7" hidden={mode === "class"}>
+        <section className="card min-w-0 flex-[1_1_320px] p-7" hidden={mode !== "device"}>
           <h2 className="font-display text-2xl">Warriors on this device</h2>
           {warriors === null ? null : warriors.length === 0 ? (
             <p className="mt-3 font-bold text-ink-soft">

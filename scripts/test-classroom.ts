@@ -127,10 +127,11 @@ async function main() {
     eq((await call("POST", "/auth/register", undefined, { username: "Ava_Student", password: "whatever123" })).status, 409, "usernames are unique ignoring case");
     eq((await call("PATCH", "/me", s1.token, { role: "teacher", displayName: "Ava" })).body.me.role, "student", "profile update can't change role");
     eq((await call("POST", "/classes", s1.token, { name: "Hack", course: "csa" })).status, 403, "student can't create classes");
-    eq((await call("POST", "/teacher/invites", s1.token)).status, 403, "student can't issue teacher invites");
+    eq((await call("POST", "/teacher/invites", T)).status, 404, "there is no teacher invite endpoint");
     eq((await call("POST", "/admin/provision-teacher", s1.token, { username: "evil", password: "password123" })).status, 401, "student token isn't an admin token");
     eq((await call("GET", `/classes/${cls.id}/summary`, s1.token)).status, 403, "student can't read teacher summary");
-    eq((await call("POST", "/auth/register", undefined, { username: "fake_teacher", password: "password123", invite: "ABCD-EFGH-JKMN" })).status, 400, "made-up invite rejected");
+    const sneaky = await call("POST", "/auth/register", undefined, { username: "fake_teacher", password: "password123", invite: "ABCD-EFGH-JKMN", role: "teacher" });
+    eq(sneaky.body.me.role, "student", "sign-up can never make a teacher");
 
     // ---- joining ----
     eq((await call("POST", "/join", s1.token, { code: "ZZZZZZZZ" })).body.error, "invalid_code", "wrong code");
@@ -154,12 +155,12 @@ async function main() {
     eq((await call("GET", `/classes/${cls.id}/summary`, T)).body.students.length, 2, "rotation kept members");
     eq((await call("POST", "/join", (await signup("late_kid")).token, { code: cls.joinCode })).body.error, "invalid_code", "old code no longer works");
 
-    // ---- a second teacher (via single-use invite) is isolated ----
-    const inv = await call("POST", "/teacher/invites", T);
-    ok(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/.test(inv.body.code), "invite code issued");
-    const t2 = await call("POST", "/auth/register", undefined, { username: "other_teacher", password: "password456", invite: inv.body.code });
-    eq(t2.body.me.role, "teacher", "invite makes a teacher");
-    eq((await call("POST", "/auth/register", undefined, { username: "second_use", password: "password456", invite: inv.body.code })).status, 400, "invite is single-use");
+    // ---- a second teacher (provisioned server-side, like every teacher) is isolated ----
+    eq((await call("POST", "/admin/provision-teacher", ADMIN, { username: "other_teacher", password: "password456" })).body.status, "created", "second teacher provisioned");
+    const t2pre = await call("POST", "/auth/login", undefined, { username: "other_teacher", password: "password456" });
+    const t2 = await call("POST", "/auth/password", t2pre.body.token, { current: "password456", next: "password789" });
+    eq(t2.body.me.role, "teacher", "second teacher signed in");
+    t2.body.token = t2pre.body.token;
     const T2 = t2.body.token;
     eq((await call("GET", `/classes/${cls.id}/summary`, T2)).status, 404, "other teacher can't see the class");
     eq((await call("PATCH", `/classes/${cls.id}`, T2, { name: "mine now" })).status, 404, "other teacher can't edit the class");
@@ -318,7 +319,7 @@ async function main() {
 
     ws.close();
     ws2.close();
-    console.log(`classroom tests passed: ${checks} checks (auth, roles, provisioning, invites, enrollment, isolation, ingestion, idempotency, sharing, assignments, feedback, export, progress, live updates)`);
+    console.log(`classroom tests passed: ${checks} checks (auth, roles, provisioning, enrollment, isolation, ingestion, idempotency, sharing, assignments, feedback, export, progress, live updates)`);
   } finally {
     stop(proc);
     rmSync(dir, { recursive: true, force: true });

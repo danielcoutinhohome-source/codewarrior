@@ -85,7 +85,7 @@ async function main() {
 
     // 1-2. Teacher signs in with the starter password and must change it.
     await T.goto(`${SITE}/login/`);
-    await T.getByRole("tab", { name: "Class account" }).click();
+    await T.getByRole("tab", { name: "Teacher" }).click();
     await T.fill("#li-name", "E2ETeacher");
     await T.fill("#li-pass", "Starter-pass-1");
     await T.getByRole("button", { name: /ENTER/ }).click();
@@ -193,7 +193,7 @@ async function main() {
     await T.getByText("Completed: 1").waitFor();
     await T.getByRole("button", { name: "Sign out" }).click();
     await T.goto(`${SITE}/login/`);
-    await T.getByRole("tab", { name: "Class account" }).click();
+    await T.getByRole("tab", { name: "Teacher" }).click();
     await T.fill("#li-name", "e2eteacher");
     await T.fill("#li-pass", "Teacher-new-pass-2");
     await T.getByRole("button", { name: /ENTER/ }).click();
@@ -205,7 +205,7 @@ async function main() {
     const S2ctx = await ctx(true);
     const S2 = await S2ctx.newPage();
     await S2.goto(`${SITE}/login/`);
-    await S2.getByRole("tab", { name: "Class account" }).click();
+    await S2.getByRole("tab", { name: "Student" }).click();
     await S2.fill("#li-name", "ava_e2e");
     await S2.fill("#li-pass", "student-pass-1");
     await S2.getByRole("button", { name: /ENTER/ }).click();
@@ -262,13 +262,22 @@ async function main() {
     assert.ok(queued > 0, "Ava's events are still queued on the device");
     // Ava signs back in on that device: her queued battle uploads to her account.
     await S.goto(`${SITE}/login/`);
-    await S.getByRole("tab", { name: "Class account" }).click();
+    await S.getByRole("tab", { name: "Student" }).click();
     await S.fill("#li-name", "ava_e2e");
     await S.fill("#li-pass", "student-pass-1");
     await S.getByRole("button", { name: /ENTER/ }).click();
     await S.waitForURL(/\/map\//);
     await T.locator("li", { hasText: "Ava E." }).filter({ hasText: "Battle 3" }).filter({ hasText: "Won" }).first().waitFor({ timeout: 20_000 });
     step("switching accounts kept Ava's queued work out of Ben's account; it uploaded when Ava signed back in");
+
+    // The Teacher tab refuses student accounts.
+    const X = await (await ctx(false)).newPage();
+    await X.goto(`${SITE}/login/?as=teacher`);
+    await X.fill("#li-name", "ava_e2e");
+    await X.fill("#li-pass", "student-pass-1");
+    await X.getByRole("button", { name: /ENTER/ }).click();
+    await X.getByText("That's a student account. Use the Student tab.").waitFor();
+    step("the Teacher sign-in tab turns away a student account");
 
     // A student can't open the teacher dashboard.
     await S.goto(`${SITE}/teacher/`);

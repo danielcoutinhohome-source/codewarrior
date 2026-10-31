@@ -30,15 +30,16 @@ checks the role and ownership itself; the client's routes and buttons are conven
 
 - Public sign-up creates **students only**. The request body can't pick a role, and no profile
   update can change it.
-- **Teachers** come only from (a) server-side provisioning with a one-time admin token, or
-  (b) a single-use, expiring invite created by an existing teacher. Invites are stored hashed.
+- **Teachers** come only from server-side provisioning with a one-time admin token (the deploy
+  workflow). There is no teacher sign-up and no invite code. Teachers sign in on the **Teacher**
+  tab of the login page; students on the **Student** tab, and each tab refuses the other role.
 - Students: their own account, progress, memberships, published assignments, feedback.
 - Teachers: classes they own and, for students enrolled in those classes, the records the
   sharing policy below allows. Another teacher's class answers "not found".
 - The starter teacher must change the password before any class data opens.
 - Passwords: PBKDF2-SHA256 (Web Crypto), random salt, per-user iteration count (40,000 now,
-  limited by the free plan's CPU budget; raised later by rehashing on login). Login, sign-up,
-  invite and class-code attempts are rate limited in the database. Sessions are random tokens
+  limited by the free plan's CPU budget; raised later by rehashing on login). Login, sign-up
+  and class-code attempts are rate limited in the database. Sessions are random tokens
   stored as SHA-256 hashes, expire after 30 days, and are revoked on sign-out, on "sign out on all
   devices" and (other devices) on password change.
 - There is no email, so no self-service recovery. A teacher can be given a new starter password
@@ -98,19 +99,20 @@ Uses the same Cloudflare account, token and GitHub secrets as the AI tutor (see
 
 Add a repository secret **`TEACHER_INITIAL_PASSWORD`** (Settings → Secrets and variables →
 Actions). On the next deploy, the workflow generates a one-time admin token, sets it on the Worker,
-creates the teacher (username in the workflow, `DetrickD123`), and replaces the token with a random
+creates the teacher (`DetrickD123` unless a different username is typed when running it manually), and replaces the token with a random
 value nobody knows. It's idempotent: an existing teacher is never changed. The password is never
 in the repository, the site bundle or the logs. The teacher must change it at first sign-in.
 Delete the secret afterwards; it's only needed to (re)create the account.
 
 To reset the starter teacher's password (forgotten, or the starter password was exposed): set
 `TEACHER_INITIAL_PASSWORD` to a new value, then run the "Deploy to GitHub Pages" workflow manually
-with **Reset DetrickD123** ticked. All their sessions end and they must choose a new password.
+with that username and **Reset** ticked. All their sessions end and they must choose a new password.
 
-### Future teachers
+### Adding more teachers
 
-A signed-in teacher opens **Account → Invite another teacher**, and sends the code (valid once, 7
-days) to the new teacher, who signs up at `/teacher/signup/`.
+Run the "Deploy to GitHub Pages" workflow manually (Actions → Deploy to GitHub Pages → Run
+workflow) and type the new teacher's username. They get the `TEACHER_INITIAL_PASSWORD` secret as a
+starter password and must change it at first sign-in. Re-add the secret first if you deleted it.
 
 ## Local development
 
@@ -127,7 +129,7 @@ npx tsx scripts/e2e-classroom.ts       # browser acceptance test, two "devices" 
 ## Endpoints
 
 `/v1/auth/{register,login,logout,logout-all,password}`, `/v1/me`, `/v1/admin/provision-teacher`,
-`/v1/teacher/invites`, `/v1/classes[/:id[/rotate-code|archive|leave|membership|members/:sid|summary|students/:sid|sessions/:rid|export|feedback|assignments]]`,
+`/v1/classes[/:id[/rotate-code|archive|leave|membership|members/:sid|summary|students/:sid|sessions/:rid|export|feedback|assignments]]`,
 `/v1/assignments/:id`, `/v1/feedback/:id`, `/v1/join`, `/v1/student/home`, `/v1/progress`,
 `/v1/sync`, `/v1/live` (WebSocket), `/v1/health`.
 

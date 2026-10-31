@@ -165,34 +165,19 @@ export class Classroom extends DurableObject<Env> {
     if (!USERNAME_RE.test(username)) throw new HttpError(400, "bad_request", "Usernames are 3 to 20 letters, numbers or underscores.");
     const password = checkPassword(body.password, username);
     const displayName = str(body.displayName, 40, "Name") || username;
-    let role: "student" | "teacher" = "student";
-    let inviteHash: string | null = null;
-    if (body.invite !== undefined && body.invite !== "") {
-      this.guard(`invite-fail:${ip}`, 10, 3600_000, "Too many invalid invite codes. Try again later.");
-      inviteHash = await sha256(normalizeCode(str(body.invite, 40, "Invite code", { min: 1 })));
-      const inv = this.one<{ expires_at: number; used_by: string | null; revoked_at: number | null }>("SELECT expires_at, used_by, revoked_at FROM teacher_invites WHERE code_hash = ?", inviteHash);
-      if (!inv || inv.used_by || inv.revoked_at || inv.expires_at < now()) {
-        this.bump(`invite-fail:${ip}`, 3600_000);
-        throw new HttpError(400, "invalid_code", "That teacher invite code isn't valid. It may be used, expired or mistyped.");
-      }
-      role = "teacher";
-    }
+    // Sign-up only ever makes students. Teacher accounts exist only through server-side
+    // provisioning (see provision()); nothing in the request can change that.
     if (this.one("SELECT 1 FROM users WHERE username_lc = ?", username.toLowerCase())) throw new HttpError(409, "username_taken", "That username is taken. Try another.");
     const h = await hashPassword(password);
-    // Re-check after the await: another request may have taken the name or the invite meanwhile.
     const id = randomId();
     const t = now();
     this.ctx.storage.transactionSync(() => {
+      // Re-check after the await: another request may have taken the name meanwhile.
       if (this.one("SELECT 1 FROM users WHERE username_lc = ?", username.toLowerCase())) throw new HttpError(409, "username_taken", "That username is taken. Try another.");
-      if (inviteHash) {
-        const inv = this.one<{ used_by: string | null; revoked_at: number | null; expires_at: number }>("SELECT used_by, revoked_at, expires_at FROM teacher_invites WHERE code_hash = ?", inviteHash);
-        if (!inv || inv.used_by || inv.revoked_at || inv.expires_at < now()) throw new HttpError(400, "invalid_code", "That teacher invite code isn't valid anymore.");
-      }
       this.run(
-        "INSERT INTO users (id, username, username_lc, display_name, role, pw_hash, pw_salt, pw_iter, must_change_pw, created_via, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
-        id, username, username.toLowerCase(), displayName, role, h.hash, h.salt, h.iterations, inviteHash ? "invite" : "signup", t, t,
+        "INSERT INTO users (id, username, username_lc, display_name, role, pw_hash, pw_salt, pw_iter, must_change_pw, created_via, created_at, updated_at) VALUES (?, ?, ?, ?, 'student', ?, ?, ?, 0, 'signup', ?, ?)",
+        id, username, username.toLowerCase(), displayName, h.hash, h.salt, h.iterations, t, t,
       );
-      if (inviteHash) this.run("UPDATE teacher_invites SET used_by = ?, used_at = ? WHERE code_hash = ?", id, t, inviteHash);
     });
     this.bump(`reg:${ip}`, 3600_000);
     const token = await this.startSession(id);
@@ -279,30 +264,6 @@ export class Classroom extends DurableObject<Env> {
       randomId(), username, username.toLowerCase(), displayName, h.hash, h.salt, h.iterations, t, t,
     );
     return { status: "created", username };
-  }
-
-  private async createInvite(req: Request) {
-    const u = await this.teacher(req);
-    this.guard(`invites:${u.id}`, 20, DAY, "You've made a lot of invites today. Try again tomorrow.");
-    const code = randomCode(CODE_ALPHABET, 12);
-    const t = now();
-    this.run("INSERT INTO teacher_invites (code_hash, created_by, created_at, expires_at, hint) VALUES (?, ?, ?, ?, ?)", await sha256(code), u.id, t, t + 7 * DAY, code.slice(-4));
-    this.bump(`invites:${u.id}`, DAY);
-    return { code: `${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8)}`, expiresAt: t + 7 * DAY };
-  }
-  private async listInvites(req: Request) {
-    const u = await this.teacher(req);
-    return {
-      invites: this.all<{ hint: string; created_at: number; expires_at: number; used_at: number | null; revoked_at: number | null; used_name: string | null; code_hash: string }>(
-        "SELECT i.code_hash, i.hint, i.created_at, i.expires_at, i.used_at, i.revoked_at, u.display_name AS used_name FROM teacher_invites i LEFT JOIN users u ON u.id = i.used_by WHERE i.created_by = ? ORDER BY i.created_at DESC LIMIT 50",
-        u.id,
-      ).map((i) => ({ id: i.code_hash.slice(0, 16), hint: i.hint, createdAt: i.created_at, expiresAt: i.expires_at, usedAt: i.used_at, usedBy: i.used_name, revoked: !!i.revoked_at })),
-    };
-  }
-  private async revokeInvite(req: Request, id: string) {
-    const u = await this.teacher(req);
-    this.run("UPDATE teacher_invites SET revoked_at = ? WHERE created_by = ? AND substr(code_hash, 1, 16) = ? AND used_by IS NULL", now(), u.id, id);
-    return { ok: true };
   }
 
   // ---------- classes ----------
@@ -1166,9 +1127,6 @@ export class Classroom extends DurableObject<Env> {
         return json({ me: this.me(this.one<User>("SELECT * FROM users WHERE id = ?", u.id)!) });
       }
       if (r("POST", "admin", "provision-teacher")) return json(await this.provision(req, body, ip));
-      if (r("POST", "teacher", "invites")) return json(await this.createInvite(req), 201);
-      if (r("GET", "teacher", "invites")) return json(await this.listInvites(req));
-      if (r("DELETE", "teacher", "invites", "*")) return json(await this.revokeInvite(req, seg[2]));
 
       if (r("GET", "classes")) return json(await this.listClasses(req));
       if (r("POST", "classes")) return json(await this.createClass(req, body), 201);
