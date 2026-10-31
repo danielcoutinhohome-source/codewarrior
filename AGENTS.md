@@ -21,7 +21,7 @@ David with ChatGPT/Codex). These rules keep us from overwriting each other.
   combat, worlds. Battle results are also reported to classes; keep the calls to the reporter
   (`report.current?.attempt/finish`) when changing the battle page.
 - **Question bank** (`src/lib/questions/`): every Java question must compile and print what it
-  claims (`npm run verify`). Each world has the template counts the verifier expects. Don't
+  claims (`npm run verify`). Each world has exactly 100 templates (25 novice / 50 intermediate / 25 hard); add one, remove one. Don't
   change existing questions' `skill` names (saved progress and lessons refer to them).
 - **Learn Mode and tutor** (`src/app/learn`, `src/lib/learn`, `src/lib/tutor`, `tutor-server/`).
 - **Classroom** (`classroom-server/`, `src/lib/cloud/`, `src/app/teacher`, `src/app/classroom`):
@@ -39,5 +39,10 @@ David with ChatGPT/Codex). These rules keep us from overwriting each other.
 
 ## Currently working on
 
-- Daniel/Claude: expanding the question bank world by world (100 templates per world) and
-  question picking that avoids repeats unless a student keeps missing a question type.
+- (nothing in progress)
+
+## Recently finished
+
+- Daniel/Claude: question bank is now 100 templates per world (`src/lib/questions/more-w*.ts`),
+  and battles use the device's answer history (`src/lib/questions/history.ts`) so question
+  types don't repeat unless the student keeps missing them.

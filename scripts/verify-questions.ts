@@ -59,10 +59,9 @@ function check(q: Question) {
 
 let total = 0;
 BANKS.forEach((bank, w) => {
-  // Worlds grow from 60 templates (15/30/15) to 100 (25/50/25) as they are expanded.
-  const size = bank.length === 100 ? 100 : 60;
-  if (bank.length !== size) problems.push(`world ${w}: expected 60 or 100 templates, got ${bank.length}`);
-  for (const [tier, want] of (size === 100 ? [25, 50, 25] : [15, 30, 15]).entries()) {
+  // Each world: 100 templates, 25 novice / 50 intermediate / 25 hard.
+  if (bank.length !== 100) problems.push(`world ${w}: expected 100 templates, got ${bank.length}`);
+  for (const [tier, want] of [25, 50, 25].entries()) {
     const got = bank.filter((g) => g.tier === tier).length;
     if (got !== want) problems.push(`world ${w} tier ${tier}: expected ${want}, got ${got}`);
   }
