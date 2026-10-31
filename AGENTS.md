@@ -49,8 +49,9 @@ to work already in progress. Preserve the user's review-before-merge workflow.
 ## Currently working on
 
 - **Q1** / Codex (for David) / `codex/browser-quality-checks` (provisional claim; see PR).
-  Scope: `scripts/e2e-quality.ts`, `docs/QA.md`, Playwright dev dependency/lockfile,
-  browser-check job in `.github/workflows/check-questions.yml`. Inspect map/arena visuals;
+  Scope: `scripts/e2e-quality.ts`, `docs/QA.md`, `.gitignore` (QA artifacts), Playwright dev dependency/lockfile,
+  browser-check job in `.github/workflows/check-questions.yml`, and `src/app/page.tsx`
+  (account-saving copy only). Inspect map/arena visuals;
   any demonstrated runtime fix will be scoped here before editing. Claude Q4 and the
   battle results page are left with Claude. Handoff: add repeatable mobile/desktop QA.
 

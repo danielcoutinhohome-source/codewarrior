@@ -9,3 +9,6 @@ next-env.d.ts
 # local classroom/tutor dev secrets and state
 .dev.vars
 .wrangler/
+
+# disposable browser QA screenshots
+artifacts/

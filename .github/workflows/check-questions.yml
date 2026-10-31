@@ -29,3 +29,14 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /codewarrior
           NEXT_TELEMETRY_DISABLED: 1
+      - name: Install browser for visual and interaction checks
+        run: npx playwright install --with-deps chromium
+      - name: Check desktop and mobile journeys
+        run: npm run test:quality
+      - name: Save browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-quality-screenshots
+          path: artifacts/quality/
+          retention-days: 7
