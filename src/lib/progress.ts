@@ -140,24 +140,41 @@ export async function useItem(id: string, power: Power) {
 
 // ---- Backups (a file the student keeps) ----
 export async function exportBackup(id: string) {
-  const [account, progress] = await Promise.all([db.accounts.get(id), db.progress.get(id)]);
-  return JSON.stringify({ app: "codewarrior", v: 2, account, progress });
+  const [account, progress, learn, attempts, conversations] = await Promise.all([
+    db.accounts.get(id),
+    db.progress.get(id),
+    db.learn.get(id),
+    db.attempts.where("accountId").equals(id).toArray(),
+    db.conversations.where("accountId").equals(id).toArray(),
+  ]);
+  return JSON.stringify({ app: "codewarrior", v: 3, account, progress, learn, attempts, conversations });
 }
 
+// Accepts v2 backups (game only) and v3 backups (game plus Learn Mode data).
 export async function importBackup(text: string) {
   const data = JSON.parse(text);
   if (data?.app !== "codewarrior" || !data.account?.id || !data.progress?.id) throw new Error("That file isn't a CodeWarrior backup.");
-  await db.transaction("rw", db.accounts, db.progress, async () => {
+  const id = data.account.id as string;
+  await db.transaction("rw", [db.accounts, db.progress, db.learn, db.attempts, db.conversations], async () => {
     await db.accounts.put(data.account as Account);
     await db.progress.put(data.progress as Progress);
+    if (data.learn?.id === id) await db.learn.put(data.learn);
+    if (Array.isArray(data.attempts)) {
+      await db.attempts.where("accountId").equals(id).delete();
+      await db.attempts.bulkAdd(data.attempts.filter((a: { accountId?: string }) => a?.accountId === id).map(({ id: _drop, ...a }: { id?: number }) => a as never));
+    }
+    if (Array.isArray(data.conversations)) await db.conversations.bulkPut(data.conversations.filter((c: { accountId?: string }) => c?.accountId === id));
   });
   return data.account as Account;
 }
 
 export async function deleteWarrior(id: string) {
-  await db.transaction("rw", db.accounts, db.progress, async () => {
+  await db.transaction("rw", [db.accounts, db.progress, db.learn, db.attempts, db.conversations], async () => {
     await db.accounts.delete(id);
     await db.progress.delete(id);
+    await db.learn.delete(id);
+    await db.attempts.where("accountId").equals(id).delete();
+    await db.conversations.where("accountId").equals(id).delete();
   });
 }
 

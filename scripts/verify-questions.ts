@@ -4,6 +4,8 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BANKS, buildBattle, isRight, rng, type Question } from "../src/lib/questions/index";
+import { LESSONS } from "../src/lib/learn/lessons";
+import { gensForSkill } from "../src/lib/learn/lessons";
 
 const SEEDS = Number(process.env.SEEDS || 8);
 const dir = "/tmp/cw-verify";
@@ -84,6 +86,24 @@ BANKS.forEach((bank, w) => {
       if (new Set(qs.map((q) => q.skill)).size !== qs.length) problems.push(`world ${w} battle ${b}: repeated skill`);
     }
 });
+
+// Learn Mode: every lesson skill exists in the bank, every authored question is valid and
+// (for Java) compiles and prints what it claims, and every Java worked example's output is real.
+for (const l of LESSONS) {
+  for (const sk of l.skills) if (!gensForSkill(sk).length) problems.push(`lesson ${l.id}: unknown bank skill "${sk}"`);
+  for (const q of l.extras) {
+    check(q);
+    total++;
+    if (l.course === "csa" && !q.java) problems.push(`lesson ${l.id}: Java extra without verification (${q.skill})`);
+  }
+  if (l.example.lang === "java") {
+    if (!l.example.java) problems.push(`lesson ${l.id}: Java example without verification`);
+    else {
+      const ex: Question = { id: `example:${l.id}`, skill: `${l.id} example`, kind: "predict", prompt: l.example.title, code: l.example.code, answers: [l.example.output], hint: "-", explain: "-", java: { ...l.example.java, expect: l.example.output } };
+      add(ex, "example", l.example.java.src);
+    }
+  }
+}
 
 const runner = `import java.io.*;
 public class Runner {

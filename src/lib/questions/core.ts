@@ -14,6 +14,7 @@ export type Question = {
   lines?: string[]; // order: lines in the correct order
   hint: string;
   explain: string;
+  label?: string; // overrides the question-type header, e.g. "Find and fix the bug"
   // For automated checking with real Java (scripts/verify-questions).
   java?: { src: string; wrap: "main" | "class" | "file"; expect: string };
 };

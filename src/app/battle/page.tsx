@@ -16,6 +16,9 @@ import { POTION_HEAL, advance, answer, current, startBattle, summary, useHint, u
 import { BOSS, key, PLAYER_HP, POWERS, SHOP, WORLDS, type Power } from "@/lib/game";
 import { battleUnlocked, recordBattle, useItem, type Rewards } from "@/lib/progress";
 import { buildBattle, isRight } from "@/lib/questions";
+import { recordAttempt } from "@/lib/learn/store";
+import { isCspSkill } from "@/lib/learn/lessons";
+import { answerText, givenText } from "@/lib/learn/practice";
 import { play } from "@/lib/sfx";
 import { ENEMY_MOVESETS } from "@/lib/enemyCombat";
 import { useWarrior } from "@/lib/useWarrior";
@@ -133,6 +136,13 @@ function Battle() {
     if (!s || !arena.current) return;
     const q = current(s);
     const right = isRight(q, value as never);
+    // Learn Mode uses these to find recent mistakes. Recorded once per resolved question.
+    if (account && (right || s.attempt >= 1)) {
+      void recordAttempt({
+        accountId: account.id, source: "battle", course: isCspSkill(q.skill) ? "csp" : "csa", world: w, skill: q.skill, kind: q.kind, qid: q.id,
+        correct: right, firstTry: right && s.attempt === 0 && !s.hinted, given: givenText(q, value), expected: answerText(q), prompt: q.prompt, code: q.code,
+      });
+    }
     setPhase("busy");
     play(right ? "right" : "wrong");
     const { state, events } = answer(s, right);
@@ -407,7 +417,7 @@ function EndScreen({ end, w, b, onAgain }: { end: { victory: boolean; rewards: R
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button onClick={onAgain}>TRY AGAIN</Button>
             <ButtonLink href={`/map/?w=${w}`} tone="white">WORLD MAP</ButtonLink>
-            <ButtonLink href="/shop/" tone="white">SHOP</ButtonLink>
+            <ButtonLink href="/learn/" tone="violet">REVIEW IN LEARN</ButtonLink>
           </div>
         </div>
       </Modal>
@@ -455,6 +465,7 @@ function EndScreen({ end, w, b, onAgain }: { end: { victory: boolean; rewards: R
           {nextHref && <ButtonLink href={nextHref}>{boss ? "NEXT WORLD" : "NEXT BATTLE"}</ButtonLink>}
           <ButtonLink href={`/map/?w=${w}`} tone="white">WORLD MAP</ButtonLink>
           <Button tone="white" onClick={onAgain}>FIGHT AGAIN</Button>
+          {end.firstTry < end.total && <ButtonLink href="/learn/" tone="violet">REVIEW MISSES</ButtonLink>}
         </div>
       </div>
     </Modal>

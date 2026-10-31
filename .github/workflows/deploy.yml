@@ -30,12 +30,14 @@ jobs:
           java-version: 21
       - name: Check every question against real Java
         run: npm run verify
-      - name: Battle rule tests
+      - name: Game, Learn Mode, tutor server and sound tests
         run: npm test
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /codewarrior
           NEXT_TELEMETRY_DISABLED: 1
+          # Public URL of the tutor server (a repository variable, not a secret). Empty = tutor offline.
+          NEXT_PUBLIC_TUTOR_URL: ${{ vars.TUTOR_URL }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

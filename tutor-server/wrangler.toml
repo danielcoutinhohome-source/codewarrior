@@ -1,0 +1,15 @@
+name = "codewarrior-tutor"
+main = "src/worker.ts"
+compatibility_date = "2026-06-01"
+
+[vars]
+TUTOR_PROVIDER = "anthropic"
+TUTOR_MODEL = "claude-haiku-5-5"
+ALLOWED_ORIGINS = "https://danielcoutinhohome-source.github.io"
+RATE_PER_10MIN = "20"
+RATE_PER_DAY = "150"
+DAILY_LIMIT = "3000"
+TIMEOUT_MS = "30000"
+
+# The API key is a secret, never a var. Set it with:
+#   npx wrangler secret put ANTHROPIC_API_KEY

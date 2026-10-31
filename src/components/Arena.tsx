@@ -11,7 +11,8 @@ import { playerMove, performPlayerMove } from "@/lib/playerCombat";
 import EnemyAttackFx, { type CombatEffect } from "./EnemyAttackFx";
 import { enemyMove, ENEMY_MOVESETS, performEnemyMove } from "@/lib/enemyCombat";
 import Warrior from "./Warrior";
-import { play } from "@/lib/sfx";
+import { play, stopAll } from "@/lib/sfx";
+import { contactSound, enemyImpact, enemyPhase, heroImpact, heroPhase } from "@/lib/combatSfx";
 import { solid } from "@/lib/color";
 import type { Avatar } from "@/lib/db";
 import { weaponSpec } from "@/lib/cosmetics";
@@ -86,6 +87,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       playerController.current?.abort();
       effectTimers.current.forEach(clearTimeout);
       effectTimers.current.clear();
+      stopAll(); // leaving the battle silences any ringing tails
     };
   }, [p.enemy.design]);
   const later = (fn: () => void, ms: number) => {
@@ -127,12 +129,12 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   };
   const contact = (who:"hero"|"foe",stage:string,index:number) => {
     setCinematic({who,hits:index,stage});
+    contactSound(who,stage,index);
     if(reduced || stage==="freeze")return;
     const at=center(who==="hero"?foeBody.current:heroBody.current);
     const id=++uid;
     setDuelSparks(v=>[...v.slice(-3),{id,...at,color:who==="hero"?en:p.enemy.accent,launch:stage==="launch"}]);
     later(()=>setDuelSparks(v=>v.filter(s=>s.id!==id)),420);
-    play(stage==="launch"?"crit":"hit");
   };
   const pose = async (el:Element|null,values: import("@/lib/enemyCombat").ActorPose,ms:number,signal:AbortSignal) => {
     if(!el)return;
@@ -205,14 +207,14 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
             if (controller.signal.aborted) done();
           }),
           effect: (phase, ms) => {
-            if (phase === "strike") play("whoosh");
+            heroPhase(move, phase);
             const id = ++uid;
             setPlayerEffects(v => [...v.slice(-3), { id, move, phase, ms, from, to, groundY, color: en, compact: !!p.compact, reduced }]);
             later(() => setPlayerEffects(v => v.filter(e => e.id !== id)), phase === "impact" ? 950 : ms);
           },
           hit: () => {
             onImpact?.();
-            play(strong ? "crit" : "slash");
+            heroImpact(move, strong);
             float(`-${damage}`, { x: to.x, y: to.y - 40 }, strong ? "#FFC83D" : "#FFFFFF", strong);
             if (finisher || crit || surge) float(finisher ? "FINISHING BLOW!" : surge ? "POWER SURGE!" : "CRITICAL!", { x: to.x, y: to.y - 85 }, en, true);
             setFoeHurt(true);
@@ -249,17 +251,17 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
           controller.signal.addEventListener("abort", done, { once: true });
           if (controller.signal.aborted) done();
         }),
-        effect: phase => { if (phase === "travel") play("whoosh"); enemyEffect({ move, phase, from, to }); },
+        effect: phase => { enemyPhase(move, phase); enemyEffect({ move, phase, from, to }); },
         hit: () => {
           onImpact?.();
           const at = center(h);
+          enemyImpact(move, blocked);
           if (blocked) {
-            play("shield");
             float("BLOCKED", { x: at.x, y: at.y - 70 }, "#7DF9FF", true);
             if (!reduced) ring(at, "#7DF9FF", heroSize * 1.2);
             return;
           }
-          play("hurt"); setHeroHurt(true);
+          setHeroHurt(true);
           float(`-${damage}`, { x: at.x, y: at.y - 50 }, "#FF5A5F", knockout);
           if (!reduced) {
             whiteFlash(hb);
@@ -294,6 +296,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
 
     async enemyDefeated() {
       setKnockoutBanner(true);
+      play("knockout", { pan: 0.25 });
       await sleep(reduced?120:650);
       const f = foeRef.current;
       if (!f) return;

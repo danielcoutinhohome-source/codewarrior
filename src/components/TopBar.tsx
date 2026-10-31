@@ -11,6 +11,7 @@ import { XP_PER_LEVEL, levelFor } from "@/lib/game";
 
 const NAV = [
   { href: "/map/", label: "World" },
+  { href: "/learn/", label: "Learn" },
   { href: "/shop/", label: "Shop" },
   { href: "/profile/", label: "Armory" },
 ];

@@ -44,12 +44,68 @@ export type Progress = {
   updatedAt: number;
 };
 
+// ---- Learn Mode (v3) ----
+export type Course = "csa" | "csp";
+export type LearnPrefs = {
+  length: "short" | "steps"; // short explanation vs step-by-step
+  level: "beginner" | "exam"; // beginner-friendly vs AP exam style
+  style: "guided" | "direct"; // guided practice vs direct explanation
+  useProgress: boolean; // let the tutor see game and practice progress
+};
+export const DEFAULT_PREFS: LearnPrefs = { length: "short", level: "beginner", style: "guided", useProgress: true };
+
+export type LessonState = { status: "started" | "done"; right: number; total: number; at: number };
+export type LearnProfile = {
+  id: string; // account id
+  course: Course;
+  prefs: LearnPrefs;
+  lessons: Record<string, LessonState>;
+  recent: { kind: "lesson" | "practice" | "tutor"; ref: string; label: string; at: number }[];
+  updatedAt: number;
+};
+
+// One answer to one question, from a battle, practice or a lesson checkpoint.
+export type Attempt = {
+  id?: number;
+  accountId: string;
+  at: number;
+  source: "battle" | "practice" | "lesson";
+  course: Course;
+  world: number; // topic index; -1 when not tied to a world
+  skill: string;
+  kind: string; // predict | fill | choice | order | bug | explain
+  qid: string;
+  correct: boolean;
+  firstTry: boolean; // right on the first attempt without a hint
+  given?: string; // what the student answered (trimmed)
+  expected?: string; // canonical answer, when there is one
+  prompt?: string; // short snapshot so the tutor can explain the mistake later
+  code?: string;
+};
+
+export type ChatMessage = { role: "user" | "assistant"; content: string; at: number; meta?: { action?: string; provider?: string } };
+export type Conversation = {
+  id: string;
+  accountId: string;
+  title: string;
+  course: Course;
+  lessonId?: string;
+  topic?: string;
+  focus?: string; // the question or mistake this conversation is about
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+};
+
 export const emptyStats = (): Stats => ({ battles: 0, wins: 0, losses: 0, questions: 0, firstTry: 0, bosses: 0 });
 
 // All saves live in this browser's IndexedDB. Nothing here is sent anywhere.
 export const db = new Dexie("codewarrior") as Dexie & {
   accounts: EntityTable<Account, "id">;
   progress: EntityTable<Progress, "id">;
+  learn: EntityTable<LearnProfile, "id">;
+  attempts: EntityTable<Attempt, "id">;
+  conversations: EntityTable<Conversation, "id">;
 };
 
 db.version(1).stores({
@@ -77,3 +133,12 @@ db.version(2)
         p.updatedAt = Date.now();
       }),
   );
+
+// v3: Learn Mode. New tables only; existing saves are untouched.
+db.version(3).stores({
+  accounts: "id, createdAt",
+  progress: "id",
+  learn: "id",
+  attempts: "++id, accountId, [accountId+at], [accountId+skill]",
+  conversations: "id, accountId, [accountId+updatedAt]",
+});

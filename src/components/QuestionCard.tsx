@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, Reorder, motion, useAnimationControls } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Code from "./Code";
 import { Button } from "./ui";
 import { rng, type Question } from "@/lib/questions/core";
@@ -16,11 +16,16 @@ type Props = {
   resultNote?: string; // e.g. "+100 damage" or "Counts as a miss"
   onSubmit: (value: string | number | string[]) => void;
   onContinue: () => void;
+  variant?: "battle" | "learn"; // learn: calm wording for lessons and practice
+  resultExtra?: ReactNode; // shown with the explanation after answering
+  tools?: ReactNode; // shown next to the submit button while answering (e.g. a hint button)
+  continueLabel?: string;
 };
 
 const KIND = { predict: "Predict the output", fill: "Fill the blank", choice: "Pick one", order: "Drag the lines into order" } as const;
 
-export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSubmit, onContinue }: Props) {
+export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSubmit, onContinue, variant = "battle", resultExtra, tools, continueLabel = "CONTINUE" }: Props) {
+  const learn = variant === "learn";
   const [text, setText] = useState("");
   const [sel, setSel] = useState<number | null>(null);
   const initialOrder = useMemo(() => {
@@ -105,7 +110,7 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
       }}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[13px] font-black uppercase tracking-wider text-xp">{KIND[q.kind]}</span>
+        <span className="text-[13px] font-black uppercase tracking-wider text-xp">{(q.label || KIND[q.kind])}</span>
         <span className="rounded-full bg-sky px-3 py-1 text-xs font-black text-ocean-deep">{q.skill}</span>
       </div>
       <h2 className="font-display text-[clamp(22px,3vw,28px)] leading-tight">{q.prompt}</h2>
@@ -197,7 +202,7 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
         {hint && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="rounded-2xl bg-xp-soft px-4 py-3 font-bold text-ink">
-              <span className="font-black text-xp-deep">Hint scroll: </span>
+              <span className="font-black text-xp-deep">{learn ? "Hint: " : "Hint scroll: "}</span>
               {hint}
             </div>
           </motion.div>
@@ -207,7 +212,7 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
       <AnimatePresence mode="wait">
         {phase === "retry" && (
           <motion.div key="retry" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="rounded-2xl bg-danger-soft px-4 py-3 font-extrabold text-danger-deep">
-            Ouch! Not quite. You have one more try.
+            {learn ? "Not quite. Try once more, or take a hint." : "Ouch! Not quite. You have one more try."}
           </motion.div>
         )}
         {(phase === "correct" || phase === "revealed") && (
@@ -220,7 +225,7 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
           >
             <div className="min-w-0 flex-[1_1_260px]">
               <div className="font-display text-xl" style={{ color: phase === "correct" ? "#2BA155" : "#D9434A" }}>
-                {phase === "correct" ? (attempt === 0 ? "Direct hit!" : "Got it!") : "Out of tries"}
+                {learn ? (phase === "correct" ? (attempt === 0 ? "Correct" : "Correct on the second try") : "Not this time") : phase === "correct" ? (attempt === 0 ? "Direct hit!" : "Got it!") : "Out of tries"}
                 {resultNote && <span className="ml-2 font-body text-sm font-black opacity-80">{resultNote}</span>}
               </div>
               {showAnswer && correctText && (
@@ -229,18 +234,20 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
                 </div>
               )}
               <div className="mt-1 text-[15px] font-semibold text-ink-soft">{q.explain}</div>
+              {resultExtra}
             </div>
             <Button ref={contRef} tone={phase === "correct" ? "ocean" : "white"} onClick={onContinue}>
-              CONTINUE
+              {continueLabel}
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {(phase === "answering" || phase === "retry" || phase === "busy") && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {tools}
           <Button size="lg" onClick={submit} disabled={!filled || locked} className="min-w-[180px]">
-            {phase === "busy" ? "..." : "STRIKE!"}
+            {phase === "busy" ? "..." : learn ? "CHECK" : "STRIKE!"}
           </Button>
         </div>
       )}
