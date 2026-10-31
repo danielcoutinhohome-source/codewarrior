@@ -97,7 +97,7 @@ export const WORLDS: World[] = [
       { name: "Breakpoint Bastion", design: "break-turtle", color: "#52766F", accent: "#FFCB70", label: "break", attackName: "Reef Break", attackStyle: "slam", lore: "A reef fortress that stops the current with one armored impact." },
       { name: "Ouroboros, Unbound", design: "ouroboros", color: "#136E7C", accent: "#63FFCB", label: "while(true)", attackName: "Endless Tide", attackStyle: "spit", lore: "A twin-headed sea dragon locked in a cycle without an exit." },
     ],
-    theme: { scene: "lagoon", skyTop: "#091D2D", skyBottom: "#244852", far: "#315862", groundNear: "#12343F", groundFar: "#214953", road: "#415A60", roadEdge: "#263E47", roadLine: "#79B5AC", fog: "#76AFA9", night: true, decor: ["lily", "reed", "buoy", "lily", "rockisle", "reed"] },
+    theme: { scene: "lagoon", skyTop: "#285E77", skyBottom: "#639AAC", far: "#487E76", groundNear: "#246C8B", groundFar: "#3F92AD", road: "#415A60", roadEdge: "#263E47", roadLine: "#79B5AC", fog: "#76AFA9", night: true, decor: ["lily", "reed", "buoy", "lily", "rockisle", "reed"] },
   },
   {
     name: "String Peaks",

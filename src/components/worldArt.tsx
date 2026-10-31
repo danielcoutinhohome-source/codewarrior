@@ -132,17 +132,18 @@ function Woods({ W, H, hz }: G) {
 // Loop Lagoon: drowned basalt architecture and a bioluminescent tidal basin.
 function Lagoon({ W, H, hz }: G) {
  return <g data-lagoon="drowned-observatory">
-  <rect width={W} height={hz} fill="#102839"/>
+  <rect width={W} height={hz} fill="#326779"/>
   <circle cx={W*.67} cy={hz*.35} r={H*.035} fill="#B7E9DF" opacity=".45"/>
-  <path d={`M0 ${hz} L0 ${hz*.7} L${W*.14} ${hz*.48} L${W*.26} ${hz*.75} L${W*.42} ${hz*.55} L${W*.58} ${hz*.8} L${W*.82} ${hz*.5} L${W} ${hz*.7} V${hz} Z`} fill="#173D49"/>
+  <path d={`M0 ${hz} L0 ${hz*.7} L${W*.14} ${hz*.48} L${W*.26} ${hz*.75} L${W*.42} ${hz*.55} L${W*.58} ${hz*.8} L${W*.82} ${hz*.5} L${W} ${hz*.7} V${hz} Z`} fill="#47735F"/>
   {[.12,.29,.73,.88].map((x,i)=><g key={x}><path d={`M${W*x} ${hz} V${hz*(.45+i%2*.18)} h${W*.028} V${hz}Z`} fill="#284B54"/><path d={`M${W*(x+.012)} ${hz*.8} v${hz*.13}`} stroke="#7DE8D0" strokeWidth="2" opacity=".55"/></g>)}
   <path d={`M${W*.38} ${hz} V${hz*.6} Q${W*.5} ${hz*.08} ${W*.62} ${hz*.6} V${hz}`} fill="none" stroke="#31555D" strokeWidth={W*.014}/>
-  <rect y={hz-H*.025} width={W} height={H*.06} fill="#123B48"/>
+  {[.18,.79].map(x=><g key={x} data-map-waterfall><path d={`M${W*x} ${hz*.5} h${W*.045} v${hz*.5} h-${W*.045}Z`} fill="#7BC9DD"/><path d={`M${W*(x-.015)} ${hz*.5} q${W*.035} -18 ${W*.075} 0`} stroke="#84AC71" strokeWidth="9" fill="none"/><path d={`M${W*(x+.02)} ${hz*.55} V${hz}`} stroke="#C0EEF3" strokeWidth="2" strokeDasharray="8 12"/></g>)}
+  <rect y={hz-H*.025} width={W} height={H*.06} fill="#298AAF"/>
   {[.22,.46,.68,.85].map((x,i)=><path key={x} d={`M${W*x} ${hz+H*(.005+i%2*.02)} h${W*.09}`} stroke="#70DCC9" strokeWidth="1.5" opacity=".4"/>) }
  </g>;
 }
 
-// String Peaks: snow-capped ranges and a "STRING" bunting strung across the sky.
+// String Peaks: glacial spires, cable cars, and a remote mountain observatory.
 function Peaks({ W, H, hz }: G) {
   const range = (seed: number, hgt: number, n: number) => {
     const pts: [number, number][] = [[0, hz]];
@@ -154,30 +155,19 @@ function Peaks({ W, H, hz }: G) {
   const frontPts = range(30, 0.11, 10);
   const caps = (pts: [number, number][], scale: number) =>
     pts.slice(1, -1).filter((_, i) => i % 2 === 0).map(([x, y], i) => <path key={i} d={`M${x} ${y} L${x - W * 0.028 * scale} ${y + H * 0.035 * scale} L${x - W * 0.01 * scale} ${y + H * 0.028 * scale} L${x} ${y + H * 0.04 * scale} L${x + W * 0.012 * scale} ${y + H * 0.028 * scale} L${x + W * 0.028 * scale} ${y + H * 0.035 * scale} Z`} fill="#FFFFFF" />);
-  const word = '"STRING"'.split("");
-  const y0 = hz * 0.44, sag = hz * 0.08;
   return (
-    <>
+    <g data-string-peaks="glacial-observatory">
       <Cloud x={W * 0.78} y={hz * 0.62} w={W * 0.14} drift={-20} opacity={0.7} />
       <path d={`M${backPts.map((p) => p.join(" ")).join(" L")} Z`} fill="#B8C6EA" />
       {caps(backPts, 1)}
       <path d={`M${frontPts.map((p) => p.join(" ")).join(" L")} Z`} fill="#DCE5F7" />
       {caps(frontPts, 0.8)}
-      {/* bunting */}
-      <path d={`M${W * 0.04} ${y0} Q${W * 0.5} ${y0 + sag * 2} ${W * 0.96} ${y0}`} fill="none" stroke="#5B6B94" strokeWidth="2" />
-      {word.map((ch, i) => {
-        const u = (i + 0.5) / word.length;
-        const x = W * (0.04 + 0.92 * u);
-        const y = y0 + sag * 2 * 2 * u * (1 - u) * 0.98;
-        const fw = Math.min(W * 0.05, 46);
-        return (
-          <motion.g key={i} style={{ originX: 0.5, originY: 0 }} animate={{ rotate: [-6, 6, -6] }} transition={loop(2 + (i % 3) * 0.4, { delay: i * 0.15 })}>
-            <path d={`M${x - fw / 2} ${y} H${x + fw / 2} L${x} ${y + fw * 1.25} Z`} fill={["#FF6B6B", "#FFB84D", "#4DB8FF", "#9B7BFF", "#4CD27E"][i % 5]} />
-            <text x={x} y={y + fw * 0.55} textAnchor="middle" fontSize={fw * 0.5} fontWeight="800" fill="#FFFFFF" fontFamily="JetBrains Mono, monospace">{ch}</text>
-          </motion.g>
-        );
-      })}
-    </>
+      <path d={`M0 ${hz*.45} Q${W*.5} ${hz*.7} ${W} ${hz*.4}`} fill="none" stroke="#50627C" strokeWidth="3"/>
+      {[.23,.64].map(x=><g key={x}><path d={`M${W*x} ${hz*.53} v${H*.04}`} stroke="#4E617B" strokeWidth="3"/><rect x={W*x-W*.022} y={hz*.53+H*.035} width={W*.044} height={H*.045} rx="5" fill="#527B94" stroke="#C2EAF4" strokeWidth="2"/></g>)}
+      <path d={`M${W*.78} ${hz} V${hz-H*.095} h${W*.085} V${hz} M${W*.76} ${hz-H*.095} l${W*.06} -${H*.045} l${W*.065} ${H*.045}Z`} fill="#5F7690" stroke="#E0F2FA" strokeWidth="2"/>
+      <path d={`M${W*.35} ${hz} L${W*.39} ${hz-H*.11} L${W*.44} ${hz}Z`} fill="#8DD6E7" opacity=".7"/>
+
+    </g>
   );
 }
 
@@ -432,7 +422,7 @@ export const Ambient = memo(function Ambient({ W, H, hz, t }: G) {
 // ---------------------------------------------------------------------------
 // Roadside scenery.
 // ---------------------------------------------------------------------------
-export function Scenery({ kind }: { kind: Decor }) {
+export function Scenery({ kind, scene }: { kind: Decor; scene?: Scene }) {
   const box = (children: React.ReactNode) => (
     <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ overflow: "visible" }}>
       {children}
@@ -618,6 +608,7 @@ export function Scenery({ kind }: { kind: Decor }) {
         </>,
       );
     case "crystal":
+      if (scene === "citadel") return box(<g data-citadel-prism><ellipse cx="50" cy="89" rx="29" ry="7" fill="#18384D"/><path d="M50 14 L77 44 L50 76 L23 44Z" fill="#63E4DB" stroke="#B4FFF0" strokeWidth="2"/><path d="M50 14 V76 L23 44Z" fill="#4185B7"/><path d="M20 88 H80 M30 94 H70" stroke="#87F5D1" strokeWidth="2"/></g>);
       return box(
         <>
           <path d="M40 100 L30 50 L44 20 L56 52 Z" fill="#B394FF" />

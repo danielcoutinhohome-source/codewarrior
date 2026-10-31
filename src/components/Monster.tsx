@@ -22,7 +22,7 @@ export default function Monster({ enemy, boss = false, size = 200, idle = true, 
   const id = (name: string) => `enemy-${uid}-${name}`;
   const paint = (name: string) => `url(#${id(name)})`;
   const reducedMotion = useReduceMotion();
-  // Hidden bosses reveal a silhouette only: no name, programming cue or lore.
+  // Hidden enemies reveal a silhouette only: no name, programming cue or lore.
   const loop = idle && !reducedMotion && !hurt;
   const floating = ["division-ray", "boolean-owl", "while-jelly", "substring-wyvern", "echo-wraith", "null-lich", "bounds-bat", "constructor-raven", "stock-mage", "final-judge"].includes(enemy.design);
   const crawling = ["cast-corsair", "counter-crab", "offset-angler", "length-crawler", "swap-spider", "char-sabertooth", "nested-basilisk"].includes(enemy.design);
@@ -38,7 +38,7 @@ export default function Monster({ enemy, boss = false, size = 200, idle = true, 
 
   return (
     <svg viewBox="0 0 240 240" width={size} height={size} role="img" aria-labelledby={id("title")} className={className} style={{ overflow: "visible", flexShrink: 0 }}>
-      <title id={id("title")}>{silhouette ? "Unknown boss" : enemy.name}</title>
+      <title id={id("title")}>{silhouette ? (boss ? "Unknown boss" : "Unknown enemy") : enemy.name}</title>
       {!silhouette && <desc>{enemy.lore}</desc>}
       <defs>
         <linearGradient id={id("armor")} x1="0" y1="0" x2="1" y2="1">
