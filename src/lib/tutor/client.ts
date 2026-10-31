@@ -71,7 +71,7 @@ async function call(body: unknown, signal: AbortSignal, timeoutMs = 45_000): Pro
       return { code: "malformed", message: FRIENDLY.malformed };
     }
     if (!data || typeof data !== "object" || typeof data.ok !== "boolean") return { code: "malformed", message: FRIENDLY.malformed };
-    if (!data.ok) return { code: data.error, message: FRIENDLY[data.error] || data.message, retryAfter: data.retryAfter };
+    if (!data.ok) return { code: data.error, message: data.error === "rate_limited" && data.message ? data.message : FRIENDLY[data.error] || data.message, retryAfter: data.retryAfter };
     return data;
   } catch {
     if (signal.aborted) return { code: "cancelled", message: FRIENDLY.cancelled };

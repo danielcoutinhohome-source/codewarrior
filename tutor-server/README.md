@@ -1,7 +1,8 @@
 # CodeWarrior tutor server
 
 The CodeWarrior site is static (GitHub Pages), so it cannot hold an AI API key. This small
-server holds the key, adds the teaching rules, enforces limits, and calls the AI provider.
+server holds any credentials, adds the teaching rules, enforces limits, and calls the AI
+provider. By default it uses free Cloudflare Workers AI, so no key and no bill.
 The site only knows the server's public URL.
 
 ```
@@ -22,8 +23,8 @@ to be AI.
   the student's explanation preferences, graduated hints that give a full explanation on
   request, misconception-focused corrections, no claims of having run code, and "trust the
   verified answer key" when the site sends one.
-- Provider adapter (`src/providers.ts`): Anthropic (default) or any OpenAI-compatible API,
-  chosen with `TUTOR_PROVIDER`. A `mock` provider exists for automated tests only; it refuses
+- Provider adapter (`src/providers.ts`): free Cloudflare Workers AI (default), or Anthropic or
+  any OpenAI-compatible API, chosen with `TUTOR_PROVIDER`. A `mock` provider exists for automated tests only; it refuses
   to start unless `ALLOW_MOCK=1`, and every mock reply says it is a mock.
 
 ## Limits and cost controls
@@ -39,8 +40,8 @@ to be AI.
 Requests are also capped in size: at most 16 messages, 6,000 characters per message,
 24,000 characters per conversation, 4,000 for the current-question context. Replies are capped
 at 750 tokens (1,100 for step-by-step mode). Rate counters live in memory, so on Cloudflare
-they are per isolate; for a hard global cap also set a monthly spend limit in the provider's
-console.
+they are per isolate. With the default free setup there is nothing to bill: the Workers AI
+daily allowance is the hard cap.
 
 ## Privacy
 
@@ -49,33 +50,52 @@ messages in the conversation and (only if the student leaves "Let the tutor see 
 on) a short summary such as "needs practice on: substring". It never sends the warrior name,
 password, account id or device data. The server does not store conversations.
 
-## Deploy it (Cloudflare Workers, about 10 minutes)
+## Deploy it for free (Cloudflare Workers AI, about 10 minutes)
 
-This needs your own accounts and costs money per AI request, so it was not deployed
-automatically.
+The default setup costs nothing and needs no API key. The server runs as a Cloudflare Worker
+and uses **Workers AI**, which is included in the Workers Free plan with a daily allowance
+(10,000 "neurons" per day). On the free plan, going over the allowance does not create a
+charge; requests fail until the next day, and the site tells the student "Today's free tutor
+allowance is used up. It resets tomorrow." Lessons and practice keep working.
 
-1. Get an API key from <https://console.anthropic.com> (set a monthly spend limit there).
-2. Create a free Cloudflare account, then from this folder:
+The default model is Mistral Small 3.1 (Apache 2.0 licence). At Cloudflare's published
+rates a typical tutor reply (about 2,000 tokens in, 400 out) uses roughly 85 neurons, so the
+free allowance covers on the order of **100+ replies a day**. Switching `TUTOR_MODEL` to
+`@cf/meta/llama-3.1-8b-instruct-fp8` roughly doubles that, with weaker answers.
+`DAILY_LIMIT` (400) and `RATE_PER_DAY` (60 per student) keep usage spread out.
+
+1. Create a free Cloudflare account at <https://dash.cloudflare.com/sign-up> and stay on the
+   **Free** plan (do not add the paid Workers plan).
+2. From the repository:
    ```bash
    cd tutor-server
-   npx wrangler login
-   npx wrangler secret put ANTHROPIC_API_KEY     # paste the key; it is stored encrypted
-   npx wrangler deploy                            # prints https://codewarrior-tutor.<you>.workers.dev
+   npx wrangler login      # opens the browser to approve
+   npx wrangler deploy     # prints https://codewarrior-tutor.<you>.workers.dev
    ```
 3. Check it: `curl https://codewarrior-tutor.<you>.workers.dev/v1/health` should print
-   `{"ok":true,"provider":"anthropic",...}`.
+   `{"ok":true,"provider":"workers-ai",...}`.
 4. In GitHub: **Settings → Secrets and variables → Actions → Variables → New repository
    variable**, name `TUTOR_URL`, value the worker URL (no trailing slash). This is a public
    URL, not a secret.
 5. Re-run the "Deploy to GitHub Pages" workflow (or push any commit). The tutor turns on.
 
-To change model or provider, edit `[vars]` in `wrangler.toml` (`TUTOR_MODEL`,
-`TUTOR_PROVIDER = "openai"` with `OPENAI_API_KEY` and optional `OPENAI_BASE_URL`) and deploy again.
+### Why not the free Gemini API?
+
+Google's Gemini API terms say it may not be used in an app "directed towards or is likely to
+be accessed by individuals under the age of 18", and free-tier prompts may be read by human
+reviewers to improve Google's products. CodeWarrior is for high-school students, so it is not
+a fit. ([Gemini API Additional Terms](https://ai.google.dev/terms))
+
+### Paid providers (optional, not used)
+
+`TUTOR_PROVIDER = "anthropic"` with `npx wrangler secret put ANTHROPIC_API_KEY`, or
+`TUTOR_PROVIDER = "openai"` with `OPENAI_API_KEY` (and optional `OPENAI_BASE_URL`), still work
+if the project ever has a budget. Remove the `[ai]` block if you switch.
 
 ## Run it locally
 
 ```bash
-ANTHROPIC_API_KEY=... npx tsx tutor-server/src/node.ts          # real provider on :8787
+ANTHROPIC_API_KEY=... npx tsx tutor-server/src/node.ts          # paid provider on :8787 (optional)
 TUTOR_PROVIDER=mock ALLOW_MOCK=1 npx tsx tutor-server/src/node.ts  # test mode, fake replies
 ```
 

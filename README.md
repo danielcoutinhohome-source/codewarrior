@@ -80,10 +80,11 @@ one-based lists, and every CSP item is labeled as such.
 - **Written explanations** are graded by the AI when it is connected and labeled "AI feedback ·
   not compiler-verified"; otherwise the student compares against key points and a model answer.
 
-**The tutor needs a small server** because the site is static and an API key can't live in
-browser code. The server is in [`tutor-server/`](tutor-server/README.md) with setup steps.
-Until it is deployed and `TUTOR_URL` is set, the tutor shows as offline and everything else
-works.
+**The tutor needs a small server** because the site is static and AI access can't live in
+browser code. The server is in [`tutor-server/`](tutor-server/README.md). By default it runs
+free on Cloudflare Workers AI (no API key, no bill; a daily allowance that simply runs out
+until the next day). Until it is deployed and `TUTOR_URL` is set, the tutor shows as offline and
+everything else works.
 
 ## Run it locally
 

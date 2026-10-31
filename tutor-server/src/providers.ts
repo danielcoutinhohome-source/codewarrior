@@ -76,11 +76,47 @@ export function mock(delayMs = 250): Provider {
   };
 }
 
-export type ProviderEnv = { TUTOR_PROVIDER?: string; TUTOR_MODEL?: string; ANTHROPIC_API_KEY?: string; OPENAI_API_KEY?: string; OPENAI_BASE_URL?: string; ALLOW_MOCK?: string; MOCK_DELAY_MS?: string };
+// Cloudflare Workers AI through the Worker's `AI` binding. No API key and no bill on the
+// Workers Free plan: it includes a daily allowance, and past it requests fail with an error
+// instead of charging. Default model: Mistral Small 3.1 (Apache 2.0 licence).
+export type WorkersAI = { run: (model: string, input: Record<string, unknown>) => Promise<unknown> };
+export const WORKERS_AI_DEFAULT_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct";
 
+export function workersAI(ai: WorkersAI, model: string): Provider {
+  return {
+    name: "workers-ai",
+    model,
+    async complete({ system, messages, maxTokens, signal }) {
+      let out: unknown;
+      try {
+        out = await Promise.race([
+          ai.run(model, { messages: [{ role: "system", content: system }, ...messages], max_tokens: maxTokens }),
+          new Promise((_, reject) => {
+            if (signal.aborted) reject(new ProviderError("timeout", "aborted"));
+            signal.addEventListener("abort", () => reject(new ProviderError("timeout", "The AI provider took too long.")), { once: true });
+          }),
+        ]);
+      } catch (e) {
+        if (e instanceof ProviderError) throw e;
+        const msg = String((e as Error)?.message || e);
+        // The free daily allowance is used up: say so plainly, it resets the next day.
+        if (/neuron|4006|daily free allocation|quota|limit/i.test(msg)) throw new ProviderError("rate_limited", "Today's free tutor allowance is used up. It resets tomorrow.");
+        throw new ProviderError("unavailable", `Workers AI error: ${msg.slice(0, 200)}`);
+      }
+      const text = typeof out === "string" ? out : typeof (out as { response?: unknown })?.response === "string" ? (out as { response: string }).response : "";
+      if (!text.trim()) throw new ProviderError("malformed", "The AI provider returned no text.");
+      return text.trim();
+    },
+  };
+}
+
+export type ProviderEnv = { AI?: WorkersAI; TUTOR_PROVIDER?: string; TUTOR_MODEL?: string; ANTHROPIC_API_KEY?: string; OPENAI_API_KEY?: string; OPENAI_BASE_URL?: string; ALLOW_MOCK?: string; MOCK_DELAY_MS?: string };
+
+// Picks the provider. With a Workers AI binding and nothing else set, the free provider is used.
 export function providerFromEnv(env: ProviderEnv): Provider | null {
-  const which = (env.TUTOR_PROVIDER || "anthropic").toLowerCase();
+  const which = (env.TUTOR_PROVIDER || (env.AI ? "workers-ai" : "anthropic")).toLowerCase();
   if (which === "mock") return env.ALLOW_MOCK === "1" ? mock(Number(env.MOCK_DELAY_MS || 250)) : null;
+  if (which === "workers-ai") return env.AI ? workersAI(env.AI, env.TUTOR_MODEL || WORKERS_AI_DEFAULT_MODEL) : null;
   if (which === "openai") return env.OPENAI_API_KEY ? openaiCompatible(env.OPENAI_API_KEY, env.TUTOR_MODEL || "gpt-4o-mini", env.OPENAI_BASE_URL || "https://api.openai.com/v1") : null;
   return env.ANTHROPIC_API_KEY ? anthropic(env.ANTHROPIC_API_KEY, env.TUTOR_MODEL || "claude-haiku-5-5") : null;
 }

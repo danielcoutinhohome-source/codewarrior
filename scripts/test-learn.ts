@@ -7,7 +7,7 @@ import { DEFAULT_PREFS, type Attempt, type LearnProfile, type Progress } from ".
 import { isRight } from "../src/lib/questions/core";
 import { handle, resetRateLimits } from "../tutor-server/src/handler";
 import { parseGrade, LIMITS } from "../tutor-server/src/protocol";
-import { ProviderError, type Provider } from "../tutor-server/src/providers";
+import { ProviderError, providerFromEnv, workersAI, type Provider } from "../tutor-server/src/providers";
 import { systemPrompt } from "../tutor-server/src/prompt";
 import { fitHistory } from "../src/lib/tutor/client";
 import { PLAYER_MOVESETS } from "../src/lib/playerCombat";
@@ -177,6 +177,21 @@ async function server() {
   ok(r.status === 503, "provider outage is 503");
   r = await handle(post(chat("x")), env, "e2", failing("rate_limited"));
   ok(r.status === 429, "provider rate limit is 429");
+  // Free Cloudflare Workers AI provider (binding, no key).
+  const fakeAI = (impl: (m: string, i: Record<string, unknown>) => Promise<unknown>) => ({ run: impl });
+  const wa = providerFromEnv({ AI: fakeAI(async () => ({ response: "ok" })) });
+  ok(wa?.name === "workers-ai" && wa.model.includes("mistral"), "Workers AI is the default when the binding exists");
+  let seenInput: Record<string, unknown> = {};
+  r = await handle(post(chat("hi")), env, "w1", workersAI(fakeAI(async (_m, i) => { seenInput = i; return { response: "Free reply" }; }), "@cf/test"));
+  ok(r.status === 200 && (await r.json()).reply === "Free reply", "Workers AI reply returned");
+  ok(Array.isArray(seenInput.messages) && (seenInput.messages as { role: string }[])[0].role === "system", "system prompt sent as first message");
+  r = await handle(post(chat("hi")), env, "w2", workersAI(fakeAI(async () => { throw new Error("4006: you have used up your daily free allocation of 10,000 neurons"); }), "@cf/test"));
+  j = await r.json();
+  ok(r.status === 429 && /resets tomorrow/.test(j.message), "used-up free allowance explained");
+  r = await handle(post(chat("hi")), env, "w3", workersAI(fakeAI(async () => ({ response: "" })), "@cf/test"));
+  ok(r.status === 502, "empty Workers AI reply is malformed");
+  r = await handle(post(chat("hi")), env, "w4", workersAI(fakeAI(() => new Promise(() => {})), "@cf/test"));
+  ok(r.status === 504, "hung Workers AI call times out");
 }
 
 // ---------- sound engine ----------
