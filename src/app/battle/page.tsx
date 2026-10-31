@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import BossGate from "@/components/BossGate";
+import { bossGateIsOpen,openBossGate } from "@/lib/bossApproach";
 import Arena, { type ArenaHandle } from "@/components/Arena";
 import Confetti from "@/components/Confetti";
 import Monster from "@/components/Monster";
@@ -11,7 +13,7 @@ import QuestionCard, { type Phase } from "@/components/QuestionCard";
 import { CoinIcon, PowerIcon, SoundToggle, StarIcon } from "@/components/icons";
 import { Button, ButtonLink, Screen } from "@/components/ui";
 import { POTION_HEAL, advance, answer, current, startBattle, summary, useHint, usePotion, useShield, useSurge, type BattleState } from "@/lib/battle";
-import { BOSS, PLAYER_HP, POWERS, SHOP, WORLDS, type Power } from "@/lib/game";
+import { BOSS, key, PLAYER_HP, POWERS, SHOP, WORLDS, type Power } from "@/lib/game";
 import { battleUnlocked, recordBattle, useItem, type Rewards } from "@/lib/progress";
 import { buildBattle, isRight } from "@/lib/questions";
 import { play } from "@/lib/sfx";
@@ -52,6 +54,8 @@ function Battle() {
   const compact = useCompact();
   const arena = useRef<ArenaHandle>(null);
 
+  const [gatePassed, setGatePassed] = useState<string | null>(null);
+  const [gateRequired, setGateRequired] = useState(false);
   const [run, setRun] = useState(0); // bumps on "fight again"
   const [revive, setRevive] = useState(false); // retrying after a knockout
   const [bs, setBs] = useState<BattleState | null>(null);
@@ -73,21 +77,30 @@ function Battle() {
       router.replace(`/map/?w=${w}`);
       return;
     }
+    if (boss && !progress.stars[key(w,BOSS)]) {
+      let passed = gatePassed === `${progress.id}:${w}`;
+      passed ||= bossGateIsOpen(progress.id,w);
+      if (!passed) { setGateRequired(true); return; }
+    }
+    setGateRequired(false);
     const s = startBattle(w, b, buildBattle(w, b, seed));
     setBs(s);
     setPhase("intro");
     setHint(null);
     setEnd(null);
     setNote(undefined);
+    let cancelled=false;
     (async () => {
       await sleep(80);
+      if(cancelled)return;
       play("whoosh");
       await arena.current?.intro();
       await sleep(900);
-      setPhase("answering");
+      if(!cancelled)setPhase("answering");
     })();
+    return()=>{cancelled=true;};
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress?.id, w, b, seed]);
+  }, [progress?.id, w, b, seed, gatePassed]);
 
   // Test hook: lets automated playtests read the current answer.
   useEffect(() => {
@@ -187,6 +200,12 @@ function Battle() {
     }
   };
 
+  const unseal = () => {
+    if (!account) return;
+    openBossGate(account.id,w);
+    setGatePassed(`${account.id}:${w}`); setGateRequired(false);
+  };
+  if (gateRequired && account && progress) return <BossGate scene={world.theme.scene} onOpen={unseal} onBack={()=>router.replace(`/map/?w=${w}`)}/>;
   if (!account || !progress || !bs) return <div className="min-h-dvh bg-sky" />;
 
   const q = current(bs);

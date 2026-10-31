@@ -1,13 +1,15 @@
 "use client";
 
-import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
+import { animate, motion, useReducedMotion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
 import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import Monster from "./Monster";
-import WorldLandmark, { WorldDiscovery, WorldGroundDetails } from "./WorldLandmark";
+import WorldLandmark from "./WorldLandmark";
 import { worldDetails } from "@/lib/worldDetails";
 import Warrior from "./Warrior";
+import { PassageFrame, BossDoor } from "./WorldPassage";
+import { bossApproach } from "@/lib/bossApproach";
 import { StarIcon } from "./icons";
-import { Ambient, Backdrop, RoadExtras, RoadMark, Scenery, roadMarkSize } from "./worldArt";
+import { Backdrop, RoadExtras, RoadMark, Scenery, roadMarkSize } from "./worldArt";
 import type { Avatar } from "@/lib/db";
 import { BOSS, type World } from "@/lib/game";
 
@@ -21,6 +23,7 @@ type Props = {
   unlocked: boolean[];
   selected: number;
   onSelect: (b: number) => void;
+  onEnterBoss?: () => void;
   height: number;
   width: number;
 };
@@ -54,13 +57,16 @@ function Placed({ cam, z, lat, g, w, h, zIndex, children, fadeNear = true, decor
 
 // First-person view down the road: your warrior in front, each enemy waiting by its level,
 // and the boss hidden in fog until the four battles before it are won.
-const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldIndex, world, avatar, stars, unlocked, selected, onSelect, height, width }, ref) {
+const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldIndex, world, avatar, stars, unlocked, selected, onSelect, onEnterBoss, height, width }, ref) {
   const W = width;
   const H = height;
   const horizon = H * 0.38;
   const g = useMemo(() => ({ W, H, horizon }), [W, H, horizon]);
-  const t = world.theme;
-  const bossOpen = unlocked[BOSS];
+  const t = useMemo(()=>world.theme.scene==="citadel"?{...world.theme,road:"#27394C",roadEdge:"#4B7B79",roadLine:"#8AB8A8"}:world.theme,[world.theme]);
+  const furthest = Math.max(0,unlocked.lastIndexOf(true));
+  const cameraBattle = Math.min(selected,furthest);
+  const approach = bossApproach(stars, selected);
+  const reduced = !!useReducedMotion();
   const storeKey = `cw.cam.${worldIndex}`;
 
   // Camera: start where the player last stood in this world, then walk to the selected battle.
@@ -69,20 +75,20 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   const [startCam] = useState(() => {
     try {
       const raw = sessionStorage.getItem(storeKey);
-      if (raw !== null && !Number.isNaN(Number(raw))) return Number(raw);
+      if (raw !== null && !Number.isNaN(Number(raw))) return Math.max(0,Math.min(Number(raw),camFor(furthest)));
     } catch {}
-    return camFor(selected);
+    return camFor(cameraBattle);
   });
   const cam = useMotionValue(startCam);
   const [moving, setMoving] = useState(false);
   useEffect(() => {
-    const to = camFor(selected);
+    const to = camFor(cameraBattle);
     if (Math.abs(cam.get() - to) < 0.01) return;
     setMoving(true);
     const dist = Math.abs(cam.get() - to);
     const ctl = animate(cam, to, { duration: Math.min(2.2, 0.7 + dist * 0.35), ease, onComplete: () => setMoving(false) });
     return () => ctl.stop();
-  }, [selected, cam, storeKey]);
+  }, [cameraBattle, cam, storeKey]);
   useMotionValueEvent(cam, "change", (v) => {
     try {
       sessionStorage.setItem(storeKey, String(v));
@@ -96,7 +102,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
     },
   }));
 
-  const roadHalf0 = 0.32 * (W / 2); // road half-width at depth 1
+  const roadHalf0 = 0.19 * (W / 2); // road half-width at depth 1
   const mobile = W < 640;
   const details = useMemo(() => worldDetails(t, mobile), [t, mobile]);
   const mark = roadMarkSize(t, W, roadHalf0);
@@ -109,12 +115,13 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           {/* sky and ground */}
           <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${t.skyTop} 0%, ${t.skyBottom} ${(horizon / H) * 100}%, ${t.groundFar} ${(horizon / H) * 100}%, ${t.groundNear} 100%)` }} />
           <Backdrop W={W} H={H} hz={horizon} t={t} />
-          <WorldGroundDetails theme={t} width={W} height={H} />
+          <div aria-hidden className="pointer-events-none absolute inset-0" style={{background:"linear-gradient(180deg, rgba(5,10,22,.36), transparent 55%, rgba(5,10,22,.28))"}} />
+          <PassageFrame theme={t} />
           <svg aria-hidden className="absolute inset-0" width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
             <polygon points={`${W / 2 - roadHalf0 * 1.2},${H} ${W / 2 + roadHalf0 * 1.2},${H} ${W / 2 + 2},${horizon} ${W / 2 - 2},${horizon}`} fill={t.roadEdge} />
             <polygon points={`${W / 2 - roadHalf0 * 1.1},${H} ${W / 2 + roadHalf0 * 1.1},${H} ${W / 2 + 1.5},${horizon} ${W / 2 - 1.5},${horizon}`} fill={t.road} />
           </svg>
-          <RoadExtras W={W} H={H} hz={horizon} t={t} half={roadHalf0} />
+          <div className="pointer-events-none absolute inset-0 opacity-40"><RoadExtras W={W} H={H} hz={horizon} t={t} half={roadHalf0} /></div>
 
           {/* road markings stream toward you as the camera walks */}
           {Array.from({ length: Math.round(20 / mark.gap) }).map((_, i) => (
@@ -126,7 +133,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           {details.props.map((d, i) => (
             <Placed decorative key={`s${i}`} cam={cam} z={d.z} lat={d.lat} g={g} w={W * d.size} h={W * d.size} zIndex={Math.round(400 - d.z * 10)}>
               <div aria-hidden className="pointer-events-none h-full w-full">
-                {i % 5 === 0 ? <WorldDiscovery theme={t} variant={i % 3} /> : <Scenery kind={d.kind} />}
+                <Scenery kind={d.kind} />
               </div>
             </Placed>
           ))}
@@ -136,15 +143,15 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             </Placed>
           ))}
 
-          {/* fog only while the boss is still locked */}
-          {!bossOpen && (
-            <>
-              <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: horizon - H * 0.14, height: H * 0.3, zIndex: 290, background: `linear-gradient(180deg, transparent, ${t.fog} 48%, transparent)`, opacity: 0.8 }} />
-              {[0, 1, 2].map((i) => (
-                <motion.div key={i} aria-hidden className="pointer-events-none absolute rounded-full" style={{ top: horizon - H * (0.09 - i * 0.035), left: `${8 + i * 28}%`, width: W * 0.42, height: H * 0.11, background: `radial-gradient(closest-side, ${t.fog}, transparent)`, opacity: 0.75, zIndex: 291 }} animate={{ x: [0, i % 2 ? -50 : 50, 0] }} transition={{ duration: 9 + i * 3, repeat: Infinity, ease: "easeInOut" }} />
-              ))}
-            </>
-          )}
+          <Placed cam={cam} z={DEPTH[BOSS]-.2} lat={0} g={g} w={W*.58} h={W*.68} zIndex={299}>
+            <button type="button" aria-label={approach.ready?"Approach and unseal the boss gate":"Boss gate: break four seals first"} disabled={!approach.ready} onClick={()=>onEnterBoss?onEnterBoss():onSelect(BOSS)} className="block h-full w-full rounded-lg focus-visible:outline focus-visible:outline-4 focus-visible:outline-cyan-200 disabled:cursor-not-allowed"><BossDoor theme={t} ready={approach.ready}/></button>
+          </Placed>
+          {/* The mist lives at the boss depth, so it stays on the threshold as
+              the camera advances. Wins thin it instead of toggling it off. */}
+          <Placed decorative cam={cam} z={DEPTH[BOSS]-.1} lat={0} g={g} w={W*.9} h={W*.78} zIndex={300}>
+            <motion.div data-boss-fog={approach.cleared} className="pointer-events-none absolute inset-[-12%]" initial={false} animate={{opacity:approach.fog}} transition={{duration:reduced?0:1.7}} style={{background:`radial-gradient(ellipse, ${t.fog} 15%, ${t.fog}CC 42%, transparent 70%)`,filter:"blur(8px)"}}/>
+          </Placed>
+          <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{top:horizon-H*.13,height:H*.26,zIndex:280,background:`linear-gradient(transparent, ${t.fog}55, transparent)`}}/>
 
           {/* each battle: a pad on the road and its enemy standing beside it */}
           {DEPTH.map((z, b) => {
@@ -153,9 +160,9 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             const won = !!stars[b];
             const open = unlocked[b];
             const next = open && !won;
-            const hidden = boss && !bossOpen;
+            const hidden = boss && !stars[BOSS];
             const size = boss ? Math.min(W * 0.5, 460) : Math.min(W * 0.3, 270);
-            const padW = roadHalf0 * 0.95;
+            const padW = Math.max(W*.12, roadHalf0 * 0.95);
             const zi = boss ? (hidden ? 285 : 400 - Math.round(z * 10)) : 400 - Math.round(z * 10);
             return (
               <div key={b}>
@@ -183,7 +190,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
                   >
                     {selected === b && !hidden && <span className="absolute bottom-[1%] left-[16%] h-[11%] w-[68%] rounded-[50%] border-[5px] border-white/90" style={{ boxShadow: "0 0 0 5px rgba(255,138,0,.6)" }} />}
                     <span className="block" style={{ filter: won ? "grayscale(0.75)" : !open && !hidden ? "saturate(0.6)" : undefined, opacity: won ? 0.6 : 1 }}>
-                      <MonsterArt enemy={enemy} boss={boss} size={size} silhouette={hidden} idle={!won} hurt={won} />
+                      {!won && (boss || open || b===selected+1) ? <MonsterArt enemy={enemy} boss={boss} size={size} silhouette={hidden || !open} idle={open&&!reduced} /> : <div aria-hidden className="absolute inset-x-[40%] bottom-[3%] h-[18%] rounded-full" style={{background:won?"#8AE4C2":"#263046",opacity:.3}}/>}
                     </span>
                     {next && !hidden && (
                       <motion.span className="absolute left-1/2 top-[-6%] grid h-[15%] w-[15%] min-w-[26px] -translate-x-1/2 place-items-center rounded-full bg-white font-display text-ember" style={{ boxShadow: "0 4px 0 #D96F00", fontSize: size * 0.1 }} animate={{ y: [0, -8, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
@@ -201,7 +208,8 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             );
           })}
 
-          <Ambient W={W} H={H} hz={horizon} t={t} />
+          <div aria-hidden className="pointer-events-none absolute inset-0" style={{zIndex:450,background:"radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(5,9,20,.5) 100%)"}}/>
+          <p className="pointer-events-none absolute inset-x-0 bottom-4 z-[650] text-center text-[10px] font-bold uppercase tracking-[.25em] text-white/60">{approach.ready ? "The threshold awaits" : `${approach.cleared} / 4 seals broken · something waits ahead`}</p>
           {/* your warrior from behind; it bobs faster while walking */}
           <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2] } : { y: 0, rotate: 0 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
             <WarriorArt facing="back" weapon={avatar.weapon} headwear={avatar.headwear} body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />

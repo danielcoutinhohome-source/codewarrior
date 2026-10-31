@@ -1,3 +1,4 @@
+import { performEnemyFinale, type EnemyCinematicStage } from "./cinematicEnemy";
 import type { EnemyDesign } from "./game";
 
 export type Choreography = "rush" | "sweep" | "rise" | "dive" | "volley" | "orbit" | "beam" | "snare" | "quake" | "blink" | "summon" | "vortex";
@@ -62,10 +63,11 @@ export type AttackContext = {
   distance: number;
   compact: boolean;
   reducedMotion: boolean;
-  animate: (actor: "foe" | "body", pose: ActorPose, ms: number) => Promise<unknown>;
+  animate: (actor: "foe" | "body" | "target", pose: ActorPose, ms: number) => Promise<unknown>;
   wait: (ms: number) => Promise<unknown>;
   effect: (phase: AttackPhase) => void;
   hit: () => void;
+  contact?: (stage:EnemyCinematicStage,index:number)=>void;
 };
 
 // Race each animation against cancellation. Leaving a battle never leaves a
@@ -84,8 +86,9 @@ async function guarded(task: Promise<unknown>, signal: AbortSignal) {
 
 export async function performEnemyMove(move: EnemyMove, ctx: AttackContext): Promise<boolean> {
   if (ctx.signal.aborted) return false;
-  const d = ctx.distance, air = ctx.compact ? 58 : 96;
-  const act = (actor: "foe" | "body", pose: ActorPose, ms: number) => {
+  if (move.glyph === 3 && !ctx.reducedMotion) return performEnemyFinale(move,ctx);
+  const d = Math.max(0,ctx.distance), air = ctx.compact ? 58 : 96;
+  const act = (actor: "foe" | "body" | "target", pose: ActorPose, ms: number) => {
     if (ctx.signal.aborted) return Promise.reject(new Error("attack-cancelled"));
     return guarded(ctx.animate(actor, pose, ms), ctx.signal);
   };
@@ -93,9 +96,12 @@ export async function performEnemyMove(move: EnemyMove, ctx: AttackContext): Pro
   try {
     ctx.effect("telegraph");
     if (ctx.reducedMotion) {
-      await wait(140); ctx.effect("impact"); ctx.hit(); await wait(160); return true;
+      await wait(140); ctx.effect("impact"); if(ctx.signal.aborted)return false; ctx.hit(); await wait(160); return true;
     }
     await act("body", { scaleX: [1, 1.06, 1], scaleY: [1, 0.92, 1] }, move.windup);
+    // Every enemy enters striking range. Spellcasters and artillery enemies
+    // channel at close range rather than casting from the opposite platform.
+    if (!["rush","sweep","rise","dive","blink"].includes(move.motion)) await act("foe",{x:-d*.85},240);
     ctx.effect("travel");
     switch (move.motion) {
       case "rush": await act("foe", { x: [0, 18, -d], y: [0, 0, -10], rotate: [0, 8, -12] }, 320); break;
@@ -112,7 +118,8 @@ export async function performEnemyMove(move: EnemyMove, ctx: AttackContext): Pro
       case "vortex": await act("foe", { y: [0, -24, -12], rotate: [0, 12, -12, 0], scale: [1, 1.08, 1] }, 510); break;
     }
     ctx.effect("impact"); ctx.hit(); // Exactly one gameplay hit, including multi-hit-looking attacks.
-    await wait(move.glyph === 3 ? 430 : 170);
+    await act("target",{x:[0,-15,0],rotate:[0,-10,0],y:[0,-6,0]},260);
+    await wait(100);
     return true;
   } catch (error) {
     if (!ctx.signal.aborted) throw error;
@@ -121,6 +128,7 @@ export async function performEnemyMove(move: EnemyMove, ctx: AttackContext): Pro
     if (!ctx.signal.aborted) {
       try {
       await act("foe", { x: 0, y: 0, rotate: 0, scale: 1, scaleY: 1, opacity: 1 }, ctx.reducedMotion ? 0 : 220);
+      await act("target", { x: 0,y:0,rotate:0,scale:1,scaleX:1,scaleY:1,opacity:1 }, 0);
       await act("body", { x: 0, y: 0, rotate: 0, scale: 1, scaleX: 1, scaleY: 1, opacity: 1 }, 0);
       } catch (error) { if (!ctx.signal.aborted) throw error; }
     }
