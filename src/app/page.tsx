@@ -13,7 +13,7 @@ import { WORLDS } from "@/lib/game";
 const FEATURES = [
   { title: "Every answer is an attack", text: "Get it right and your warrior strikes. Miss and the enemy hits back. Two tries per question." },
   { title: "Seven worlds, seven bosses", text: "From variables to recursion, each world ends with a boss that only the fog can hide." },
-  { title: "Earn coins, gear up", text: "Buy potions, shields and power surges, or new armor, energy blades and auras." },
+  { title: "Earn coins, gear up", text: "Buy potions, firewalls and power surges, or new armor, energy blades and auras." },
   { title: "Built for AP CSA", text: "Real Java, checked against a real compiler, ending in actual LeetCode problems." },
 ];
 

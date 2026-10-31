@@ -42,7 +42,7 @@ export default function TopBar({ account, progress }: { account: Account; progre
     <header className="card flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3 sm:px-5">
       <Link href="/profile/" className="flex items-center gap-3" aria-label="Open your armory">
         <span className="grid h-14 w-14 flex-none place-items-center overflow-hidden rounded-full border-[3px] border-gold bg-sky-night">
-          <Warrior armor={a.armor} energy={a.energy} finish={a.finish} size={54} idle={false} className="mt-4" />
+          <Warrior body={a.body} armor={a.armor} energy={a.energy} finish={a.finish} size={54} idle={false} className="mt-4" />
         </span>
         <span>
           <span className="block font-display text-xl leading-none">{account.username}</span>

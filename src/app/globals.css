@@ -47,3 +47,31 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Show code operators literally: no ligatures turning != or == into single glyphs. */
+.font-mono,
+code,
+pre,
+kbd,
+samp,
+input,
+textarea,
+svg text {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+}
+
+@keyframes cw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.cw-spin {
+  animation: cw-spin 4s linear infinite;
+}
+
+/* Reserve the scrollbar's space so pages that size art from their width can't
+   flip between "scrollbar" and "no scrollbar" and make the scene jump. */
+html {
+  scrollbar-gutter: stable;
+}

@@ -26,18 +26,46 @@ export const StarIcon = ({ size = 18, on = true }: { size?: number; on?: boolean
 export function PowerIcon({ kind, size = 30 }: { kind: Power | string; size?: number }) {
   if (kind === "potion")
     return (
-      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-        <rect x="12" y="3" width="8" height="6" rx="2" fill="#B98250" />
-        <path d="M11 9h10v3l5 8a7 7 0 0 1-6 10h-8a7 7 0 0 1-6-10l5-8z" fill="#3EC46D" stroke="#2BA155" strokeWidth="2" />
-        <path d="M9 21h14" stroke="#B6F5C8" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="13" cy="24" r="1.6" fill="#FFFFFF" opacity=".8" />
+      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden style={{ overflow: "visible" }}>
+        <defs>
+          <radialGradient id="cw-pot-liq" cx="40%" cy="35%" r="70%">
+            <stop offset="0%" stopColor="#FF9AB0" />
+            <stop offset="55%" stopColor="#FF2E63" />
+            <stop offset="100%" stopColor="#A3002E" />
+          </radialGradient>
+          <linearGradient id="cw-pot-cap" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FFF1B0" />
+            <stop offset="100%" stopColor="#C98E00" />
+          </linearGradient>
+        </defs>
+        <circle cx="16" cy="20" r="11" fill="#FF2E63" opacity="0.22" />
+        <path d="M12.5 8.5 h7 v4.2 a9 9 0 1 1 -7 0 z" fill="#EAF6FF" fillOpacity="0.55" stroke="#4A2A55" strokeWidth="1.6" />
+        <path d="M7.5 17 q4.25 -2.6 8.5 0 t8.5 0 A9 9 0 1 1 7.5 17 z" fill="url(#cw-pot-liq)" />
+        <path d="M16 20.4 c-1-1.3-3-0.7-2.7 0.9 c0.25 1.2 1.7 2 2.7 2.9 c1-0.9 2.45-1.7 2.7-2.9 c0.3-1.6-1.7-2.2-2.7-0.9 z" fill="#FFFFFF" opacity="0.95" />
+        <circle cx="11" cy="22.5" r="1.1" fill="#FFFFFF" opacity="0.6" />
+        <circle cx="21.5" cy="24.5" r="0.9" fill="#FFFFFF" opacity="0.6" />
+        <circle cx="19.5" cy="17.6" r="0.7" fill="#FFFFFF" opacity="0.7" />
+        <path d="M10.4 15.2 q-1.6 2.6 -1 5.4" stroke="#FFFFFF" strokeWidth="1.6" strokeLinecap="round" fill="none" opacity="0.85" />
+        <rect x="11.2" y="5" width="9.6" height="4.4" rx="1.6" fill="url(#cw-pot-cap)" stroke="#8A5A00" strokeWidth="1" />
+        <circle cx="16" cy="7.2" r="1.2" fill="#FF2E63" />
+        <path d="M26 5 l0.8 1.8 1.8 0.8 -1.8 0.8 -0.8 1.8 -0.8 -1.8 -1.8 -0.8 1.8 -0.8 z" fill="#FFE066" />
       </svg>
     );
   if (kind === "shield")
     return (
-      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-        <polygon points="16,3 28,10 28,22 16,29 4,22 4,10" fill="#7FC8FF" stroke="#2D7DB5" strokeWidth="2" />
-        <polygon points="16,8 23,12 23,20 16,24 9,20 9,12" fill="#D9F1FF" />
+      <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden style={{ overflow: "visible" }}>
+        <defs>
+          <linearGradient id="cw-fw" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7DF9FF" />
+            <stop offset="100%" stopColor="#2D7DB5" />
+          </linearGradient>
+        </defs>
+        <path d="M16 3 C11 6 7 6 4.5 6 C4.5 17 8 25 16 29.5 C24 25 27.5 17 27.5 6 C25 6 21 6 16 3 Z" fill="url(#cw-fw)" stroke="#1D4F7A" strokeWidth="1.6" strokeLinejoin="round" />
+        <g stroke="#E6FBFF" strokeWidth="1.3" strokeOpacity="0.8" fill="none">
+          <path d="M6.5 12 H25.5 M7.5 17 H24.5 M9.5 22 H22.5" />
+          <path d="M12 7.5 V12 M20 7.5 V12 M16 12 V17 M11 17 V22 M21 17 V22 M16 22 V27" />
+        </g>
+        <path d="M16 9 c2.6 2.4 3.6 4.6 2.2 7 c1-0.4 1.6-1.2 1.8-2.2 c1.6 2.6 0.6 6.2-4 6.8 c-4.6-0.6-5.6-4.6-3.4-7.4 c0 1 0.6 1.8 1.4 2.2 c-0.8-2.2 0.4-4.4 2-6.4 z" fill="#FF8A00" stroke="#FFFFFF" strokeWidth="1" strokeLinejoin="round" />
       </svg>
     );
   if (kind === "surge")

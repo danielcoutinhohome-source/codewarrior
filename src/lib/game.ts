@@ -171,7 +171,7 @@ export const PLAYER_HP = 100;
 export const enemyHit = (world: number, boss: boolean) => (boss ? 30 + 2 * world : 16 + 2 * world);
 
 // Shop
-export type ItemKind = "power" | "armor" | "energy" | "finish" | "aura" | "title";
+export type ItemKind = "power" | "body" | "armor" | "energy" | "finish" | "aura" | "title";
 export type ShopItem = {
   id: string;
   kind: ItemKind;
@@ -187,42 +187,53 @@ export type Power = (typeof POWERS)[number];
 
 export const SHOP: ShopItem[] = [
   { id: "potion", kind: "power", name: "Health Potion", price: 40, value: "potion", blurb: "Heals 35 HP in battle." },
-  { id: "shield", kind: "power", name: "Iron Shield", price: 50, value: "shield", blurb: "Blocks the next enemy hit." },
+  { id: "shield", kind: "power", name: "Firewall", price: 50, value: "shield", blurb: "Raises an energy wall that blocks the next enemy hit." },
   { id: "surge", kind: "power", name: "Power Surge", price: 60, value: "surge", blurb: "Your next correct answer hits twice as hard." },
   { id: "scroll", kind: "power", name: "Hint Scroll", price: 30, value: "scroll", blurb: "Shows a hint. That question counts as a miss." },
 
+  { id: "body-bot", kind: "body", name: "Classic", price: 0, value: "bot", blurb: "Round hover bot." },
+  { id: "body-titan", kind: "body", name: "Titan", price: 0, value: "titan", blurb: "Big, blocky and tough." },
+  { id: "body-valkyrie", kind: "body", name: "Valkyrie", price: 0, value: "valkyrie", blurb: "Sleek triangle frame with long flowing hair." },
+
   { id: "armor-ocean", kind: "armor", name: "Ocean", price: 0, value: "#2D9CDB", blurb: "Starter armor." },
   { id: "armor-ember", kind: "armor", name: "Ember", price: 0, value: "#FF8A00", blurb: "Starter armor." },
-  { id: "armor-jade", kind: "armor", name: "Jade", price: 0, value: "#27AE60", blurb: "Starter armor." },
-  { id: "armor-violet", kind: "armor", name: "Violet", price: 0, value: "#8B5CF6", blurb: "Starter armor." },
-  { id: "armor-ruby", kind: "armor", name: "Ruby", price: 0, value: "#E5484D", blurb: "Starter armor." },
   { id: "armor-shadow", kind: "armor", name: "Shadow", price: 0, value: "#3B4058", blurb: "Starter armor." },
+  { id: "armor-jade", kind: "armor", name: "Jade", price: 120, value: "#27AE60", blurb: "Bright green plating." },
+  { id: "armor-violet", kind: "armor", name: "Violet", price: 120, value: "#8B5CF6", blurb: "Royal purple shell." },
+  { id: "armor-ruby", kind: "armor", name: "Ruby", price: 140, value: "#E5484D", blurb: "Gem red." },
   { id: "armor-forest", kind: "armor", name: "Forest", price: 150, value: "#2F7A45", blurb: "Deep green plating." },
   { id: "armor-crimson", kind: "armor", name: "Crimson", price: 250, value: "#A8172B", blurb: "Battle-hardened red." },
-  { id: "armor-gold", kind: "armor", name: "Gold Plate", price: 300, value: "#E2A50F", blurb: "Shines in every fight." },
   { id: "armor-chrome", kind: "armor", name: "Chrome", price: 300, value: "#A3AEC2", blurb: "Polished steel." },
   { id: "armor-glacier", kind: "armor", name: "Glacier", price: 350, value: "#6FD3FF", blurb: "Ice-blue shell." },
   { id: "armor-obsidian", kind: "armor", name: "Obsidian", price: 450, value: "#1E2238", blurb: "Near-black. Looks best with Circuit." },
+  { id: "armor-rainbow", kind: "armor", name: "Rainbow", price: 1000, value: "rainbow", blurb: "Shifting colors that never sit still." },
+  { id: "armor-gold", kind: "armor", name: "Solid Gold", price: 1500, value: "gold", blurb: "The rarest armor. Pure shining gold." },
 
   { id: "energy-red", kind: "energy", name: "Red", price: 0, value: "#FF5A5F", blurb: "Starter energy." },
-  { id: "energy-gold", kind: "energy", name: "Gold", price: 0, value: "#FFC83D", blurb: "Starter energy." },
-  { id: "energy-mint", kind: "energy", name: "Mint", price: 0, value: "#34D399", blurb: "Starter energy." },
   { id: "energy-sky", kind: "energy", name: "Sky", price: 0, value: "#5CC8FF", blurb: "Starter energy." },
-  { id: "energy-pink", kind: "energy", name: "Pink", price: 0, value: "#FF7EB6", blurb: "Starter energy." },
+  { id: "energy-mint", kind: "energy", name: "Mint", price: 0, value: "#34D399", blurb: "Starter energy." },
+  { id: "energy-gold", kind: "energy", name: "Amber", price: 120, value: "#FFC83D", blurb: "Warm orange-yellow glow." },
+  { id: "energy-pink", kind: "energy", name: "Pink", price: 120, value: "#FF7EB6", blurb: "Hot pink blade." },
   { id: "energy-toxic", kind: "energy", name: "Toxic", price: 150, value: "#A3FF12", blurb: "Radioactive green blade." },
   { id: "energy-plasma", kind: "energy", name: "Plasma", price: 200, value: "#B14BFF", blurb: "Hot purple plasma." },
   { id: "energy-solar", kind: "energy", name: "Solar", price: 250, value: "#FFF3B0", blurb: "Blinding white-gold." },
   { id: "energy-void", kind: "energy", name: "Void", price: 300, value: "#4D3BFF", blurb: "Deep electric blue." },
+  { id: "energy-rainbow", kind: "energy", name: "Rainbow", price: 900, value: "rainbow", blurb: "A blade in every color." },
+  { id: "energy-goldx", kind: "energy", name: "Solid Gold", price: 1200, value: "gold", blurb: "A gleaming gold blade and thrusters." },
 
   { id: "finish-standard", kind: "finish", name: "Standard", price: 0, value: "standard", blurb: "Clean matte shell." },
   { id: "finish-metal", kind: "finish", name: "Metal Shine", price: 200, value: "metal", blurb: "Polished highlights." },
   { id: "finish-circuit", kind: "finish", name: "Circuit Lines", price: 350, value: "circuit", blurb: "Glowing code traces in your energy color." },
 
   { id: "aura-none", kind: "aura", name: "No Aura", price: 0, value: "none", blurb: "Keep it simple." },
-  { id: "aura-ember", kind: "aura", name: "Ember Aura", price: 300, value: "ember", blurb: "Rising sparks." },
-  { id: "aura-frost", kind: "aura", name: "Frost Aura", price: 300, value: "frost", blurb: "Drifting snowflakes." },
-  { id: "aura-storm", kind: "aura", name: "Storm Aura", price: 450, value: "storm", blurb: "Crackling lightning ring." },
-  { id: "aura-royal", kind: "aura", name: "Royal Aura", price: 550, value: "royal", blurb: "A golden halo of light." },
+  { id: "aura-ember", kind: "aura", name: "Ember Aura", price: 300, value: "ember", blurb: "A blazing glow with rising flames." },
+  { id: "aura-frost", kind: "aura", name: "Frost Aura", price: 300, value: "frost", blurb: "An icy glow with falling snowflakes." },
+  { id: "aura-storm", kind: "aura", name: "Storm Aura", price: 450, value: "storm", blurb: "A spinning lightning ring with bolts." },
+  { id: "aura-halo-cyan", kind: "aura", name: "Cyber Angel", price: 1600, value: "halo-cyan", blurb: "Cyan halo and wings." },
+  { id: "aura-halo-pink", kind: "aura", name: "Rose Angel", price: 1600, value: "halo-pink", blurb: "Pink halo and wings." },
+  { id: "aura-halo-violet", kind: "aura", name: "Nebula Angel", price: 1800, value: "halo-violet", blurb: "Violet halo and wings." },
+  { id: "aura-halo-white", kind: "aura", name: "Seraph", price: 2000, value: "halo-white", blurb: "Pure white halo and wings." },
+  { id: "aura-royal", kind: "aura", name: "Golden Angel", price: 2500, value: "royal", blurb: "The most legendary look: a golden halo and golden wings." },
 
   { id: "title-byte", kind: "title", name: "Byte Knight", price: 0, value: "Byte Knight", blurb: "Starter title." },
   { id: "title-loop", kind: "title", name: "Loop Ranger", price: 0, value: "Loop Ranger", blurb: "Starter title." },
@@ -251,3 +262,4 @@ const starters = (k: ItemKind) => SHOP.filter((s) => s.kind === k && s.price ===
 export const ARMORS = starters("armor").map((s) => ({ name: s.name, color: s.value }));
 export const ENERGIES = starters("energy").map((s) => ({ name: s.name, color: s.value }));
 export const TITLES = starters("title").map((s) => s.value);
+export const BODIES = starters("body").map((s) => ({ name: s.name, value: s.value, blurb: s.blurb }));

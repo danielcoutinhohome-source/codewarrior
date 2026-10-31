@@ -7,13 +7,14 @@ import { useState } from "react";
 import Warrior from "@/components/Warrior";
 import { Button, Logo, Pedestal, Sky, Swatch } from "@/components/ui";
 import { createAccount, validateSignup } from "@/lib/auth";
-import { ARMORS, ENERGIES, TITLES } from "@/lib/game";
+import { ARMORS, BODIES, ENERGIES, TITLES } from "@/lib/game";
 
 export default function CreatePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [body, setBody] = useState(BODIES[0].value);
   const [armor, setArmor] = useState(ARMORS[0].color);
   const [energy, setEnergy] = useState(ENERGIES[0].color);
   const [title, setTitle] = useState(TITLES[0]);
@@ -33,7 +34,7 @@ export default function CreatePage() {
     setBusy(true);
     setError(null);
     try {
-      await createAccount(name.trim(), pass, { armor, energy, title });
+      await createAccount(name.trim(), pass, { body, armor, energy, title });
       setForged(true);
       setTimeout(() => router.push("/map/"), 1100);
     } catch (err) {
@@ -43,7 +44,7 @@ export default function CreatePage() {
     }
   }
 
-  const avatarKey = armor + energy;
+  const avatarKey = body + armor + energy;
 
   return (
     <Sky clouds={false}>
@@ -114,7 +115,7 @@ export default function CreatePage() {
                 animate={{ scale: forged ? 1.15 : 1, opacity: 1, rotate: 0, y: forged ? -30 : 0 }}
                 transition={{ type: "spring", stiffness: 380, damping: 18 }}
               >
-                <Warrior armor={armor} energy={energy} size={200} />
+                <Warrior body={body} armor={armor} energy={energy} size={200} />
               </motion.div>
             </AnimatePresence>
             <AnimatePresence>
@@ -134,6 +135,26 @@ export default function CreatePage() {
             <span className="flex-none text-sm font-extrabold text-ink-mute">{title} · Level 1</span>
           </div>
 
+          <Picker label="Warrior">
+            {BODIES.map((o) => {
+              const on = o.value === body;
+              return (
+                <motion.button
+                  key={o.value}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={`${o.name}: ${o.blurb}`}
+                  onClick={() => setBody(o.value)}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex w-[104px] flex-col items-center gap-1 rounded-2xl border-[3px] px-2 pb-2 pt-1 text-sm font-black transition-colors"
+                  style={{ background: on ? "#E8F5FF" : "#FFFFFF", borderColor: on ? "#2D9CDB" : "#D5E4F5", boxShadow: `0 4px 0 ${on ? "#1F7DB5" : "#D5E4F5"}` }}
+                >
+                  <Warrior body={o.value} armor={armor} energy={energy} size={62} idle={false} />
+                  {o.name}
+                </motion.button>
+              );
+            })}
+          </Picker>
           <Picker label="Armor">
             {ARMORS.map((a) => (
               <Swatch key={a.color} color={a.color} label={`${a.name} armor`} selected={armor === a.color} onClick={() => setArmor(a.color)} />
@@ -144,6 +165,7 @@ export default function CreatePage() {
               <Swatch key={a.color} color={a.color} label={`${a.name} energy`} selected={energy === a.color} onClick={() => setEnergy(a.color)} />
             ))}
           </Picker>
+          <p className="-mt-3 text-[13px] font-bold text-ink-mute">More armor and energy colors, plus Rainbow and Solid Gold, are in the shop.</p>
           <Picker label="Title">
             {TITLES.map((t) => {
               const on = t === title;

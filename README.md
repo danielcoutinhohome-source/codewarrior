@@ -9,7 +9,7 @@ Live: https://danielcoutinhohome-source.github.io/codewarrior/
 - **Create a warrior** with a username and password (no email or Google). Pick armor, energy color and title.
 - **World view:** a first-person look down the road. Each enemy stands by its level, and the boss waits in the fog until you win the four battles before it.
 - **Battles:** right answers make your warrior attack. Each question gives two tries, and every miss lets the enemy hit you. Combos (3+ and 5+ in a row) land critical hits. Missed questions come back until the enemy falls. Run out of HP and you're knocked out.
-- **Items:** Health Potion, Iron Shield, Power Surge and Hint Scroll (a hint counts as a miss). No hint scrolls in boss fights.
+- **Items:** Health Potion, Firewall, Power Surge and Hint Scroll (a hint counts as a miss). No hint scrolls in boss fights.
 - **Coins and the shop:** win battles for coins, XP and up to 3 stars. Spend coins on power-ups or cosmetics: armor colors, energy blades, finishes (Metal Shine, Circuit Lines), animated auras and titles. Each boss awards a title you can't buy.
 - **Armory:** equip what you own, see stats, weak and strong skills, download a backup, or make a progress code for your teacher.
 - **Teacher dashboard** (`/teacher`): paste student progress codes to see a class table, stars per world, accuracy and the skills students miss most. Works with no server; everything stays in the teacher's browser.

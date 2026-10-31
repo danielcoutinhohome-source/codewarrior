@@ -384,7 +384,7 @@ function EndScreen({ end, w, b, onAgain }: { end: { victory: boolean; rewards: R
           <div className="mx-auto w-40"><Monster enemy={world.enemies[b]} boss={boss} size={160} /></div>
           <h2 className="mt-2 font-display text-4xl text-danger-deep">KNOCKED OUT</h2>
           <p className="mt-2 font-bold text-ink-soft">
-            {world.enemies[b].name} won this round. Every warrior loses sometimes. Health potions and shields from the shop help in tough fights.
+            {world.enemies[b].name} won this round. Every warrior loses sometimes. Health potions and firewalls from the shop help in tough fights.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button onClick={onAgain}>TRY AGAIN</Button>

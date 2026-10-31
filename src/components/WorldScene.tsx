@@ -165,7 +165,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             <>
               <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: horizon - H * 0.14, height: H * 0.3, zIndex: 290, background: `linear-gradient(180deg, transparent, ${t.fog} 48%, transparent)`, opacity: 0.8 }} />
               {[0, 1, 2].map((i) => (
-                <motion.div key={i} aria-hidden className="pointer-events-none absolute rounded-full" style={{ top: horizon - H * (0.09 - i * 0.035), left: `${8 + i * 28}%`, width: W * 0.42, height: H * 0.11, background: t.fog, filter: "blur(18px)", zIndex: 291 }} animate={{ x: [0, i % 2 ? -50 : 50, 0], opacity: [0.45, 0.7, 0.45] }} transition={{ duration: 9 + i * 3, repeat: Infinity, ease: "easeInOut" }} />
+                <motion.div key={i} aria-hidden className="pointer-events-none absolute rounded-full" style={{ top: horizon - H * (0.09 - i * 0.035), left: `${8 + i * 28}%`, width: W * 0.42, height: H * 0.11, background: `radial-gradient(closest-side, ${t.fog}, transparent)`, opacity: 0.75, zIndex: 291 }} animate={{ x: [0, i % 2 ? -50 : 50, 0] }} transition={{ duration: 9 + i * 3, repeat: Infinity, ease: "easeInOut" }} />
               ))}
             </>
           )}
@@ -226,8 +226,8 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           })}
 
           {/* your warrior from behind; it bobs faster while walking */}
-          <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60, opacity: 0 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2], opacity: 1 } : { y: 0, rotate: 0, opacity: 1 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
-            <WarriorArt facing="back" armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
+          <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2] } : { y: 0, rotate: 0 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
+            <WarriorArt facing="back" body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
           </motion.div>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={{ zIndex: 650, background: "radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(15,18,45,.22))" }} />
         </>

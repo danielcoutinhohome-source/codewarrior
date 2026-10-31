@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from "dexie";
 import { STARTER_COINS, STARTER_INVENTORY, STARTER_OWNED } from "./game";
 
 export type Avatar = {
+  body?: string; // "bot" | "titan" | "valkyrie"
   armor: string;
   energy: string;
   title: string;

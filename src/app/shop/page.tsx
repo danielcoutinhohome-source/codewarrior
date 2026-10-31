@@ -9,12 +9,13 @@ import { CoinIcon } from "@/components/icons";
 import { Button, Pedestal } from "@/components/ui";
 import type { Avatar } from "@/lib/db";
 import { SHOP, type ItemKind, type ShopItem } from "@/lib/game";
-import { buy, equip, isEquipped } from "@/lib/progress";
+import { buy, equip, isEquipped, ownsItem } from "@/lib/progress";
 import { play } from "@/lib/sfx";
 import { useWarrior } from "@/lib/useWarrior";
 
 const TABS: { kind: ItemKind; label: string; blurb: string }[] = [
   { kind: "power", label: "Power-ups", blurb: "Use these during battles. They stack up in your bag." },
+  { kind: "body", label: "Body", blurb: "Pick your warrior's frame. All bodies are free." },
   { kind: "armor", label: "Armor", blurb: "Repaint your warrior's shell." },
   { kind: "energy", label: "Energy", blurb: "Changes your blade, thruster and eye glow." },
   { kind: "finish", label: "Finish", blurb: "Special surface effects on top of your armor color." },
@@ -34,6 +35,7 @@ export default function ShopPage() {
 
   const look: Avatar = { ...account.avatar };
   if (preview) {
+    if (preview.kind === "body") look.body = preview.value;
     if (preview.kind === "armor") look.armor = preview.value;
     if (preview.kind === "energy") look.energy = preview.value;
     if (preview.kind === "finish") look.finish = preview.value;
@@ -90,7 +92,7 @@ export default function ShopPage() {
             <Pedestal>
               <AnimatePresence mode="popLayout">
                 <motion.div key={JSON.stringify(look)} initial={{ scale: 0.9, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 360, damping: 20 }}>
-                  <Warrior armor={look.armor} energy={look.energy} finish={look.finish} aura={look.aura} size={170} />
+                  <Warrior body={look.body} armor={look.armor} energy={look.energy} finish={look.finish} aura={look.aura} size={170} />
                 </motion.div>
               </AnimatePresence>
             </Pedestal>
@@ -122,7 +124,7 @@ export default function ShopPage() {
 
             <motion.div key={tab} className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3" initial="hide" animate="show" variants={{ show: { transition: { staggerChildren: 0.04 } } }}>
               {items.map((it) => {
-                const owned = it.kind !== "power" && progress.owned.includes(it.id);
+                const owned = it.kind !== "power" && ownsItem(progress, it.id);
                 const on = it.kind !== "power" && isEquipped(account, it.id);
                 const earnOnly = it.price < 0;
                 const short = it.price > progress.coins;

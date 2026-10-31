@@ -5,6 +5,7 @@ import { forwardRef, memo, useCallback, useImperativeHandle, useRef, useState } 
 import Monster from "./Monster";
 import Warrior from "./Warrior";
 import { play } from "@/lib/sfx";
+import { solid } from "@/lib/color";
 import type { Avatar } from "@/lib/db";
 import type { Enemy, Theme } from "@/lib/game";
 
@@ -70,6 +71,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const [glow, setGlow] = useState<{ id: number; color: string } | null>(null);
   const [vignette, setVignette] = useState(false);
 
+  const en = solid(p.avatar.energy);
   const heroSize = p.compact ? 118 : 168;
   const foeSize = p.compact ? (p.boss ? 150 : 126) : p.boss ? 220 : 178;
 
@@ -96,7 +98,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const float = (text: string, at: Pt, color: string, big = false) => add<Float>(setFloats, { id: ++uid, text, at, color, big }, 1250);
   const burst = (at: Pt, colors: string[], count = 12, spread = 90) => add<Burst>(setBursts, { id: ++uid, at, colors, count, spread }, 900);
   const ring = (at: Pt, color: string, size = 160) => add<Ring>(setRings, { id: ++uid, at, color, size }, 700);
-  const slash = (at: Pt, kind: Slash["kind"], size = foeSize) => add<Slash>(setSlashes, { id: ++uid, at, size, kind, color: p.avatar.energy }, 650);
+  const slash = (at: Pt, kind: Slash["kind"], size = foeSize) => add<Slash>(setSlashes, { id: ++uid, at, size, kind, color: en }, 650);
   const flashOn = (color: string, side: "hero" | "foe" | "all") => setFlash({ id: ++uid, color, side });
   const shake = (amt = 8) => animate(scope.current, { x: [0, -amt, amt, -amt * 0.6, amt * 0.5, 0], y: [0, amt * 0.4, -amt * 0.3, amt * 0.2, 0, 0] }, { duration: 0.36, ease: "easeOut" });
 
@@ -117,7 +119,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   };
   const impactFx = (at: Pt, strong: boolean, label?: string, damage?: number) => {
     flashOn("#FFFFFF", "foe");
-    burst(at, [p.avatar.energy, "#FFFFFF", "#FFE066"], strong ? 18 : 12, strong ? 130 : 90);
+    burst(at, [en, "#FFFFFF", "#FFE066"], strong ? 18 : 12, strong ? 130 : 90);
     if (damage !== undefined) float(`-${damage}`, { x: at.x, y: at.y - 40 }, strong ? "#FFC83D" : "#FFFFFF", strong);
     if (label) float(label, { x: at.x, y: at.y - 92 }, "#FF8A00", true);
   };
@@ -166,7 +168,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         await sleep(110);
         foeHit(true);
         impactFx(center(f), true, "FINISHING BLOW!", damage);
-        ring({ x: fc.x, y: fc.y + foeSize * 0.4 }, p.avatar.energy, foeSize * 2);
+        ring({ x: fc.x, y: fc.y + foeSize * 0.4 }, en, foeSize * 2);
         flashOn("#FFFFFF", "all");
         shake(16);
         await sleep(420);
@@ -199,7 +201,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         play(strong ? "crit" : "slash");
         const fc = center(f);
         slash(fc, "down");
-        ring({ x: fc.x, y: fc.y + foeSize * 0.42 }, p.avatar.energy, foeSize * 1.4);
+        ring({ x: fc.x, y: fc.y + foeSize * 0.42 }, en, foeSize * 1.4);
         foeHit(strong);
         animate(foeBody.current!, { scaleY: [1, 0.78, 1.05, 1] }, { duration: 0.4, ease });
         impactFx(fc, strong, label, damage);
@@ -213,12 +215,12 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         animate(hb, { rotate: [-18, 22, 0], scale: [1.04, 1, 1] }, { duration: 0.38, ease });
         play("whoosh");
         const from = center(h), to = center(f);
-        add<Shot>(setShots, { id: ++uid, from, to, color: p.avatar.energy, kind: "wave", ms: 260 }, 320);
+        add<Shot>(setShots, { id: ++uid, from, to, color: en, kind: "wave", ms: 260 }, 320);
         await sleep(250);
         play(strong ? "crit" : "slash");
         foeHit(strong);
         impactFx(to, strong, label, damage);
-        ring({ x: to.x, y: to.y }, p.avatar.energy, foeSize * 1.1);
+        ring({ x: to.x, y: to.y }, en, foeSize * 1.1);
         if (strong) shake(10);
         await sleep(260);
       }
@@ -296,7 +298,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       setGlow({ id: ++uid, color });
       burst(at, [color, "#FFFFFF"], 14, 70);
       ring({ x: at.x, y: at.y + heroSize * 0.45 }, color, heroSize * 1.3);
-      float(kind === "shield" ? "SHIELD UP" : kind === "surge" ? "POWER SURGE" : "HINT", { x: at.x, y: at.y - 70 }, color, true);
+      float(kind === "shield" ? "FIREWALL UP" : kind === "surge" ? "POWER SURGE" : "HINT", { x: at.x, y: at.y - 70 }, color, true);
       await sleep(500);
     },
 
@@ -338,11 +340,25 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
 
         <div ref={heroRef} className="absolute bottom-[14%] left-[8%] z-10" style={{ width: heroSize, willChange: "transform" }}>
           <div ref={heroBody} className="relative" style={{ transformOrigin: "50% 80%" }}>
-            <HeroArt armor={p.avatar.armor} energy={p.avatar.energy} finish={p.avatar.finish} aura={p.avatar.aura} size={heroSize} hurt={heroHurt} />
+            <HeroArt body={p.avatar.body} armor={p.avatar.armor} energy={en} finish={p.avatar.finish} aura={p.avatar.aura} size={heroSize} hurt={heroHurt} />
             <AnimatePresence>
               {p.shield && (
-                <motion.svg key="shield" viewBox="0 0 100 100" className="pointer-events-none absolute inset-[-12%]" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 1.3, opacity: 0 }}>
-                  <motion.polygon points="50,4 92,28 92,72 50,96 8,72 8,28" fill="rgba(125,249,255,0.14)" stroke="#7DF9FF" strokeWidth="2.5" animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 1.6, repeat: Infinity }} />
+                // Firewall: a curved energy barrier on the side facing the enemy.
+                <motion.svg key="shield" viewBox="0 0 60 140" className="pointer-events-none absolute" style={{ right: "-34%", top: "2%", width: "52%", height: "96%", transformOrigin: "0% 50%" }} initial={{ scaleX: 0.2, opacity: 0, x: -20 }} animate={{ scaleX: 1, opacity: 1, x: 0 }} exit={{ scaleX: 1.4, opacity: 0, x: 16 }} transition={{ duration: 0.35 }}>
+                  <defs>
+                    <linearGradient id="fw-fill" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#7DF9FF" stopOpacity="0.05" />
+                      <stop offset="70%" stopColor="#7DF9FF" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.7" />
+                    </linearGradient>
+                  </defs>
+                  <motion.path d="M8 6 Q60 70 8 134 Q28 70 8 6 Z" fill="url(#fw-fill)" stroke="#7DF9FF" strokeWidth="3" strokeLinejoin="round" animate={{ opacity: [0.75, 1, 0.75] }} transition={{ duration: 1.4, repeat: Infinity }} />
+                  <g stroke="#FFFFFF" strokeOpacity="0.7" strokeWidth="1.6" fill="none" strokeLinecap="round">
+                    <path d="M22 30 Q34 36 38 46 M28 56 Q38 62 40 72 M28 86 Q38 92 36 104" />
+                  </g>
+                  {[24, 52, 80, 108].map((y, i) => (
+                    <motion.circle key={y} cx={i % 2 ? 36 : 30} cy={y} r="2.6" fill="#FFFFFF" animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.22 }} />
+                  ))}
                 </motion.svg>
               )}
               {p.surge && (

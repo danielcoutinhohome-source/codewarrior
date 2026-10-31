@@ -9,11 +9,12 @@ import Warrior from "@/components/Warrior";
 import { StarIcon } from "@/components/icons";
 import { Button, Pedestal } from "@/components/ui";
 import { BOSS, SHOP, WORLDS, key, levelFor, type ItemKind } from "@/lib/game";
-import { deleteWarrior, equip, exportBackup, isEquipped, makeReport, totalStars } from "@/lib/progress";
+import { deleteWarrior, equip, ownsItem, exportBackup, isEquipped, makeReport, totalStars } from "@/lib/progress";
 import { play } from "@/lib/sfx";
 import { useWarrior } from "@/lib/useWarrior";
 
 const SLOTS: { kind: ItemKind; label: string }[] = [
+  { kind: "body", label: "Body" },
   { kind: "armor", label: "Armor" },
   { kind: "energy", label: "Energy" },
   { kind: "finish", label: "Finish" },
@@ -34,7 +35,7 @@ export default function ProfilePage() {
   const a = account.avatar;
   const st = progress.stats;
   const accuracy = st.questions ? Math.round((st.firstTry / st.questions) * 100) : 0;
-  const owned = SHOP.filter((s) => s.kind === slot && progress.owned.includes(s.id));
+  const owned = SHOP.filter((s) => s.kind === slot && ownsItem(progress, s.id));
   const skills = Object.entries(progress.skills)
     .map(([k, [r, m]]) => ({ k, r, m, rate: r / Math.max(1, r + m) }))
     .filter((s) => s.r + s.m >= 2);
@@ -78,7 +79,7 @@ export default function ProfilePage() {
             <Pedestal>
               <AnimatePresence mode="popLayout">
                 <motion.div key={JSON.stringify(a)} initial={{ scale: 0.85, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 380, damping: 18 }}>
-                  <Warrior armor={a.armor} energy={a.energy} finish={a.finish} aura={a.aura} size={180} />
+                  <Warrior body={a.body} armor={a.armor} energy={a.energy} finish={a.finish} aura={a.aura} size={180} />
                 </motion.div>
               </AnimatePresence>
             </Pedestal>
