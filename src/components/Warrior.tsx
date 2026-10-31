@@ -439,7 +439,7 @@ function FrontView({ b, weapon, headwear, en, deep, url, id, loop, finish, speci
       )}
       <Headwear kind={headwear} paint={url}/>
       {/* the weapon goes over everything except the hand that grips it */}
-      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
+      <g data-weapon-grip style={{ transformOrigin: "160px 142px" }}>{weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}</g>
     </>
   );
 }
@@ -510,7 +510,7 @@ function BackView({ b, weapon, headwear, en, deep, url, id, loop, finish, specia
       )}
       <Headwear kind={headwear} paint={url} back/>
       {/* the weapon goes over everything except the hand that grips it */}
-      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
+      <g data-weapon-grip style={{ transformOrigin: "160px 142px" }}>{weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}</g>
     </>
   );
 }

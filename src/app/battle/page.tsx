@@ -126,9 +126,7 @@ function Battle() {
     let next: Phase = "answering";
     for (const e of events) {
       if (e.type === "attack") {
-        const anim = arena.current.attack(e);
-        await sleep(330);
-        setBs(state);
+        const anim = arena.current.attack({ ...e, onImpact: () => setBs(state) });
         await anim;
         setNote(`${e.damage} damage${e.crit ? " · critical" : ""}${s.hinted ? " · hint used, counts as a miss" : ""}`);
         next = "correct";
