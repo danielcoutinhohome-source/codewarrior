@@ -30,7 +30,10 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   combat, worlds. Battle results are also reported to classes; keep the calls to the reporter
   (`report.current?.attempt/finish`) when changing the battle page.
 - **Question bank** (`src/lib/questions/`): every Java question must compile and print what it
-  claims (`npm run verify`). Each world has exactly 100 templates (25 novice / 50 intermediate / 25 hard); add one, remove one. Don't
+  claims (`npm run verify`). Worlds 1–6 have 112 templates (28 novice / 56 intermediate / 28 hard); world 7
+  retains 100 (25 / 50 / 25). The user explicitly authorized expanding the first six banks
+  with randomized AP-level variety. Keep the 25% / 50% / 25% split and update verification
+  and documentation when expanding. Don't
   change existing questions' `skill` names (saved progress and lessons refer to them).
 - **Learn Mode and tutor** (`src/app/learn`, `src/lib/learn`, `src/lib/tutor`, `tutor-server/`).
 - **Classroom** (`classroom-server/`, `src/lib/cloud/`, `src/app/teacher`, `src/app/classroom`):
@@ -89,3 +92,8 @@ are useful approximations, not proof of performance on school hardware.
   No active file claim; validation and screenshot review are recorded in the PR. Claude
   Q4/learning/results-screen work is untouched. Playwright is now a dev dependency, also
   supporting Claude's existing `scripts/e2e-classroom.ts`.
+
+- David/Codex, PR #14: randomized AP-level question variety for worlds 1–6 (112 templates
+  each, 28/56/28), recent displayed-content avoidance, and generator regressions. Existing
+  skill keys are reused so Learn Mode can consume the new cases automatically. World 7
+  and Claude's Q4 files are unchanged. No active question-bank file claim.

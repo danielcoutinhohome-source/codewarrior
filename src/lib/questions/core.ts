@@ -4,6 +4,7 @@ export type Kind = "predict" | "fill" | "choice" | "order";
 
 export type Question = {
   tier?: Tier;
+  literalAnswer?: boolean; // new constrained blanks require the literal, including String quotes
   id: string; // stable per skill + variant
   skill: string; // what a teacher would call it, e.g. "Integer division"
   kind: Kind;
@@ -21,7 +22,7 @@ export type Question = {
 };
 
 export type Tier = 0 | 1 | 2;
-export type Gen = { skill: string; tier: Tier; make: (r: Rng) => Question; once?: boolean };
+export type Gen = { skill: string; tier: Tier; make: (r: Rng) => Question; once?: boolean; varied?: boolean };
 
 // ---- seeded RNG (mulberry32) ----
 export type Rng = { next: () => number; int: (lo: number, hi: number) => number; pick: <T>(a: readonly T[]) => T; shuffle: <T>(a: T[]) => T[] };
@@ -87,8 +88,8 @@ export function normalize(s: string) {
 export function isRight(q: Question, given: string | number | string[]) {
   if (q.kind === "choice") return given === q.correct;
   if (q.kind === "order") return Array.isArray(given) && given.join("\n") === (q.lines || []).join("\n");
-  const g = normalize(String(given));
-  return (q.answers || []).some((a) => normalize(a) === g);
+  const g = q.literalAnswer ? String(given).trim() : normalize(String(given));
+  return (q.answers || []).some((a) => (q.literalAnswer ? a.trim() : normalize(a)) === g);
 }
 
 // Small Java-semantics helpers for generators.
@@ -96,3 +97,9 @@ export const jdiv = (a: number, b: number) => Math.trunc(a / b);
 export const jmod = (a: number, b: number) => a % b;
 export const arr = (xs: (number | string)[]) => `{${xs.join(", ")}}`;
 export const jstr = (xs: (number | string)[]) => `[${xs.join(", ")}]`;
+
+// A looser display signature for recent-history avoidance. Options are omitted
+// because older local attempt records do not store them.
+export function questionContentKey(q: { kind: string; prompt?: string; code?: string }) {
+  return JSON.stringify([q.kind, q.prompt?.trim() || "", q.code?.trim() || ""]);
+}
