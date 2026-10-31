@@ -66,3 +66,11 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   (`scripts/test-progress-merge.ts`); refreshed/closed battles now show as left early at once;
   teacher live view detects dead connections and catches up. `scripts/e2e-classroom.ts` covers
   these (18 steps, run locally; not in CI yet, which fits Q1).
+
+- Daniel/Claude, audit pass: classroom server migration v3 (per-run `skills_json`, dropped
+  unused index); teacher summary 25k -> 3.8k rows read, uploads 71 -> 35 rows written per
+  battle (`scripts/bench-classroom.ts`, `x-rows` response header). Fixed: equip() undone by
+  sync, class-account streaks never resetting, long answers rejected, teacher dashboard
+  reloading in hidden tabs. `src/lib/learn/bank.ts` now holds `BANK_GENS`/`gensForSkill` (import
+  from there, not lessons.ts) so the teacher and Learn pages don't load the question bank.
+  Deploy now fails if the classroom server's health check never answers.
