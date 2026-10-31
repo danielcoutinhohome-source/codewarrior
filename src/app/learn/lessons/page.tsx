@@ -26,7 +26,7 @@ export default function LessonsIndex() {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-black uppercase tracking-wider text-xp-deep">Lesson {i + 1} · {l.minutes} min</span>
                   {st && (
-                    <span className="rounded-full px-2.5 py-0.5 text-xs font-black" style={{ background: st.status === "done" ? "#E3F9EA" : "#FFF1E0", color: st.status === "done" ? "#2BA155" : "#B35A00" }}>
+                    <span className="rounded-full px-2.5 py-0.5 text-xs font-black" style={{ background: st.status === "done" ? "#E3F9EA" : "#E2F3FF", color: st.status === "done" ? "#2BA155" : "#1F7DB5" }}>
                       {st.status === "done" ? `Done${st.total ? ` · ${st.right}/${st.total}` : ""}` : "In progress"}
                     </span>
                   )}

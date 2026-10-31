@@ -431,7 +431,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.3, ease }}
             className="absolute left-1/2 top-[22%] z-40 -translate-x-1/2 rounded-2xl px-3 py-1 font-display text-white"
-            style={{ background: p.combo >= 5 ? "#FF8A00" : "#8B5CF6", boxShadow: `0 4px 0 ${p.combo >= 5 ? "#D96F00" : "#6D4BD8"}`, fontSize: p.compact ? 18 : 24 }}
+            style={{ background: p.combo >= 5 ? "#1F7DB5" : "#8B5CF6", boxShadow: `0 4px 0 ${p.combo >= 5 ? "#165E8A" : "#6D4BD8"}`, fontSize: p.compact ? 18 : 24 }}
           >
             {p.combo}x COMBO
           </motion.div>

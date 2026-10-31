@@ -150,7 +150,7 @@ function Lesson() {
                 <div className="flex flex-wrap gap-2">
                   {nextLesson && <ButtonLink href={`/learn/lesson/?id=${nextLesson.id}`} tone="violet">NEXT LESSON</ButtonLink>}
                   <ButtonLink href={`/learn/practice/?lesson=${lesson.id}&difficulty=core`} tone="white">MORE PRACTICE</ButtonLink>
-                  {lesson.course === "csa" && lesson.world >= 0 && <ButtonLink href={`/map/?w=${lesson.world}`} tone="ember">BATTLE IN {WORLDS[lesson.world].name.toUpperCase()}</ButtonLink>}
+                  {lesson.course === "csa" && lesson.world >= 0 && <ButtonLink href={`/map/?w=${lesson.world}`} tone="brand">BATTLE IN {WORLDS[lesson.world].name.toUpperCase()}</ButtonLink>}
                   <Button tone="white" onClick={() => { setRunKey((k) => k + 1); setStage("check"); setSummary(null); }}>RETRY CHECKPOINT</Button>
                 </div>
               </div>

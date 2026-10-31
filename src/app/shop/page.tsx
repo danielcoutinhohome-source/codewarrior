@@ -101,7 +101,7 @@ export default function ShopPage() {
             <div className="flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-card-sm" role="tablist">
               {TABS.map((t) => (
                 <button key={t.kind} role="tab" aria-selected={tab === t.kind} onClick={() => { setTab(t.kind); setPreview(null); }} className="relative flex-none rounded-xl px-4 py-2 text-sm font-black" style={{ color: tab === t.kind ? "#FFFFFF" : "#4A5175" }}>
-                  {tab === t.kind && <motion.span layoutId="shop-tab" className="absolute inset-0 rounded-xl bg-ember" transition={{ type: "spring", stiffness: 500, damping: 36 }} />}
+                  {tab === t.kind && <motion.span layoutId="shop-tab" className="absolute inset-0 rounded-xl bg-brand" transition={{ type: "spring", stiffness: 500, damping: 36 }} />}
                   <span className="relative">{t.label}</span>
                 </button>
               ))}
@@ -146,7 +146,7 @@ export default function ShopPage() {
                     ) : earnOnly ? (
                       <span className="rounded-xl bg-sky px-3 py-1.5 text-xs font-black text-ink-mute">Beat {it.earnedBy}</span>
                     ) : (
-                      <Button size="sm" tone={short ? "white" : "ember"} onClick={() => onBuy(it)} aria-label={`Buy ${it.name} for ${it.price} coins`}>
+                      <Button size="sm" tone={short ? "white" : "brand"} onClick={() => onBuy(it)} aria-label={`Buy ${it.name} for ${it.price} coins`}>
                         <span className="inline-flex items-center gap-1.5"><CoinIcon size={16} /> {it.price}</span>
                       </Button>
                     )}

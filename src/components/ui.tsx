@@ -5,7 +5,7 @@ import Link from "next/link";
 import { forwardRef, type ReactNode } from "react";
 
 const tones = {
-  ember: { bg: "#FF8A00", edge: "#D96F00", fg: "#FFFFFF" },
+  brand: { bg: "#1F7DB5", edge: "#165E8A", fg: "#FFFFFF" },
   ocean: { bg: "#2D9CDB", edge: "#1F7DB5", fg: "#FFFFFF" },
   grass: { bg: "#3EC46D", edge: "#2BA155", fg: "#FFFFFF" },
   violet: { bg: "#8B5CF6", edge: "#6D4BD8", fg: "#FFFFFF" },
@@ -18,7 +18,7 @@ const spring = { type: "spring", stiffness: 600, damping: 30 } as const;
 
 // Chunky 3D button: it sits on a darker edge and presses down into it.
 type ButtonProps = { tone?: Tone; size?: "sm" | "md" | "lg" } & HTMLMotionProps<"button">;
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ tone = "ember", size = "md", className = "", children, style, ...rest }, ref) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ tone = "brand", size = "md", className = "", children, style, ...rest }, ref) {
   const t = tones[tone];
   return (
     <motion.button
@@ -37,7 +37,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-export function ButtonLink({ href, tone = "ember", size = "md", className = "", children }: { href: string; tone?: Tone; size?: "md" | "lg"; className?: string; children: ReactNode }) {
+export function ButtonLink({ href, tone = "brand", size = "md", className = "", children }: { href: string; tone?: Tone; size?: "md" | "lg"; className?: string; children: ReactNode }) {
   const t = tones[tone];
   return (
     <motion.div whileHover={{ filter: "brightness(1.07)" }} whileTap={{ y: 5 }} transition={spring} className="inline-block">
@@ -55,16 +55,23 @@ export function ButtonLink({ href, tone = "ember", size = "md", className = "", 
 export function Logo({ size = 34 }: { size?: number }) {
   return (
     <span className="flex items-center gap-2.5">
-      <svg width={size * 1.2} height={size * 1.38} viewBox="0 0 44 50" aria-hidden="true">
-        <path d="M22 2 L40 9 V24 C40 36 32 44 22 48 C12 44 4 36 4 24 V9 Z" fill="#FF8A00" stroke="#D96F00" strokeWidth="3" />
-        <text x="22" y="31" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontWeight="800" fontSize="13" fill="#FFFFFF">
-          {"</>"}
-        </text>
-      </svg>
-      <span className="font-display tracking-wide text-ink" style={{ fontSize: size }}>
-        Code<span className="text-ember">Warrior</span>
+      <LogoMark size={size * 1.35} />
+      <span className="font-display tracking-wide" style={{ fontSize: size }}>
+        <span className="text-brand">Code</span><span className="text-ocean">Warrior</span>
       </span>
     </span>
+  );
+}
+
+// The {CW} mark: CW between curly braces on the brand-blue tile.
+export function LogoMark({ size = 46 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" className="flex-none">
+      <rect width="64" height="64" rx="16" fill="#1F7DB5" />
+      <text x="9" y="42" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontWeight="800" fontSize="24" fill="#A9DEFF">{"{"}</text>
+      <text x="32" y="41" textAnchor="middle" fontFamily="'Lilita One', Nunito, sans-serif" fontSize="22" fill="#FFFFFF">CW</text>
+      <text x="55" y="42" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontWeight="800" fontSize="24" fill="#A9DEFF">{"}"}</text>
+    </svg>
   );
 }
 

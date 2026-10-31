@@ -16,7 +16,7 @@ import { checkTutor, type TutorStatus } from "@/lib/tutor/client";
 const LEVEL_STYLE: Record<Level, { bg: string; fg: string }> = {
   none: { bg: "#EEF3FA", fg: "#6B7294" },
   practice: { bg: "#FFE8EA", fg: "#D9434A" },
-  growing: { bg: "#FFF1E0", fg: "#B35A00" },
+  growing: { bg: "#E2F3FF", fg: "#1F7DB5" },
   strong: { bg: "#E3F9EA", fg: "#2BA155" },
 };
 

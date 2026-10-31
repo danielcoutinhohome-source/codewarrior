@@ -181,7 +181,7 @@ function WorldMap() {
                     style={{ color: on ? "#FFFFFF" : won ? "#8A6400" : open ? "#1F2440" : "#9AA3B8" }}
                     aria-label={b === BOSS ? "Boss" : `Battle ${b + 1}`}
                   >
-                    {on && <motion.span layoutId="path-pill" className="absolute inset-0 rounded-full" style={{ background: b === BOSS ? "#E5484D" : "#FF8A00" }} transition={{ duration: 0.35, ease }} />}
+                    {on && <motion.span layoutId="path-pill" className="absolute inset-0 rounded-full" style={{ background: b === BOSS ? "#E5484D" : "#1F7DB5" }} transition={{ duration: 0.35, ease }} />}
                     <span className="relative">{b === BOSS ? "BOSS" : won ? "✓" : b + 1}</span>
                   </button>
                 );
@@ -205,7 +205,7 @@ function WorldMap() {
               <Monster enemy={enemy} boss={isBoss} size={mobile ? 58 : 74} silhouette={hiddenBoss} idle={false} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: isBoss ? "#D9434A" : "#FF8A00" }}>
+              <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: isBoss ? "#D9434A" : "#1F7DB5" }}>
                 {isBoss ? "Boss battle" : `Battle ${selected + 1}`}
                 {stars[selected] ? <span className="ml-2 inline-flex translate-y-[3px] gap-0.5">{[1, 2, 3].map((s) => <StarIcon key={s} size={14} on={s <= (stars[selected] || 0)} />)}</span> : null}
               </div>
@@ -222,7 +222,7 @@ function WorldMap() {
               {!hiddenBoss && <p className="mt-1 hidden max-w-xl text-sm leading-snug text-ink-soft sm:block">{enemy.lore}</p>}
               {!hiddenBoss && <div className="mt-1 text-xs font-black uppercase tracking-wide text-ocean-deep">Finisher: {ENEMY_MOVESETS[enemy.design].finisher.name}</div>}
             </div>
-            <Button size={mobile ? "md" : "lg"} onClick={fight} disabled={!unlocked[selected] || charging} tone={isBoss ? "danger" : "ember"} className="flex-none">
+            <Button size={mobile ? "md" : "lg"} onClick={fight} disabled={!unlocked[selected] || charging} tone={isBoss ? "danger" : "brand"} className="flex-none">
               {stars[selected] ? "REPLAY" : isBoss ? "ENTER GATE" : "FIGHT!"}
             </Button>
           </motion.section>

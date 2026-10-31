@@ -269,7 +269,7 @@ function ExplainCard({ item, course, prefs, lessonTitle, onNext, last, doneLabel
   };
 
   const finished = !!grade || self;
-  const verdictColor = grade?.verdict === "correct" ? "#2BA155" : grade?.verdict === "partial" ? "#B35A00" : "#D9434A";
+  const verdictColor = grade?.verdict === "correct" ? "#2BA155" : grade?.verdict === "partial" ? "#1F7DB5" : "#D9434A";
   return (
     <motion.section initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} className="card flex flex-col gap-4 p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
