@@ -1,6 +1,7 @@
 // Learn Mode, tutor server and sound engine tests (no browser needed).
 import assert from "node:assert/strict";
-import { LESSONS, gensForSkill, isCspSkill, lessonsFor } from "../src/lib/learn/lessons";
+import { LESSONS, isCspSkill, lessonsFor } from "../src/lib/learn/lessons";
+import { gensForSkill } from "../src/lib/learn/bank";
 import { DIFFICULTY, buildPracticeSet, describeForTutor, fingerprint, followUp, type PracticeItem } from "../src/lib/learn/practice";
 import { LEVEL_LABEL, levelFor, recentMistakes, recommend, skillEvidence, tutorContext } from "../src/lib/learn/insights";
 import { DEFAULT_PREFS, type Attempt, type LearnProfile, type Progress } from "../src/lib/db";

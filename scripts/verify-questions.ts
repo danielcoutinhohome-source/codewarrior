@@ -5,7 +5,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { BANKS, buildBattle, isRight, rng, type Question } from "../src/lib/questions/index";
 import { LESSONS } from "../src/lib/learn/lessons";
-import { gensForSkill } from "../src/lib/learn/lessons";
+import { gensForSkill } from "../src/lib/learn/bank";
 
 const SEEDS = Number(process.env.SEEDS || 8);
 const dir = "/tmp/cw-verify";

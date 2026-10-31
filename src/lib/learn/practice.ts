@@ -1,6 +1,7 @@
 import type { Course } from "../db";
 import { rng, type Question, type Rng, type Tier } from "../questions/core";
-import { BANK_GENS, gensForSkill, lessonById, lessonForSkill, lessonsFor } from "./lessons";
+import { BANK_GENS, gensForSkill } from "./bank";
+import { lessonById, lessonForSkill, lessonsFor } from "./lessons";
 import type { ExplainTask, Lesson } from "./types";
 
 // A practice item is either a verified question (bank generator, compiler-checked bug fix,
