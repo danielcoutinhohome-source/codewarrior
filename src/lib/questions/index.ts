@@ -11,12 +11,13 @@ import { ARRAYS } from "./ap-arrays";
 import { CLASSES } from "./ap-classes";
 import { ALGORITHMS } from "./ap-algorithms";
 import { W0_MORE } from "./more-w1";
+import { W1_MORE } from "./more-w2";
 
 export * from "./core";
 // Each world has 60 distinct templates: 15 novice, 30 intermediate, 15 hard.
 // Retain the original generators (and their skills for saved progress).
 export const BANKS: Gen[][] = [
-  [...W0, ...SYNTAX, ...W0_MORE], [...W1, ...BRANCHES], [...W2, ...LOOPS],
+  [...W0, ...SYNTAX, ...W0_MORE], [...W1, ...BRANCHES, ...W1_MORE], [...W2, ...LOOPS],
   [...W3, ...STRINGS], [...W4, ...ARRAYS], [...W5, ...CLASSES], [...W6, ...ALGORITHMS],
 ];
 
