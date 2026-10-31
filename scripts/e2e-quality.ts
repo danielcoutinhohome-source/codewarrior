@@ -91,6 +91,12 @@ async function main() {
           await page.locator('[data-boss-camera="travel"]').waitFor();
           await page.getByRole("button", { name: "FIGHT!", exact: true }).waitFor();
           await noOverflow(page, `${name} ${WORLDS[w].name}`);
+          const worldName = page.getByText(WORLDS[w].name, { exact: true }).first();
+          assert.ok(await worldName.evaluate(e => e.scrollWidth <= e.clientWidth + 1), `${name}: world name is readable`);
+          const caption = page.getByText(/seals broken · something waits ahead/);
+          const tabs = page.getByRole("tablist", { name: "Battles in this world" });
+          const captionBox = await caption.boundingBox(), tabsBox = await tabs.boundingBox();
+          assert.ok(captionBox && tabsBox && captionBox.y + captionBox.height <= tabsBox.y, `${name}: progress caption clears battle tabs`);
           await capture(page, `${name}-world-${w + 1}-path`);
           await page.getByRole("button", { name: "FIGHT!", exact: true }).click();
           await page.waitForFunction(() => (window as any).__cw?.phase === "answering");

@@ -179,8 +179,8 @@ export default function CreatePage() {
               )}
             </AnimatePresence>
           </Pedestal>
-          <div className="-mt-1 flex items-baseline justify-between gap-3">
-            <span className="truncate font-display text-[26px] leading-tight">{name.trim() || "Your warrior"}</span>
+          <div className="-mt-1 flex flex-wrap items-baseline justify-between gap-3">
+            <span className="min-w-0 break-words font-display text-[26px] leading-tight">{name.trim() || "Your warrior"}</span>
             <span className="flex-none text-sm font-extrabold text-ink-mute">{title} · Level 1</span>
           </div>
 

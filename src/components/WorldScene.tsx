@@ -238,7 +238,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           })}
 
           </motion.div>
-          <p className="pointer-events-none absolute inset-x-0 bottom-4 z-[650] text-center text-[10px] font-bold uppercase tracking-[.25em] text-white/60">{approach.ready ? "The threshold awaits" : `${approach.cleared} / 4 seals broken · something waits ahead`}</p>
+          <p className="pointer-events-none absolute inset-x-3 bottom-20 z-[650] mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-full bg-slate-950/55 px-3 py-1 text-center text-[10px] font-bold uppercase tracking-[.12em] text-white/90">{approach.ready ? "The threshold awaits" : `${approach.cleared} / 4 seals broken · something waits ahead`}</p>
           {/* your warrior from behind; it bobs faster while walking */}
           <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2] } : { y: 0, rotate: 0 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
             <WarriorArt facing="back" weapon={avatar.weapon} headwear={avatar.headwear} body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />

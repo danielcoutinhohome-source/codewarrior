@@ -145,20 +145,20 @@ function WorldMap() {
           </div>
 
           {/* top overlay: world name and switching */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-[700] flex items-start justify-between gap-2 p-3 sm:p-4">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-[700] flex flex-col items-stretch justify-between gap-2 p-3 sm:flex-row sm:items-start sm:p-4">
             <div className={`pointer-events-auto flex min-w-0 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3 ${glass}`}>
               <Arrow dir={-1} disabled={w === 0} onClick={() => go(w - 1)} />
               <div className="min-w-0 px-1">
                 <div className="text-[11px] font-black uppercase tracking-[0.16em] text-ocean-deep">World {w + 1}<span className="hidden sm:inline"> · {world.topic}</span></div>
                 <AnimatePresence mode="wait">
-                  <motion.div key={w} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25, ease }} className="truncate font-display text-[clamp(22px,3.4vw,32px)] leading-tight">
+                  <motion.div key={w} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25, ease }} className="break-words font-display text-[clamp(22px,3.4vw,32px)] leading-tight sm:truncate">
                     {world.name}
                   </motion.div>
                 </AnimatePresence>
               </div>
               <Arrow dir={1} disabled={w === WORLDS.length - 1 || !worldUnlocked(progress, w + 1)} onClick={() => go(w + 1)} />
             </div>
-            <div className={`pointer-events-auto flex flex-none items-center gap-2 px-3 py-2 ${glass}`}>
+            <div className={`pointer-events-auto flex flex-none self-end items-center gap-2 px-3 py-2 sm:self-auto ${glass}`}>
               {cleared && <span className="hidden rounded-full bg-hp px-2.5 py-0.5 text-xs font-black text-white sm:inline">CLEARED</span>}
               <span className="inline-flex items-center gap-1 font-black tabular-nums"><StarIcon size={18} /> {worldStars}/15</span>
             </div>

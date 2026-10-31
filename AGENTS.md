@@ -52,7 +52,9 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   Scope: `scripts/e2e-quality.ts`, `docs/QA.md`, `.gitignore` (QA artifacts), Playwright dev dependency/lockfile,
   browser-check job in `.github/workflows/check-questions.yml`, and `src/app/page.tsx`
   (account-saving copy only). Inspect map/arena visuals;
-  any demonstrated runtime fix will be scoped here before editing. Claude Q4 and the
+  Q2 fixes from mobile screenshots: `src/app/map/page.tsx` (header),
+  `src/components/WorldScene.tsx` (caption placement), `src/app/create/page.tsx`
+  (preview-name wrapping). Claude Q4 and the
   battle results page are left with Claude. Handoff: add repeatable mobile/desktop QA.
 
 - **Q4** / Claude (for Daniel) / next up. Claims `src/app/learn`, `src/lib/learn`,
