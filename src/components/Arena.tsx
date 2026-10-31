@@ -3,6 +3,8 @@
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from "framer-motion";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Monster from "./Monster";
+import DuelImpact, { type DuelSpark } from "./DuelImpact";
+import { BossRoom } from "./WorldPassage";
 import PlayerAttackFx, { type PlayerEffect } from "./PlayerAttackFx";
 import { playerMove, performPlayerMove } from "@/lib/playerCombat";
 import EnemyAttackFx, { type CombatEffect } from "./EnemyAttackFx";
@@ -65,6 +67,10 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const playerController = useRef<AbortController | null>(null);
   const [playerEffects, setPlayerEffects] = useState<PlayerEffect[]>([]);
   const [playerAttacking, setPlayerAttacking] = useState(false);
+  const [enemyAttacking,setEnemyAttacking] = useState(false);
+  const [duelSparks,setDuelSparks] = useState<DuelSpark[]>([]);
+  const [cinematic,setCinematic] = useState<{who:"hero"|"foe";hits:number;stage:string}|null>(null);
+  const [knockoutBanner,setKnockoutBanner] = useState(false);
   const reduced = !!useReducedMotion();
   const enemyTurn = useRef(0);
   const attackController = useRef<AbortController | null>(null);
@@ -116,7 +122,26 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   );
   const gap = () => {
     const a = center(heroRef.current), b = center(foeRef.current);
-    return Math.max(60, b.x - a.x - (p.compact ? 64 : 110));
+    return Math.max(0, b.x - a.x - (heroSize + foeSize)*.28);
+  };
+  const contact = (who:"hero"|"foe",stage:string,index:number) => {
+    setCinematic({who,hits:index,stage});
+    if(reduced || stage==="freeze")return;
+    const at=center(who==="hero"?foeBody.current:heroBody.current);
+    const id=++uid;
+    setDuelSparks(v=>[...v.slice(-3),{id,...at,color:who==="hero"?en:p.enemy.accent,launch:stage==="launch"}]);
+    later(()=>setDuelSparks(v=>v.filter(s=>s.id!==id)),420);
+    play(stage==="launch"?"crit":"hit");
+  };
+  const pose = async (el:Element|null,values: import("@/lib/enemyCombat").ActorPose,ms:number,signal:AbortSignal) => {
+    if(!el)return;
+    if(ms===0){const reset=animate(el,values,{duration:0});reset.complete();return;}
+    await new Promise<void>(resolve=>{
+      const controls=animate(el,values,{duration:ms/1000,ease});
+      const done=()=>{signal.removeEventListener("abort",cancel);resolve();};
+      const cancel=()=>{controls.stop();done();};
+      signal.addEventListener("abort",cancel,{once:true});controls.then(done,done);if(signal.aborted)cancel();
+    });
   };
 
   const add = <T extends { id: number }>(set: React.Dispatch<React.SetStateAction<T[]>>, item: T, ms: number) => {
@@ -133,10 +158,11 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
     async intro() {
       const h = heroRef.current, f = foeRef.current;
       if (!h || !f) return;
+      setKnockoutBanner(false);
       if (p.revived) {
         animate(h, { y: [40, 0], opacity: [0, 1] }, { duration: 0.6, ease });
         animate(heroBody.current!, { scale: [0.6, 1.08, 1], rotate: [-20, 0] }, { duration: 0.7, ease });
-        setTimeout(() => {
+        later(() => {
           const at = center(heroRef.current);
           burst(at, ["#3EC46D", "#B6F5C8", "#FFFFFF"], 16, 80);
           ring({ x: at.x, y: at.y + heroSize * 0.45 }, "#3EC46D", heroSize * 1.4);
@@ -163,28 +189,14 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       const strong = crit || surge || finisher;
       const grip = h.querySelector<SVGElement>("[data-weapon-grip]");
       setPlayerAttacking(true);
+      setCinematic(finisher?{who:"hero",hits:0,stage:"charge"}:null);
       setMoveLabel({ name: move.name, ultimate: finisher });
       setVignette(finisher && !reduced);
       try {
         await performPlayerMove(move, {
           signal: controller.signal, distance, compact: !!p.compact, reduced,
-          animate: async (actor, pose, ms) => {
-            const el = actor === "hero" ? h : actor === "body" ? hb : actor === "target" ? fb : grip;
-            if (!el) return;
-            if (ms === 0) {
-              const reset = animate(el, pose, { duration: 0 });
-              reset.complete();
-              return;
-            }
-            await new Promise<void>(resolve => {
-              const controls = animate(el, pose, { duration: ms / 1000, ease });
-              const done = () => { controller.signal.removeEventListener("abort", cancel); resolve(); };
-              const cancel = () => { controls.stop(); done(); };
-              controller.signal.addEventListener("abort", cancel, { once: true });
-              controls.then(done, done);
-              if (controller.signal.aborted) cancel();
-            });
-          },
+          animate: (actor,values,ms) => pose(actor === "hero" ? h : actor === "body" ? hb : actor === "target" ? fb : grip,values,ms,controller.signal),
+          contact: (stage,index) => contact("hero",stage,index),
           wait: ms => new Promise<void>(resolve => {
             const done = () => { clearTimeout(timer); controller.signal.removeEventListener("abort", done); resolve(); };
             const timer = setTimeout(done, ms);
@@ -209,7 +221,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         });
       } finally {
         if (!controller.signal.aborted) {
-          setFoeHurt(false); setVignette(false); setMoveLabel(null); setPlayerAttacking(false);
+          setFoeHurt(false); setVignette(false); setMoveLabel(null); setPlayerAttacking(false); setCinematic(null);
         }
       }
     },
@@ -222,10 +234,14 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       attackController.current = controller;
       const move = enemyMove(p.enemy.design, enemyTurn.current++, knockout && !blocked);
       const from = center(f, 0.45), to = center(h);
+      setEnemyAttacking(true);
+      setVignette(knockout&&!reduced);
+      setCinematic(knockout?{who:"foe",hits:0,stage:"charge"}:null);
       setMoveLabel({ name: move.name, ultimate: move.glyph === 3 });
       await performEnemyMove(move, {
         signal: controller.signal, distance: gap(), compact: !!p.compact, reducedMotion: reduced,
-        animate: async (actor, pose, ms) => { await animate(actor === "foe" ? f : fb, pose, { duration: ms / 1000, ease }); },
+        animate: (actor,values,ms) => pose(actor === "foe" ? f : actor === "target" ? hb : fb,values,ms,controller.signal),
+        contact: (stage,index) => contact("foe",stage,index),
         wait: ms => new Promise<void>(resolve => {
           const done = () => { clearTimeout(timer); controller.signal.removeEventListener("abort", done); resolve(); };
           const timer = setTimeout(done, ms);
@@ -246,15 +262,13 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
           float(`-${damage}`, { x: at.x, y: at.y - 50 }, "#FF5A5F", knockout);
           if (!reduced) {
             whiteFlash(hb);
-            animate(hb, { rotate: [0, -24, 8, 0], scaleY: [1, 0.86, 1.04, 1] }, { duration: 0.6, ease });
-            animate(h, { x: [0, -36, 0], y: [0, -12, 0] }, { duration: 0.6, ease });
             burst(at, [p.enemy.accent, "#FFFFFF", p.enemy.color], 12, 80);
             shake(knockout ? 10 : 5);
           }
           if (!knockout) later(() => setHeroHurt(false), 650);
         },
       });
-      if (!controller.signal.aborted) setMoveLabel(null);
+      if (!controller.signal.aborted) { setMoveLabel(null); setCinematic(null); setEnemyAttacking(false); setVignette(false); }
     },
 
     async heal(amount) {
@@ -278,6 +292,8 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
     },
 
     async enemyDefeated() {
+      setKnockoutBanner(true);
+      await sleep(reduced?120:650);
       const f = foeRef.current;
       if (!f) return;
       const at = center(f);
@@ -296,10 +312,12 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
     },
 
     async playerDefeated() {
+      setKnockoutBanner(true);
+      await sleep(reduced?120:650);
       const h = heroRef.current;
       if (!h) return;
       setHeroHurt(true);
-      await animate(h, { rotate: -80, y: 46, x: -24, opacity: 0.5 }, { duration: 0.7, ease: easeIn });
+      await animate(h, { y: 24, x: -14, opacity: 0.45 }, { duration: 0.7, ease: easeIn });
     },
   }));
 
@@ -309,7 +327,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
     <div
       ref={scope}
       className="relative overflow-hidden rounded-[26px] border-[3px]"
-      style={{ height: p.compact ? 268 : 400, background: `linear-gradient(180deg, ${p.theme.skyTop} 0%, ${p.theme.skyBottom} 62%)`, borderColor: p.theme.roadEdge, willChange: "transform" }}
+      style={{ height: p.compact ? 350 : 480, background: `linear-gradient(180deg, ${p.theme.skyTop} 0%, ${p.theme.skyBottom} 62%)`, borderColor: p.theme.roadEdge, willChange: "transform" }}
     >
       {moveLabel && <div role="status" className="pointer-events-none absolute inset-x-3 top-16 z-50 text-center">
         <span className="inline-block rounded-xl border border-white/40 bg-slate-950/90 px-3 py-1 text-xs font-bold text-white shadow-lg">
@@ -317,17 +335,17 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         </span>
       </div>}
       <div ref={stageRef} className="absolute inset-0" style={{ willChange: "transform" }}>
-        {p.theme.night &&
+        {p.boss && <BossRoom theme={p.theme}/>}
+        {!p.boss && p.theme.night &&
           [12, 28, 47, 66, 84].map((x, i) => (
             <motion.span key={x} aria-hidden className="absolute h-1 w-1 rounded-full bg-white" style={{ left: `${x}%`, top: `${8 + (i % 3) * 9}%` }} animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 2 + i * 0.4, repeat: Infinity }} />
           ))}
-        <div aria-hidden className="absolute inset-x-[-10%] bottom-[-30%] h-[62%] rounded-[50%]" style={{ background: `linear-gradient(180deg, ${p.theme.groundFar}, ${p.theme.groundNear})` }} />
-        <div aria-hidden className="absolute bottom-[9%] left-[6%] h-[13%] w-[34%] rounded-[50%]" style={{ background: p.theme.road, boxShadow: `0 10px 0 ${p.theme.roadEdge}` }} />
-        <div aria-hidden className="absolute bottom-[9%] right-[5%] h-[14%] w-[38%] rounded-[50%]" style={{ background: p.theme.road, boxShadow: `0 10px 0 ${p.theme.roadEdge}` }} />
+        {!p.boss && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[27%] border-t-2" style={{background:`linear-gradient(${p.theme.groundFar}, ${p.theme.groundNear})`,borderColor:p.theme.roadEdge}}/>}
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-[13%] h-px bg-white/15"/>
 
         <div ref={heroRef} className="absolute bottom-[14%] left-[8%] z-10" style={{ width: heroSize, willChange: "transform" }}>
           <div ref={heroBody} className="relative" style={{ transformOrigin: "50% 80%" }}>
-            <HeroArt weapon={p.avatar.weapon} headwear={p.avatar.headwear} body={p.avatar.body} armor={p.avatar.armor} energy={p.avatar.energy} finish={p.avatar.finish} aura={p.avatar.aura} size={heroSize} idle={!playerAttacking} hurt={heroHurt} />
+            <HeroArt weapon={p.avatar.weapon} headwear={p.avatar.headwear} body={p.avatar.body} armor={p.avatar.armor} energy={p.avatar.energy} finish={p.avatar.finish} aura={p.avatar.aura} size={heroSize} idle={!playerAttacking&&!enemyAttacking} hurt={heroHurt} />
             <AnimatePresence>
               {p.shield && (
                 // Firewall: a curved energy barrier on the side facing the enemy.
@@ -356,11 +374,12 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         </div>
         <div ref={foeRef} className="absolute bottom-[14%] right-[8%] z-10" style={{ width: foeSize, willChange: "transform" }}>
           <div ref={foeBody} style={{ transformOrigin: "50% 90%" }}>
-            <FoeArt enemy={p.enemy} boss={p.boss} size={foeSize} hurt={foeHurt} />
+            <FoeArt enemy={p.enemy} boss={p.boss} size={foeSize} idle={!playerAttacking&&!enemyAttacking} hurt={foeHurt} />
           </div>
         </div>
 
         {/* effects */}
+        {duelSparks.map(spark=><DuelImpact key={spark.id} spark={spark}/>)}
         {playerEffects.map(fx => <PlayerAttackFx key={fx.id} fx={fx} />)}
         {enemyEffects.map(fx => <EnemyAttackFx key={fx.id} fx={fx} />)}
         {rings.map((r) => (
@@ -384,6 +403,12 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         )}
       </div>
 
+      {cinematic && !reduced && <div aria-hidden className="pointer-events-none absolute inset-0 z-[36]">
+        <div className="absolute inset-x-0 bottom-0 h-5 bg-black/80"/>
+        <div className="absolute inset-x-0 top-0 h-2 bg-black/80"/>
+        <div className="absolute bottom-6 left-4 font-display text-xl italic text-white" style={{textShadow:"2px 3px #111827"}}>{cinematic.stage==="freeze"?"FINAL STRIKE":cinematic.stage==="launch"?"LAUNCH!":cinematic.stage==="juggle"?"AIR COMBO":cinematic.stage==="stagger"?"BREAK!":"LIMIT RELEASE"}</div>
+      </div>}
+      {knockoutBanner && <div role="status" className="pointer-events-none absolute inset-0 z-[60] grid place-items-center bg-[#090D1A]/30"><span className="font-display text-6xl italic text-amber-200" style={{textShadow:"4px 5px #702D4D"}}>K.O.</span></div>}
       {/* overlays that should not zoom */}
       <AnimatePresence>
         {glow && (

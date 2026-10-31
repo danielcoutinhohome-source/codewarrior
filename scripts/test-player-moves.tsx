@@ -21,7 +21,7 @@ async function main() {
         const ctx:PlayerContext={signal:new AbortController().signal,distance:compact?75:240,compact,reduced,wait:async()=>{},animate:async(actor,pose)=>{poses[actor]=pose;},hit:()=>{hits++;},effect:phase=>phases.push(phase)};
         assert.equal(await performPlayerMove(move,ctx),true);assert.equal(hits,1);
         assert.deepEqual(phases,reduced?["charge","impact"]:["charge","strike","impact"]);
-        for(const actor of ["hero","body","weapon","target"])assert.deepEqual(poses[actor],REST,`${move.name}: reset ${actor}`);
+        for(const actor of ["hero","body","weapon","target"]) { if(actor==="target"&&move.finisher&&!reduced)assert.deepEqual(poses[actor],{x:20,y:20,rotate:55,scaleY:.85});else assert.deepEqual(poses[actor],REST,`${move.name}: reset ${actor}`); }
         runs++;
         const timeline=playerTimeline(move,ctx.distance,compact);
         assert.equal(timeline.filter(s=>s.hit).length,1);

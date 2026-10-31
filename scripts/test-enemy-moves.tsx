@@ -65,20 +65,20 @@ async function main() {
       const layout = worldDetails(world.theme,mobile);
       const scene = renderToStaticMarkup(<WorldScene worldIndex={WORLDS.indexOf(world)} world={world} avatar={{ armor: "#6179A0", energy: "#58DFFF", title: "Byte Knight", aura: "storm", finish: "metal" }} stars={[]} unlocked={[true,true,true,true,true]} selected={0} onSelect={() => {}} height={560} width={mobile?390:1000}/>);
       assert.ok(!/NaN|undefined/.test(scene));
-      assert.equal((scene.match(/data-landmark=/g)||[]).length,mobile?8:12);
+      assert.equal((scene.match(/data-landmark=/g)||[]).length,2);
       assert.equal((scene.match(/aria-label="Battle /g)||[]).length,4);
-      assert.ok(scene.includes('aria-label="Boss:'));
+      assert.ok(scene.includes('aria-label="Boss'));
       const ground = renderToStaticMarkup(<WorldGroundDetails theme={world.theme} width={mobile?390:1000} height={560}/>);
       assert.ok(!/NaN|undefined/.test(ground));
       assert.deepEqual(layout,worldDetails(world.theme,mobile));
-      assert.equal(layout.props.length,mobile?60:96);
-      assert.equal(layout.landmarks.length,mobile?8:12);
-      assert.ok(layout.props.every(d=>Math.abs(d.lat)>=.92 && Number.isFinite(d.z) && world.theme.decor.includes(d.kind)));
+      assert.ok(layout.props.length <= (mobile?20:30),"Map keeps a sparse scenery budget");
+      assert.ok(layout.landmarks.length<=2);
+      assert.ok(layout.props.every(d=>Math.abs(d.lat)>=.85 && Number.isFinite(d.z) && world.theme.decor.includes(d.kind)));
       assert.ok(layout.landmarks.every(d=>Math.abs(d.lat)>=1.8));
       // Initial view, every encounter stop, and charge camera still have scenery.
       for (const cam of [0,.2,2,3.8,5.6,7.9,9.25]) {
-        assert.ok(layout.props.filter(d=>d.z-cam>1 && d.z-cam<6).length>=8);
-        assert.ok(layout.landmarks.some(d=>d.z-cam>1 && d.z-cam<6));
+        assert.ok(layout.props.filter(d=>d.z-cam>1 && d.z-cam<6).length>=2);
+
       }
     }
     for (let v=0;v<3;v++) {

@@ -3,6 +3,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import BossGate from "@/components/BossGate";
+import { bossGateIsOpen,openBossGate } from "@/lib/bossApproach";
 import Monster from "@/components/Monster";
 import TopBar from "@/components/TopBar";
 import WorldScene, { type SceneHandle } from "@/components/WorldScene";
@@ -50,6 +52,7 @@ function WorldMap() {
   const [w, setW] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
   const [charging, setCharging] = useState(false);
+  const [gate, setGate] = useState(false);
 
   useEffect(() => {
     if (!progress) return;
@@ -89,16 +92,28 @@ function WorldMap() {
     setSelected(b);
     play("click");
   };
-  const fight = async () => {
+  const enter = async () => {
+    if (charging) return;
+    setGate(false); setCharging(true); play("whoosh");
+    try { await scene.current?.charge(selected); router.push(`/battle/?w=${w}&b=${selected}`); }
+    catch { setCharging(false); }
+  };
+  const fight = () => {
     if (!unlocked[selected] || charging) return;
-    setCharging(true);
-    play("whoosh");
-    await scene.current?.charge(selected);
-    router.push(`/battle/?w=${w}&b=${selected}`);
+    if (isBoss && !stars[BOSS]) {
+      const passed=bossGateIsOpen(account.id,w);
+      if (!passed) { setGate(true); return; }
+    }
+    void enter();
+  };
+  const unseal = () => {
+    openBossGate(account.id,w);
+    void enter();
   };
 
   return (
     <Screen fade={!warm}>
+      {gate && <BossGate scene={world.theme.scene} onOpen={unseal} onBack={()=>setGate(false)}/>}
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-10 pt-4 sm:px-5">
         <TopBar account={account} progress={progress} />
 
@@ -120,6 +135,7 @@ function WorldMap() {
                     unlocked={unlocked}
                     selected={selected}
                     onSelect={choose}
+                    onEnterBoss={()=>{if(selected===BOSS)fight();else choose(BOSS);}}
                     height={sceneH}
                     width={boxW}
                   />
@@ -173,7 +189,7 @@ function WorldMap() {
             </div>
 
           </div>
-          <AnimatePresence>{charging && <motion.div className="pointer-events-none absolute inset-0 z-[800] bg-white" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.15 }} />}</AnimatePresence>
+          <AnimatePresence>{charging && <motion.div className="pointer-events-none absolute inset-0 z-[800] bg-[#050914]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.15 }} />}</AnimatePresence>
         </div>
 
         <AnimatePresence mode="wait">
@@ -207,7 +223,7 @@ function WorldMap() {
               {!hiddenBoss && <div className="mt-1 text-xs font-black uppercase tracking-wide text-ocean-deep">Finisher: {ENEMY_MOVESETS[enemy.design].finisher.name}</div>}
             </div>
             <Button size={mobile ? "md" : "lg"} onClick={fight} disabled={!unlocked[selected] || charging} tone={isBoss ? "danger" : "ember"} className="flex-none">
-              {stars[selected] ? "REPLAY" : "FIGHT!"}
+              {stars[selected] ? "REPLAY" : isBoss ? "ENTER GATE" : "FIGHT!"}
             </Button>
           </motion.section>
         </AnimatePresence>
