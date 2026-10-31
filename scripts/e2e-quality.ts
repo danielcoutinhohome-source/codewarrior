@@ -155,7 +155,18 @@ async function main() {
           const state = await page.evaluate(() => ({ phase: (window as any).__cw.phase, over: (window as any).__cw.over }));
           if (state.over) break;
           if (["answering", "retry"].includes(state.phase)) {
-            await page.evaluate(() => (window as any).__cw.play(true));
+            if (i === 0) {
+              const q = await page.evaluate(() => ({ kind: (window as any).__cw.kind, answer: (window as any).__cw.answer }));
+              assert.notEqual(q.kind, "order", "The opening question supports direct keyboard entry");
+              if (q.kind === "choice") {
+                await page.locator("body").press(String(Number(q.answer) + 1));
+                await page.waitForFunction(() => !!document.querySelector('[role="radio"][aria-checked="true"]'));
+                await page.locator("body").press("Enter");
+              } else {
+                await page.getByRole("textbox").first().fill(String(q.answer));
+                await page.getByRole("textbox").first().press("Enter");
+              }
+            } else await page.evaluate(() => (window as any).__cw.play(true));
             if (i === 0) {
               await page.waitForFunction(() => (window as any).__cw?.phase === "busy");
               await capture(page, `${name}-battle-attack`);

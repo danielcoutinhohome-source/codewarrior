@@ -24,7 +24,7 @@ The existing opt-in battle playtest hook supplies answers to exercise the battle
 - Landing/signup layouts at Chromebook-oriented 1366 x 650 and 1024 x 650 content viewports; successful device signup.
 - Seven world paths, battle arenas, and ready boss gates at each viewport.
 - Gate height, full framing, and actual click hit testing; no horizontal page overflow.
-- FIGHT controls above the fold on Chromebook sizes; signup and map selection by keyboard.
+- FIGHT controls above the fold on Chromebook sizes; signup, the opening answer, and map selection by keyboard.
 - A short interaction check at 4x CPU slowdown (an approximation, not a hardware benchmark).
 - Navigation during the camera approach, plus the game's reduced-motion final framing.
 - A real battle with an incorrect answer, retry, player attack, and victory; uncaught JS errors.

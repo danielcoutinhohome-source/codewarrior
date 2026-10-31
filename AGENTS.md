@@ -38,6 +38,14 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   into the browser only. Database changes go in a **new** migration in
   `classroom-server/src/schema.ts` (never edit a released one). See `classroom-server/README.md`.
 
+## Target devices
+
+Students and teachers use Chromebooks. Prioritize Chrome, keyboard/trackpad access,
+short laptop viewports, and modest CPU/GPU/RAM. Keep critical controls reachable, avoid
+expensive decorative rendering, and keep text alternatives when school policies block
+microphones or other optional browser capabilities. CPU-throttled desktop Chrome tests
+are useful approximations, not proof of performance on school hardware.
+
 ## Hard rules
 
 - Nothing in this project may cost money. Use free tiers only; no paid services or API keys.
