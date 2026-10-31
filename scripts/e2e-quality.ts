@@ -23,9 +23,24 @@ const server = createServer(async (req, res) => {
 
 async function capture(page: Page, name: string) {
   await page.evaluate(() => document.fonts.ready);
+  if (name.endsWith("-landing")) {
+    // Trigger the same in-view entrances a person sees while scrolling, then
+    // return to the top before taking a complete-page review image.
+    for (const heading of await page.getByRole("heading", { level: 2 }).all()) await heading.scrollIntoViewIfNeeded();
+    await page.getByRole("link", { name: "For teachers", exact: true }).scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => [...document.querySelectorAll("section > .card, section > div > .text-center")]
+      .every(e => Number(getComputedStyle(e).opacity) >= .99));
+    await page.getByRole("heading", { name: "Battle your way to LeetCode" }).scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => [...(document.querySelector("main")?.children || [])]
+      .every(e => Number(getComputedStyle(e).opacity) >= .99));
+  }
   await page.waitForFunction(() => {
-    const card = document.querySelector("h2")?.closest("section");
-    return !card || Number(getComputedStyle(card).opacity) >= .99;
+    let e: Element | null = document.querySelector("h1, h2");
+    while (e) {
+      if (Number(getComputedStyle(e).opacity) < .99) return false;
+      e = e.parentElement;
+    }
+    return true;
   });
   await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true });
 }
