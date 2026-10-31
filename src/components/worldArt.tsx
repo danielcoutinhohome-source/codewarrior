@@ -129,30 +129,17 @@ function Woods({ W, H, hz }: G) {
   );
 }
 
-// Loop Lagoon: a cliff with looping waterfalls, a rainbow, and open water.
+// Loop Lagoon: drowned basalt architecture and a bioluminescent tidal basin.
 function Lagoon({ W, H, hz }: G) {
-  const top = hz - H * 0.14;
-  const falls = [0.3, 0.5, 0.68];
-  return (
-    <>
-      <Sun x={W * 0.9} y={hz * 0.6} r={W * 0.03} />
-      <g opacity="0.55" fill="none" strokeWidth={W * 0.012}>
-        {["#FF6B6B", "#FFB84D", "#FFE066", "#4CD27E", "#4DB8FF", "#9B7BFF"].map((c, i) => (
-          <path key={c} d={`M${W * 0.18} ${hz - H * 0.1} A${W * (0.32 - i * 0.012)} ${H * (0.3 - i * 0.012)} 0 0 1 ${W * 0.82} ${hz - H * 0.1}`} stroke={c} transform={`translate(${i * W * 0.012} 0)`} />
-        ))}
-      </g>
-      <path d={`M${W * 0.2} ${hz} L${W * 0.22} ${top + 10} Q${W * 0.5} ${top - 14} ${W * 0.78} ${top + 10} L${W * 0.8} ${hz} Z`} fill="#5E8C6A" />
-      <path d={`M${W * 0.21} ${top + 18} Q${W * 0.5} ${top - 10} ${W * 0.79} ${top + 18} L${W * 0.79} ${top + 8} Q${W * 0.5} ${top - 22} ${W * 0.21} ${top + 8} Z`} fill="#69C46F" />
-      {falls.map((x, i) => (
-        <g key={x}>
-          <rect x={W * x - W * 0.025} y={top + 6} width={W * 0.05} height={hz - top - 6} fill="#BDEBFF" />
-          <motion.path d={`M${W * x - W * 0.015} ${top + 6} V${hz} M${W * x} ${top + 6} V${hz} M${W * x + W * 0.015} ${top + 6} V${hz}`} stroke="#FFFFFF" strokeWidth="2.5" strokeDasharray="10 14" animate={{ strokeDashoffset: [0, -48] }} transition={{ duration: 0.8 + i * 0.15, repeat: Infinity, ease: "linear" }} />
-          <motion.ellipse cx={W * x} cy={hz - 2} rx={W * 0.05} ry={H * 0.014} fill="#FFFFFF" animate={{ opacity: [0.5, 0.95, 0.5], rx: [W * 0.045, W * 0.06, W * 0.045] }} transition={loop(1.2, { delay: i * 0.3 })} />
-        </g>
-      ))}
-      <text x={W * 0.5} y={top + 2} textAnchor="middle" fontSize={H * 0.035} fontWeight="800" fill="#FFFFFF" opacity="0.85" fontFamily="JetBrains Mono, monospace">{"for(;;)"}</text>
-    </>
-  );
+ return <g data-lagoon="drowned-observatory">
+  <rect width={W} height={hz} fill="#102839"/>
+  <circle cx={W*.67} cy={hz*.35} r={H*.035} fill="#B7E9DF" opacity=".45"/>
+  <path d={`M0 ${hz} L0 ${hz*.7} L${W*.14} ${hz*.48} L${W*.26} ${hz*.75} L${W*.42} ${hz*.55} L${W*.58} ${hz*.8} L${W*.82} ${hz*.5} L${W} ${hz*.7} V${hz} Z`} fill="#173D49"/>
+  {[.12,.29,.73,.88].map((x,i)=><g key={x}><path d={`M${W*x} ${hz} V${hz*(.45+i%2*.18)} h${W*.028} V${hz}Z`} fill="#284B54"/><path d={`M${W*(x+.012)} ${hz*.8} v${hz*.13}`} stroke="#7DE8D0" strokeWidth="2" opacity=".55"/></g>)}
+  <path d={`M${W*.38} ${hz} V${hz*.6} Q${W*.5} ${hz*.08} ${W*.62} ${hz*.6} V${hz}`} fill="none" stroke="#31555D" strokeWidth={W*.014}/>
+  <rect y={hz-H*.025} width={W} height={H*.06} fill="#123B48"/>
+  {[.22,.46,.68,.85].map((x,i)=><path key={x} d={`M${W*x} ${hz+H*(.005+i%2*.02)} h${W*.09}`} stroke="#70DCC9" strokeWidth="1.5" opacity=".4"/>) }
+ </g>;
 }
 
 // String Peaks: snow-capped ranges and a "STRING" bunting strung across the sky.

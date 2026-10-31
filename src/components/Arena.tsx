@@ -5,7 +5,7 @@ import { useReduceMotion } from "@/lib/motionPref";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Monster from "./Monster";
 import DuelImpact, { type DuelSpark } from "./DuelImpact";
-import { BossRoom } from "./WorldPassage";
+import FightBackdrop, { type StageReaction } from "./FightBackdrop";
 import PlayerAttackFx, { type PlayerEffect } from "./PlayerAttackFx";
 import { playerMove, performPlayerMove } from "@/lib/playerCombat";
 import EnemyAttackFx, { type CombatEffect } from "./EnemyAttackFx";
@@ -60,6 +60,8 @@ const FoeArt = memo(Monster);
 
 const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const [scope, animate] = useAnimate();
+  const [stageReaction,setStageReaction] = useState<StageReaction|null>(null);
+  const reactStage = (kind:StageReaction["kind"],color:string,power:boolean,side:StageReaction["side"]) => setStageReaction({id:++uid,kind,color,power,side});
   const stageRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const heroBody = useRef<HTMLDivElement>(null);
@@ -215,6 +217,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
           hit: () => {
             onImpact?.();
             heroImpact(move, strong);
+            reactStage(move.weapon==="hammer"?"shock":move.weapon==="saber"||move.weapon==="scythe"?"cut":"arcane",en,finisher,"hero");
             float(`-${damage}`, { x: to.x, y: to.y - 40 }, strong ? "#FFC83D" : "#FFFFFF", strong);
             if (finisher || crit || surge) float(finisher ? "FINISHING BLOW!" : surge ? "POWER SURGE!" : "CRITICAL!", { x: to.x, y: to.y - 85 }, en, true);
             setFoeHurt(true);
@@ -254,6 +257,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         effect: phase => { enemyPhase(move, phase); enemyEffect({ move, phase, from, to }); },
         hit: () => {
           onImpact?.();
+          reactStage(["quake","dive","rise"].includes(move.motion)?"shock":["rush","sweep","blink"].includes(move.motion)?"cut":"arcane",p.enemy.accent,knockout,"foe");
           const at = center(h);
           enemyImpact(move, blocked);
           if (blocked) {
@@ -339,13 +343,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         </span>
       </div>}
       <div ref={stageRef} className="absolute inset-0" style={{ willChange: "transform" }}>
-        {p.boss && <BossRoom theme={p.theme}/>}
-        {!p.boss && p.theme.night &&
-          [12, 28, 47, 66, 84].map((x, i) => (
-            <motion.span key={x} aria-hidden className="absolute h-1 w-1 rounded-full bg-white" style={{ left: `${x}%`, top: `${8 + (i % 3) * 9}%` }} animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 2 + i * 0.4, repeat: Infinity }} />
-          ))}
-        {!p.boss && <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-[27%] border-t-2" style={{background:`linear-gradient(${p.theme.groundFar}, ${p.theme.groundNear})`,borderColor:p.theme.roadEdge}}/>}
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-[13%] h-px bg-white/15"/>
+        <FightBackdrop scene={p.theme.scene} boss={p.boss} reaction={stageReaction}/>
 
         <div ref={heroRef} className="absolute bottom-[14%] left-[8%] z-10" style={{ width: heroSize, willChange: "transform" }}>
           <div ref={heroBody} className="relative" style={{ transformOrigin: "50% 80%" }}>
