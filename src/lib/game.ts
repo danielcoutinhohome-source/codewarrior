@@ -1,14 +1,17 @@
 // Static game data: worlds, enemies, rewards and the shop catalog.
 
-export type Body = "blob" | "imp" | "bat" | "ghost" | "golem" | "crab" | "serpent" | "tower" | "eye";
+export const ENEMY_DESIGNS = ["byte-raider", "semicolon-mimic", "cast-corsair", "division-ray", "compiler-leviathan", "fork-stalker", "boolean-owl", "modulo-mantis", "nested-basilisk", "elder-else", "counter-crab", "while-jelly", "offset-angler", "break-turtle", "ouroboros", "index-yeti", "substring-wyvern", "char-sabertooth", "echo-wraith", "null-lich", "bounds-bat", "length-crawler", "swap-spider", "list-driller", "index-colossus", "grid-sentinel", "constructor-raven", "this-duelist", "base-gargoyle", "stack-tyrant", "sum-twins", "stock-mage", "mirror-paladin", "merge-minotaur", "final-judge"] as const;
+export type EnemyDesign = (typeof ENEMY_DESIGNS)[number];
 
 export type Enemy = {
+  design: EnemyDesign;
+  accent: string;
+  lore: string;
+  attackName: string;
+  attackStyle: "lunge" | "slam" | "spit";
   name: string;
-  body: Body;
   color: string;
-  label: string; // the bug it carries, shown on its sign
-  eyes?: 1 | 2 | 3;
-  horns?: boolean;
+  label: string; // programming cue engraved on its sigil
 };
 
 export type Decor = "palm" | "pine" | "rock" | "crystal" | "pillar" | "lily" | "obelisk";
@@ -48,11 +51,11 @@ export const WORLDS: World[] = [
     bossTitle: "Compile Crusher",
     bridges: [],
     enemies: [
-      { name: "Typo Imp", body: "imp", color: "#FF8FA3", label: "Sytem.out" },
-      { name: "Semicolon Slime", body: "blob", color: "#7BD389", label: "x = 5" },
-      { name: "Type Mismatch Crab", body: "crab", color: "#FFB347", label: 'int s="hi"' },
-      { name: "Rounding Bat", body: "bat", color: "#9B8CFF", label: "7/2 = 3" },
-      { name: "The Compile Error", body: "golem", color: "#E5484D", label: "ERROR", horns: true },
+      { name: "Byte Raider", design: "byte-raider", color: "#137E9F", accent: "#72FCE4", label: "Sytem.out", attackName: "Cutlass Rush", attackStyle: "lunge", lore: "A shipwreck scavenger with a cutlass forged from broken syntax." },
+      { name: "Semicolon Mimic", design: "semicolon-mimic", color: "#A85B35", accent: "#FFCE70", label: "x = 5", attackName: "Cache Crash", attackStyle: "slam", lore: "That treasure chest has been waiting for your next missing semicolon." },
+      { name: "Cast Corsair", design: "cast-corsair", color: "#DD6942", accent: "#7DF3FF", label: 'int s="hi"', attackName: "Trident Cast", attackStyle: "lunge", lore: "An armored reef hunter that steals values and changes their type." },
+      { name: "Division Ray", design: "division-ray", color: "#5761BC", accent: "#BEA7FF", label: "7/2 = 3", attackName: "Split Current", attackStyle: "spit", lore: "A storm-winged ray that splits every current into smaller pieces." },
+      { name: "Compiler Leviathan", design: "compiler-leviathan", color: "#174B67", accent: "#FFB84D", label: "ERROR", attackName: "Compile Breaker", attackStyle: "slam", lore: "The wreck of a compiler, rebuilt into the shore’s last line of defense." },
     ],
     theme: { skyTop: "#5CB8F5", skyBottom: "#D9F2FF", far: "#7CCDF2", groundNear: "#F0D58C", groundFar: "#F7E7B8", road: "#FFF6DD", roadEdge: "#E3C27A", roadLine: "#E8D3A0", fog: "#F2FAFF", decor: ["palm", "rock"] },
   },
@@ -62,11 +65,11 @@ export const WORLDS: World[] = [
     bossTitle: "Branch Breaker",
     bridges: [],
     enemies: [
-      { name: "Else Sprite", body: "ghost", color: "#7FDCD9", label: "else" },
-      { name: "Boolean Bat", body: "bat", color: "#6C63FF", label: "true" },
-      { name: "Modulo Crab", body: "crab", color: "#F7A072", label: "% 2" },
-      { name: "Nested Newt", body: "serpent", color: "#7ED957", label: "if{if{" },
-      { name: "The Dangling Else", body: "ghost", color: "#5B4B8A", label: "else ?", eyes: 3 },
+      { name: "Fork Stalker", design: "fork-stalker", color: "#386C56", accent: "#BDF77C", label: "else", attackName: "Forked Strike", attackStyle: "lunge", lore: "An antlered hunter waiting where the forest path divides." },
+      { name: "Boolean Oracle", design: "boolean-owl", color: "#58519D", accent: "#B3F3C1", label: "true", attackName: "Truth Bolt", attackStyle: "spit", lore: "One eye sees true. The other sees every path you should not take." },
+      { name: "Modulo Mantis", design: "modulo-mantis", color: "#658E40", accent: "#F5D971", label: "% 2", attackName: "Remainder Reap", attackStyle: "lunge", lore: "A leaf-armored predator with crescent blades that leave no remainder." },
+      { name: "Nested Basilisk", design: "nested-basilisk", color: "#257B77", accent: "#A2F6C0", label: "if{if{", attackName: "Nested Venom", attackStyle: "spit", lore: "Every armored coil hides another decision beneath it." },
+      { name: "Elder Else", design: "elder-else", color: "#55435B", accent: "#EAB96B", label: "else ?", attackName: "Branch Collapse", attackStyle: "slam", lore: "The ancient decision tree. Every branch leads back to its throne." },
     ],
     theme: { skyTop: "#7FCBA0", skyBottom: "#E6F7DD", far: "#5FA873", groundNear: "#5DB54C", groundFar: "#8ED37A", road: "#D9B27A", roadEdge: "#A87E47", roadLine: "#C69D63", fog: "#EEF8EA", decor: ["pine", "rock"] },
   },
@@ -76,11 +79,11 @@ export const WORLDS: World[] = [
     bossTitle: "Loop Legend",
     bridges: [lc(412, "Fizz Buzz", "fizz-buzz")],
     enemies: [
-      { name: "Counter Crab", body: "crab", color: "#FF7B54", label: "i++" },
-      { name: "While Wisp", body: "ghost", color: "#8FD3FF", label: "while" },
-      { name: "Off-By-One Goblin", body: "imp", color: "#4CC764", label: "i <= n", eyes: 1 },
-      { name: "Break Beetle", body: "crab", color: "#5A6B9C", label: "break" },
-      { name: "The Infinite Serpent", body: "serpent", color: "#21B8A8", label: "while(true)", horns: true },
+      { name: "Counter Corsair", design: "counter-crab", color: "#C85C51", accent: "#7DEBEA", label: "i++", attackName: "Counter Crush", attackStyle: "slam", lore: "A clockwork crustacean that counts each step toward its target." },
+      { name: "While Specter", design: "while-jelly", color: "#326AA8", accent: "#9CFBFF", label: "while", attackName: "Pulse Cycle", attackStyle: "spit", lore: "A luminous deep-water specter trapped in a repeating pulse." },
+      { name: "Offset Angler", design: "offset-angler", color: "#385B7C", accent: "#BEF667", label: "i <= n", attackName: "False Endpoint", attackStyle: "lunge", lore: "Its lure always hangs one position beyond where you expect." },
+      { name: "Breakpoint Bastion", design: "break-turtle", color: "#52766F", accent: "#FFCB70", label: "break", attackName: "Reef Break", attackStyle: "slam", lore: "A reef fortress that stops the current with one armored impact." },
+      { name: "Ouroboros, Unbound", design: "ouroboros", color: "#136E7C", accent: "#63FFCB", label: "while(true)", attackName: "Endless Tide", attackStyle: "spit", lore: "A twin-headed sea dragon locked in a cycle without an exit." },
     ],
     theme: { skyTop: "#4FC3F0", skyBottom: "#D3F3FF", far: "#86D9C7", groundNear: "#3DB5DA", groundFar: "#7FD3EA", road: "#C99A5E", roadEdge: "#8E6538", roadLine: "#A8793F", fog: "#E8F8FF", decor: ["lily", "palm"] },
   },
@@ -90,11 +93,11 @@ export const WORLDS: World[] = [
     bossTitle: "String Sorcerer",
     bridges: [lc(344, "Reverse String", "reverse-string")],
     enemies: [
-      { name: "Index Yeti", body: "golem", color: "#DCE6F7", label: "[0]" },
-      { name: "Substring Snake", body: "serpent", color: "#C77DFF", label: "sub(0,3)" },
-      { name: "Char Chimera", body: "imp", color: "#FF9F8A", label: "'c'", horns: true },
-      { name: "Equals Echo", body: "ghost", color: "#AFB8FF", label: "==" },
-      { name: "The Null Phantom", body: "ghost", color: "#3E436E", label: "null", eyes: 1, horns: true },
+      { name: "Index Frostguard", design: "index-yeti", color: "#86ABCB", accent: "#C4FAFF", label: "[0]", attackName: "Zero Point", attackStyle: "slam", lore: "An ice-armored giant guarding the first step into the peaks." },
+      { name: "Substring Wyvern", design: "substring-wyvern", color: "#7B60B7", accent: "#D5A8FF", label: "sub(0,3)", attackName: "Shard Slice", attackStyle: "lunge", lore: "Its crystal wings slice clean ranges out of the mountain sky." },
+      { name: "Char Sabertooth", design: "char-sabertooth", color: "#6C8DA9", accent: "#FFE5A8", label: "'c'", attackName: "Single Bite", attackStyle: "lunge", lore: "A frost hunter whose twin fangs cut one character at a time." },
+      { name: "Equals Echo", design: "echo-wraith", color: "#6B7DC5", accent: "#BDEAFF", label: "==", attackName: "Mirror Pulse", attackStyle: "spit", lore: "Two mirrored masks. One identity that is never what it seems." },
+      { name: "Null, the Hollow King", design: "null-lich", color: "#383F74", accent: "#A5F0FF", label: "null", attackName: "Absolute Null", attackStyle: "spit", lore: "An empty crown above a frozen kingdom. Nothing waits behind the mask." },
     ],
     theme: { skyTop: "#9DB4FF", skyBottom: "#EEF2FF", far: "#FFFFFF", groundNear: "#E3EAF6", groundFar: "#F3F6FC", road: "#C2CDE2", roadEdge: "#97A6C4", roadLine: "#AEBBD6", fog: "#F7F9FF", decor: ["pine", "crystal"], peaks: true },
   },
@@ -104,11 +107,11 @@ export const WORLDS: World[] = [
     bossTitle: "Array Admiral",
     bridges: [lc(1, "Two Sum", "two-sum")],
     enemies: [
-      { name: "Bounds Bat", body: "bat", color: "#8E7DFF", label: "[5]" },
-      { name: "Length Lurker", body: "blob", color: "#5E60CE", label: ".length", eyes: 3 },
-      { name: "Swap Spider", body: "crab", color: "#FF6B9A", label: "tmp" },
-      { name: "ArrayList Ant", body: "imp", color: "#F4A261", label: "add()" },
-      { name: "The Out-of-Bounds Ogre", body: "golem", color: "#7B4FC4", label: "[-1]", horns: true },
+      { name: "Bounds Shardwing", design: "bounds-bat", color: "#765AB5", accent: "#BBF4FF", label: "[5]", attackName: "Boundary Dive", attackStyle: "lunge", lore: "A cave predator with wings cut from forbidden crystal indexes." },
+      { name: "Length Devourer", design: "length-crawler", color: "#445E8D", accent: "#8FFFC9", label: ".length", attackName: "Segment Surge", attackStyle: "lunge", lore: "A segmented tunnel hunter that grows with every value it consumes." },
+      { name: "Swap Widow", design: "swap-spider", color: "#A34C8B", accent: "#FFB5DC", label: "tmp", attackName: "Swap Ambush", attackStyle: "lunge", lore: "A crystal arachnid that trades its prey’s position with a decoy." },
+      { name: "Listbreaker Drill", design: "list-driller", color: "#B97A46", accent: "#93E8FF", label: "add()", attackName: "Insert Impact", attackStyle: "slam", lore: "A tunnel machine that inserts itself through solid bedrock." },
+      { name: "Index Colossus", design: "index-colossus", color: "#564477", accent: "#D5A4FF", label: "[-1]", attackName: "Bounds Rupture", attackStyle: "slam", lore: "A living fault line built from the cavern’s shattered boundaries." },
     ],
     theme: { skyTop: "#2A2350", skyBottom: "#5B4D9E", far: "#3A3070", groundNear: "#3D3466", groundFar: "#5A4E92", road: "#7C6DC0", roadEdge: "#5A4C99", roadLine: "#A699E8", fog: "#8F7FE0", decor: ["crystal", "rock"], night: true },
   },
@@ -118,11 +121,11 @@ export const WORLDS: World[] = [
     bossTitle: "Stack Survivor",
     bridges: [lc(1480, "Running Sum of 1d Array", "running-sum-of-1d-array")],
     enemies: [
-      { name: "Grid Gremlin", body: "imp", color: "#7FC8A9", label: "[r][c]" },
-      { name: "Constructor Crow", body: "bat", color: "#3B3F5C", label: "new" },
-      { name: "This Thief", body: "ghost", color: "#B8C1CC", label: "this." },
-      { name: "Base Case Bat", body: "bat", color: "#E76F51", label: "n <= 1", eyes: 3 },
-      { name: "The Stack Overflow", body: "tower", color: "#8B5CF6", label: "fact(n)" },
+      { name: "Grid Sentinel", design: "grid-sentinel", color: "#4B7885", accent: "#8CFFE0", label: "[r][c]", attackName: "Grid Lock", attackStyle: "slam", lore: "A rook-armored guardian whose shield maps every row and column." },
+      { name: "Constructor Raven", design: "constructor-raven", color: "#3C456A", accent: "#FFCE73", label: "new", attackName: "Forge Feather", attackStyle: "spit", lore: "A brass-winged familiar that builds its own next incarnation." },
+      { name: "This, the Usurper", design: "this-duelist", color: "#576887", accent: "#E3B0FF", label: "this.", attackName: "Reference Riposte", attackStyle: "lunge", lore: "A stolen suit of royal armor searching for its rightful reference." },
+      { name: "Basecase Gargoyle", design: "base-gargoyle", color: "#8C6165", accent: "#FFBA7A", label: "n <= 1", attackName: "Terminal Dive", attackStyle: "lunge", lore: "An awakened stone guardian perched at the end of every descent." },
+      { name: "Stack Tyrant", design: "stack-tyrant", color: "#6251A0", accent: "#F6C778", label: "fact(n)", attackName: "Stack Collapse", attackStyle: "slam", lore: "A walking citadel rising one forbidden call above its own foundations." },
     ],
     theme: { skyTop: "#FF9F86", skyBottom: "#FFE0B8", far: "#C77E78", groundNear: "#8F92A6", groundFar: "#B5B7C6", road: "#C9CBD8", roadEdge: "#8D90A4", roadLine: "#A9ACBE", fog: "#FFF0E3", decor: ["pillar", "rock"] },
   },
@@ -139,11 +142,11 @@ export const WORLDS: World[] = [
       lc(217, "Contains Duplicate", "contains-duplicate"),
     ],
     enemies: [
-      { name: "Two Sum Titan", body: "golem", color: "#FFC83D", label: "#1" },
-      { name: "Stock Sorcerer", body: "imp", color: "#3FB58F", label: "#121", horns: true },
-      { name: "Palindrome Paladin", body: "ghost", color: "#4CC9F0", label: "#125" },
-      { name: "Merge Minotaur", body: "crab", color: "#F94144", label: "#88", horns: true },
-      { name: "The Final Judge", body: "eye", color: "#FF3D7F", label: "Accepted?" },
+      { name: "Two-Sum Titans", design: "sum-twins", color: "#8B703F", accent: "#FFE390", label: "#1", attackName: "Pair Impact", attackStyle: "slam", lore: "Two linked war machines. One target. No room for a repeated position." },
+      { name: "Market Chronomancer", design: "stock-mage", color: "#2E6C68", accent: "#84FFD1", label: "#121", attackName: "Time Dividend", attackStyle: "spit", lore: "A keeper of fractured timelines who buys your mistakes before they happen." },
+      { name: "Palindrome Paladin", design: "mirror-paladin", color: "#426E9E", accent: "#A7F2FF", label: "#125", attackName: "Mirror Cut", attackStyle: "lunge", lore: "A mirror-armored knight whose every attack has an equal reflection." },
+      { name: "Merge Minotaur", design: "merge-minotaur", color: "#9E4B54", accent: "#FFD193", label: "#88", attackName: "Merge Cleaver", attackStyle: "lunge", lore: "A bronze-horned executioner that joins two blades into a single verdict." },
+      { name: "The Final Judge", design: "final-judge", color: "#433A75", accent: "#FFB868", label: "Accepted?", attackName: "Final Verdict", attackStyle: "spit", lore: "The citadel’s celestial arbiter. Every unfinished algorithm ends here." },
     ],
     theme: { skyTop: "#14173A", skyBottom: "#3B3F8F", far: "#23275C", groundNear: "#262A55", groundFar: "#363B7A", road: "#FFC83D", roadEdge: "#C99400", roadLine: "#FFF1B0", fog: "#6D72D6", decor: ["obelisk", "crystal"], night: true },
   },

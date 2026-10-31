@@ -31,6 +31,8 @@ Live: https://danielcoutinhohome-source.github.io/codewarrior/
 
 Question types: predict the output, fill the blank, multiple choice, drag lines into order. Generators produce new numbers on every battle.
 
+Every world has five original fantasy-tech enemies, including a distinct boss: nautical raiders on the shore, forest hunters, deep-water creatures, frost beasts, crystal predators, castle constructs, and celestial citadel guardians. Each has custom SVG artwork, a programming sigil, lore, a signature attack, and a matching lunge, slam, or ranged-sigil animation. Hidden bosses keep their identity concealed; small map portraits omit tiny text, and idle art respects reduced-motion preferences. `npm test` includes all 35 designs in 210 render states and checks SVG definition isolation.
+
 The bank contains **420 unique question templates: 60 in each world**, preserving the original 88 templates and adding 332 handwritten items. Every world has **15 novice (25%), 30 intermediate (50%), and 15 hard (25%)** templates, represented by tiers 0, 1, and 2. These percentages describe the bank; battle selection still follows the existing tier progression and bosses prioritize hard material.
 
 New questions cover AP-style code tracing, missing expressions, condition equivalence, boundary tests, debugging, algorithm contracts, data representation, and procedural/list abstraction. CSP pseudocode questions explicitly say **AP CSP** and use its one-based list indexes; Java questions use zero-based indexes. Existing class/recursion and LeetCode enrichment remains in its matching world. This is original practice content, not official or copied AP exam material, and is not intended to cover every CSP exam topic.
@@ -57,7 +59,7 @@ Next.js (static export), React, TypeScript, Tailwind CSS, Framer Motion, Dexie (
 ## Layout
 
 - `src/app` pages: home, create, login, map (world view), battle, shop, profile (armory), teacher
-- `src/components` `Warrior` and `Monster` art, `Arena` (fight animations), `WorldScene`, `QuestionCard`, shared UI
+- `src/components` `Warrior`, `Monster`, and `EnemyArt` art, `Arena` (fight animations), `WorldScene`, `QuestionCard`, shared UI
 - `src/lib` game data (`game.ts`), battle rules (`battle.ts`), saves (`db.ts`, `progress.ts`, `auth.ts`), sounds (`sfx.ts`)
 - `src/lib/questions` question generators per world
 - `scripts` question verifier and battle tests

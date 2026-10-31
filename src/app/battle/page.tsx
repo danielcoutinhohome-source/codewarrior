@@ -256,6 +256,8 @@ function Battle() {
                 <div className="font-display text-[clamp(34px,5vw,54px)] leading-none">
                   <span style={{ color: boss ? "#D9434A" : "#FF8A00" }}>{boss ? "BOSS FIGHT" : "BATTLE START"}</span>
                 </div>
+                <p className="mt-3 max-w-md text-base font-bold text-ink">{enemy.lore}</p>
+                <span className="mt-3 rounded-full bg-ink px-4 py-2 text-xs font-black uppercase tracking-wider text-white">{enemy.attackName}</span>
                 <p className="mt-3 max-w-md font-bold text-ink-soft">
                   {n} questions. Right answers attack. Each miss lets {enemy.name} hit you, and you get two tries per question.
                 </p>

@@ -40,7 +40,7 @@ type Pt = { x: number; y: number };
 type Float = { id: number; text: string; at: Pt; color: string; big?: boolean };
 type Burst = { id: number; at: Pt; colors: string[]; count: number; spread: number };
 type Ring = { id: number; at: Pt; color: string; size: number; inward?: boolean };
-type Shot = { id: number; from: Pt; to: Pt; color: string; kind: "wave" | "glob"; ms: number };
+type Shot = { id: number; from: Pt; to: Pt; color: string; kind: "wave" | "rune"; ms: number };
 type SlashKind = "arcR" | "arcL" | "up" | "down" | "cross";
 type Slash = { id: number; at: Pt; size: number; kind: SlashKind; color: string };
 type Ghost = { id: number; who: "hero" | "foe"; x: number; y: number; w: number };
@@ -62,7 +62,6 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const foeRef = useRef<HTMLDivElement>(null);
   const foeBody = useRef<HTMLDivElement>(null);
   const lastAttack = useRef("");
-  const lastHurt = useRef("");
   const [floats, setFloats] = useState<Float[]>([]);
   const [bursts, setBursts] = useState<Burst[]>([]);
   const [rings, setRings] = useState<Ring[]>([]);
@@ -324,7 +323,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       const h = heroRef.current, hb = heroBody.current, f = foeRef.current, fb = foeBody.current;
       if (!h || !hb || !f || !fb) return;
       const d = gap();
-      const kind = pick(["lunge", "slam", "volley"], lastHurt);
+      const kind = p.enemy.attackStyle;
       const onHit = (strongHit = true) => {
         const at = center(h);
         if (blocked) {
@@ -397,14 +396,14 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         await animate(f, { x: [-d * 0.92, -d * 0.45, 0], y: [0, -64, 0] }, { duration: 0.46, ease: "easeInOut" });
         dust(center(f, 1));
       } else {
-        // Puff up, then fire a three-shot volley. The last one lands the damage.
+        // Channel a signature-sigil volley. Only the last shot deals damage.
         animate(fb, { x: [0, -4, 4, -4, 4, 0] }, { duration: 0.32 });
         await animate(fb, { scaleY: 1.16, scaleX: 1.1 }, { duration: 0.3, ease });
         for (let i = 0; i < 3; i++) {
           play("whoosh");
           animate(fb, { x: [0, 16, 0], scaleY: [1.16, 0.94, 1.1], scaleX: [1.1, 1.08, 1.06] }, { duration: 0.16, ease });
           const to = center(h);
-          add<Shot>(setShots, { id: ++uid, from: center(f, 0.45), to: { x: to.x + (i - 1) * 14, y: to.y + (i - 1) * 16 }, color: p.enemy.color, kind: "glob", ms: 300 }, 360);
+          add<Shot>(setShots, { id: ++uid, from: center(f, 0.45), to: { x: to.x + (i - 1) * 14, y: to.y + (i - 1) * 16 }, color: p.enemy.accent, kind: "rune", ms: 300 }, 360);
           setTimeout(i < 2 ? graze : () => onHit(false), 290);
           await sleep(130);
         }
@@ -539,7 +538,12 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
               <path d="M18 18 Q46 50 18 82" fill="none" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" />
             </motion.svg>
           ) : (
-            <motion.div key={s.id} className="pointer-events-none absolute z-30 rounded-full" style={{ left: 0, top: 0, width: 26, height: 26, background: `radial-gradient(circle at 35% 35%, #FFFFFF, ${s.color} 55%)`, boxShadow: `0 0 14px ${s.color}` }} initial={{ x: s.from.x - 13, y: s.from.y - 13, scale: 0.5 }} animate={{ x: [s.from.x - 13, (s.from.x + s.to.x) / 2 - 13, s.to.x - 13], y: [s.from.y - 13, Math.min(s.from.y, s.to.y) - 90, s.to.y - 13], scale: [0.5, 1.1, 1] }} transition={{ duration: s.ms / 1000, ease: "easeIn" }} />
+            <motion.svg key={s.id} viewBox="0 0 60 60" className="pointer-events-none absolute z-30" style={{ left: 0, top: 0, width: 44, height: 44, color: s.color }} initial={{ x: s.from.x - 22, y: s.from.y - 22, scale: 0.6, rotate: -45 }} animate={{ x: s.to.x - 22, y: s.to.y - 22, scale: 1.15, rotate: 135 }} transition={{ duration: s.ms / 1000, ease: "easeIn" }}>
+              <circle cx="30" cy="30" r="25" fill="#10172B" fillOpacity="0.7" stroke="currentColor" strokeWidth="3"/>
+              <path d="M30 7 L53 30 L30 53 L7 30 Z" fill="none" stroke="currentColor" strokeWidth="3"/>
+              <path d="M30 17 L42 30 L30 43 L18 30 Z" fill="currentColor"/>
+              <circle cx="30" cy="30" r="4" fill="#FFFFFF"/>
+            </motion.svg>
           ),
         )}
         {bursts.map((b) =>
