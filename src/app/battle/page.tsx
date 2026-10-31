@@ -15,6 +15,7 @@ import { BOSS, PLAYER_HP, POWERS, SHOP, WORLDS, type Power } from "@/lib/game";
 import { battleUnlocked, recordBattle, useItem, type Rewards } from "@/lib/progress";
 import { buildBattle, isRight } from "@/lib/questions";
 import { play } from "@/lib/sfx";
+import { ENEMY_MOVESETS } from "@/lib/enemyCombat";
 import { useWarrior } from "@/lib/useWarrior";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -132,9 +133,7 @@ function Battle() {
         setNote(`${e.damage} damage${e.crit ? " · critical" : ""}${s.hinted ? " · hint used, counts as a miss" : ""}`);
         next = "correct";
       } else if (e.type === "hurt") {
-        const anim = arena.current.hurt(e);
-        await sleep(300);
-        setBs(state);
+        const anim = arena.current.hurt({ ...e, onImpact: () => setBs(state) });
         await anim;
         next = "retry";
       } else if (e.type === "reveal") {
@@ -257,7 +256,7 @@ function Battle() {
                   <span style={{ color: boss ? "#D9434A" : "#FF8A00" }}>{boss ? "BOSS FIGHT" : "BATTLE START"}</span>
                 </div>
                 <p className="mt-3 max-w-md text-base font-bold text-ink">{enemy.lore}</p>
-                <span className="mt-3 rounded-full bg-ink px-4 py-2 text-xs font-black uppercase tracking-wider text-white">{enemy.attackName}</span>
+                <span className="mt-3 rounded-full bg-ink px-4 py-2 text-xs font-black uppercase tracking-wider text-white">{ENEMY_MOVESETS[enemy.design].finisher.name}</span>
                 <p className="mt-3 max-w-md font-bold text-ink-soft">
                   {n} questions. Right answers attack. Each miss lets {enemy.name} hit you, and you get two tries per question.
                 </p>
