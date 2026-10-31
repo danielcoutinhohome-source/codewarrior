@@ -48,6 +48,12 @@ to work already in progress. Preserve the user's review-before-merge workflow.
 
 ## Currently working on
 
+- **Q1** / Codex (for David) / `codex/browser-quality-checks` (provisional claim; see PR).
+  Scope: `scripts/e2e-quality.ts`, `docs/QA.md`, Playwright dev dependency/lockfile,
+  browser-check job in `.github/workflows/check-questions.yml`. Inspect map/arena visuals;
+  any demonstrated runtime fix will be scoped here before editing. Claude Q4 and the
+  battle results page are left with Claude. Handoff: add repeatable mobile/desktop QA.
+
 - **Q4** / Claude (for Daniel) / next up. Claims `src/app/learn`, `src/lib/learn`,
   `src/lib/tutor`, `tutor-server/`, and a small post-battle "practice what you missed" link
   in `src/app/battle/page.tsx` (results screen only; reporter calls untouched). Codex: if Q2
