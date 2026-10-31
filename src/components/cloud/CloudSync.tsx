@@ -14,6 +14,8 @@ export default function CloudSync() {
   useEffect(() => {
     if (!classroomEnabled()) return;
     void recoverAbandoned().finally(() => startSync());
+    // Runs left behind by another tab that was closed while this one keeps playing.
+    const sweep = setInterval(() => void recoverAbandoned().catch(() => {}), 60_000);
     const c = getCloud();
     if (c?.me.role === "student" && getSession() === localIdFor(c.me.id)) void syncProgress().catch(() => {});
     const onChange = (_mods: unknown, key: unknown) => {
@@ -30,6 +32,7 @@ export default function CloudSync() {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      clearInterval(sweep);
       db.progress.hook("updating").unsubscribe(onChange);
       db.accounts.hook("updating").unsubscribe(onChange);
       db.progress.hook("creating").unsubscribe(onCreate);

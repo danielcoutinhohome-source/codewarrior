@@ -9,8 +9,8 @@ import type { AttemptRecord, SessionFinish, SessionStart, SyncEvent } from "./pr
 // per answer (saved as the run goes, so a closed tab loses little), and a finish event. Runs
 // are only reported for a student class account whose warrior is the one playing.
 
-const OPEN_KEY = "cw.cloud.open"; // runs in progress: id -> { userId, beat }
-type Open = Record<string, { userId: string; beat: number }>;
+const OPEN_KEY = "cw.cloud.open"; // runs in progress: id -> { userId, beat, closed? }
+type Open = Record<string, { userId: string; beat: number; closed?: number }>;
 const readOpen = (): Open => {
   try {
     return JSON.parse(localStorage.getItem(OPEN_KEY) || "{}") || {};
@@ -23,6 +23,19 @@ const writeOpen = (o: Open) => {
     localStorage.setItem(OPEN_KEY, JSON.stringify(o));
   } catch {}
 };
+
+// Runs started by this page. When the page is really unloaded (refresh, closed tab, leaving
+// the site), they're marked closed so the next load reports them as left early right away.
+// A page kept in the back/forward cache isn't closed: it can come back and keep playing.
+const mine = new Set<string>();
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", (e) => {
+    if (e.persisted || !mine.size) return;
+    const o = readOpen();
+    for (const id of mine) if (o[id]) o[id].closed = Date.now();
+    writeOpen(o);
+  });
+}
 
 export type Run = {
   id: string;
@@ -50,6 +63,7 @@ export function startRun(s: Omit<SessionStart, "id" | "contentVersion">): Run | 
   const open = readOpen();
   open[id] = { userId, beat: Date.now() };
   writeOpen(open);
+  mine.add(id);
   const beat = setInterval(() => {
     const o = readOpen();
     if (o[id]) {
@@ -59,6 +73,7 @@ export function startRun(s: Omit<SessionStart, "id" | "contentVersion">): Run | 
   }, 20_000);
   const close = () => {
     clearInterval(beat);
+    mine.delete(id);
     const o = readOpen();
     delete o[id];
     writeOpen(o);
@@ -88,15 +103,17 @@ export function startRun(s: Omit<SessionStart, "id" | "contentVersion">): Run | 
   };
 }
 
-// Runs left open by a closed tab or crash: marked abandoned (not completed) once they have
-// had no heartbeat for two minutes, so a run still going in another tab is left alone.
+// Runs left open by a refreshed or closed tab, or a crash: marked abandoned (not completed).
+// A run whose page was unloaded is closed at once; otherwise it waits until it has had no
+// heartbeat for two minutes, so a run still going in another tab is left alone.
 export async function recoverAbandoned() {
   const o = readOpen();
-  const stale = Object.entries(o).filter(([, v]) => Date.now() - v.beat > 120_000);
+  const stale = Object.entries(o).filter(([id, v]) => !mine.has(id) && (v.closed || Date.now() - v.beat > 120_000));
   if (!stale.length) return;
   for (const [id, v] of stale) {
-    await enqueue(v.userId, [{ id: crypto.randomUUID(), type: "session.abandon", at: v.beat, sessionId: id }], { urgent: true });
-    delete o[id];
+    await enqueue(v.userId, [{ id: crypto.randomUUID(), type: "session.abandon", at: v.closed || v.beat, sessionId: id }], { urgent: true });
+    const cur = readOpen();
+    delete cur[id];
+    writeOpen(cur);
   }
-  writeOpen(o);
 }

@@ -270,6 +270,31 @@ async function main() {
     await T.locator("li", { hasText: "Ava E." }).filter({ hasText: "Battle 3" }).filter({ hasText: "Won" }).first().waitFor({ timeout: 20_000 });
     step("switching accounts kept Ava's queued work out of Ben's account; it uploaded when Ava signed back in");
 
+    // 16. Refreshing mid-battle: the unfinished run shows as left early right away (not stuck
+    // "in progress"), and the answer given before the refresh is kept.
+    await S.goto(`${SITE}/battle/?w=0&b=3`);
+    await S.waitForFunction(() => (window as any).__cw?.phase === "answering", null, { timeout: 30_000 });
+    await S.evaluate(() => (window as any).__cw.play(true));
+    await S.waitForTimeout(800);
+    await S.reload();
+    await S.waitForFunction(() => (window as any).__cw?.phase === "answering", null, { timeout: 30_000 });
+    const left = T.locator("li", { hasText: "Ava E." }).filter({ hasText: "Battle 4" }).filter({ hasText: "Left early" }).first();
+    await left.waitFor({ timeout: 20_000 });
+    await left.getByRole("button").click();
+    await T.getByRole("dialog").getByText(/try 1: right/).first().waitFor();
+    await T.keyboard.press("Escape");
+    step("refreshing mid-battle shows the run as left early at once, with its answer kept");
+
+    // 17. The teacher's live connection drops and comes back: updates resume, nothing missed.
+    await T.context().setOffline(true);
+    await T.getByText(/Reconnecting…|Live updates paused/).first().waitFor({ timeout: 40_000 });
+    await play(S);
+    await S.getByText(/Saved and shared with your class\.|Saved to your class\./).waitFor({ timeout: 30_000 });
+    await T.context().setOffline(false);
+    await T.locator("li", { hasText: "Ava E." }).filter({ hasText: "Battle 4" }).filter({ hasText: "Won" }).first().waitFor({ timeout: 45_000 });
+    await T.getByText("Live", { exact: true }).first().waitFor({ timeout: 45_000 });
+    step("teacher's dashboard caught up after its connection dropped and came back");
+
     // The Teacher tab refuses student accounts.
     const X = await (await ctx(false)).newPage();
     await X.goto(`${SITE}/login/?as=teacher`);
