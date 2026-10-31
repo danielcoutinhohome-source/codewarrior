@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { AnimatePresence, motion, useAnimationControls } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ItemArt from "@/components/ItemArt";
 import TopBar from "@/components/TopBar";
 import Warrior from "@/components/Warrior";
@@ -16,8 +16,7 @@ import { useWarrior } from "@/lib/useWarrior";
 const TABS: { kind: ItemKind; label: string; blurb: string }[] = [
   { kind: "power", label: "Power-ups", blurb: "Use these during battles. They stack up in your bag." },
   { kind: "body", label: "Body", blurb: "Pick your warrior's frame. All bodies are free." },
-  { kind: "armor", label: "Armor", blurb: "Repaint your warrior's shell." },
-  { kind: "energy", label: "Energy", blurb: "Changes your classic blade, thrusters and headwear. Weapon variants keep their own colors." },
+  { kind: "energy", label: "Energy", blurb: "Your color. It paints your armor accents, headwear, weapon, thrusters and eyes." },
   { kind: "weapon", label: "Weapons", blurb: "One of each: sword, scythe, warhammer and glaive. Every weapon glows in your energy color." },
   { kind: "headwear", label: "Headwear", blurb: "Hats, ears, beards and wild hair. Every accessory matches your equipped energy color." },
   { kind: "finish", label: "Finish", blurb: "Special surface effects on top of your armor color." },
@@ -85,11 +84,11 @@ export default function ShopPage() {
         <div className="grid items-start gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
           <section className="card flex flex-col gap-3 p-5 lg:sticky lg:top-4">
             <Pedestal>
-              <AnimatePresence mode="popLayout">
-                <motion.div key={JSON.stringify(look)} initial={{ scale: 0.9, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 360, damping: 20 }}>
+              {/* One warrior that stays mounted: trying items on swaps its gear in place with a soft
+                  bounce. (Re-mounting it on every hover made the preview blink.) */}
+              <PreviewBounce look={JSON.stringify(look)}>
                   <Warrior weapon={look.weapon} headwear={look.headwear} body={look.body} armor={look.armor} energy={look.energy} finish={look.finish} aura={look.aura} size={170} />
-                </motion.div>
-              </AnimatePresence>
+              </PreviewBounce>
             </Pedestal>
             <div className="text-center">
               <div className="font-display text-2xl">{account.username}</div>
@@ -117,7 +116,7 @@ export default function ShopPage() {
               )}
             </AnimatePresence>
 
-            <motion.div key={tab} className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3" initial="hide" animate="show" variants={{ show: { transition: { staggerChildren: 0.04 } } }}>
+            <motion.div key={tab} className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-3" initial="hide" animate="show" variants={{ show: { transition: { staggerChildren: 0.06 } } }}>
               {items.map((it) => {
                 const owned = it.kind !== "power" && ownsItem(progress, it.id);
                 const on = it.kind !== "power" && isEquipped(account, it.id);
@@ -126,7 +125,7 @@ export default function ShopPage() {
                 return (
                   <motion.div
                     key={it.id}
-                    variants={{ hide: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } }}
+                    variants={{ hide: { opacity: 0.25, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } } }}
                     onMouseEnter={() => setPreview(it)}
                     onFocus={() => setPreview(it)}
                     onMouseLeave={() => setPreview(null)}
@@ -160,4 +159,17 @@ export default function ShopPage() {
       </div>
     </Screen>
   );
+}
+
+function PreviewBounce({ look, children }: { look: string; children: React.ReactNode }) {
+  const controls = useAnimationControls();
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    controls.start({ scale: [0.97, 1.03, 1], transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } });
+  }, [look, controls]);
+  return <motion.div animate={controls}>{children}</motion.div>;
 }

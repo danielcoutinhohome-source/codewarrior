@@ -107,7 +107,7 @@ function WorldMap() {
               fades in on top, so switching never shows an empty frame. */}
           <div className="grid">
             <AnimatePresence initial={false}>
-              <motion.div key={w} className="[grid-area:1/1]" initial={{ opacity: 0, scale: 1.03 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.99, transition: { duration: 0.5 } }} transition={{ duration: 0.45, ease }}>
+              <motion.div key={w} className="[grid-area:1/1]" initial={{ opacity: 0, scale: 1.02 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.99, transition: { duration: 1.1 } }} transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}>
                 {boxW > 0 && (
                   <WorldScene
                     ref={(h) => {

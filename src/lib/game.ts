@@ -211,19 +211,6 @@ export const SHOP: ShopItem[] = [
   { id: "body-titan", kind: "body", name: "Titan", price: 0, value: "titan", blurb: "Big, blocky and tough." },
   { id: "body-valkyrie", kind: "body", name: "Valkyrie", price: 0, value: "valkyrie", blurb: "Sleek triangle frame with long flowing hair." },
 
-  { id: "armor-ocean", kind: "armor", name: "Ocean", price: 0, value: "#2D9CDB", blurb: "Starter armor." },
-  { id: "armor-ember", kind: "armor", name: "Ember", price: 0, value: "#FF8A00", blurb: "Starter armor." },
-  { id: "armor-shadow", kind: "armor", name: "Shadow", price: 0, value: "#3B4058", blurb: "Starter armor." },
-  { id: "armor-jade", kind: "armor", name: "Jade", price: 120, value: "#27AE60", blurb: "Bright green plating." },
-  { id: "armor-violet", kind: "armor", name: "Violet", price: 120, value: "#8B5CF6", blurb: "Royal purple shell." },
-  { id: "armor-ruby", kind: "armor", name: "Ruby", price: 140, value: "#E5484D", blurb: "Gem red." },
-  { id: "armor-forest", kind: "armor", name: "Forest", price: 150, value: "#2F7A45", blurb: "Deep green plating." },
-  { id: "armor-crimson", kind: "armor", name: "Crimson", price: 250, value: "#A8172B", blurb: "Battle-hardened red." },
-  { id: "armor-chrome", kind: "armor", name: "Chrome", price: 300, value: "#A3AEC2", blurb: "Polished steel." },
-  { id: "armor-glacier", kind: "armor", name: "Glacier", price: 350, value: "#6FD3FF", blurb: "Ice-blue shell." },
-  { id: "armor-obsidian", kind: "armor", name: "Obsidian", price: 450, value: "#1E2238", blurb: "Near-black. Looks best with Circuit." },
-  { id: "armor-rainbow", kind: "armor", name: "Rainbow", price: 1000, value: "rainbow", blurb: "Shifting colors that never sit still." },
-  { id: "armor-gold", kind: "armor", name: "Solid Gold", price: 1500, value: "gold", blurb: "The rarest armor. Pure shining gold." },
 
   { id: "energy-red", kind: "energy", name: "Red", price: 0, value: "#FF5A5F", blurb: "Starter energy." },
   { id: "energy-sky", kind: "energy", name: "Sky", price: 0, value: "#5CC8FF", blurb: "Starter energy." },
@@ -275,7 +262,6 @@ export const STARTER_INVENTORY: Record<Power, number> = { potion: 1, shield: 1, 
 
 // Starter choices on the create screen.
 const starters = (k: ItemKind) => SHOP.filter((s) => s.kind === k && s.price === 0);
-export const ARMORS = starters("armor").map((s) => ({ name: s.name, color: s.value }));
 export const ENERGIES = starters("energy").map((s) => ({ name: s.name, color: s.value }));
 export const TITLES = starters("title").map((s) => s.value);
 export const BODIES = starters("body").map((s) => ({ name: s.name, value: s.value, blurb: s.blurb }));

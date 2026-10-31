@@ -15,7 +15,6 @@ import { useWarrior } from "@/lib/useWarrior";
 
 const SLOTS: { kind: ItemKind; label: string }[] = [
   { kind: "body", label: "Body" },
-  { kind: "armor", label: "Armor" },
   { kind: "energy", label: "Energy" },
   { kind: "weapon", label: "Weapon" },
   { kind: "headwear", label: "Headwear" },
@@ -26,7 +25,7 @@ const SLOTS: { kind: ItemKind; label: string }[] = [
 
 export default function ProfilePage() {
   const { account, progress, warm, refresh, signOut } = useWarrior();
-  const [slot, setSlot] = useState<ItemKind>("armor");
+  const [slot, setSlot] = useState<ItemKind>("body");
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);

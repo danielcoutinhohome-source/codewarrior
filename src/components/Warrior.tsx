@@ -25,6 +25,7 @@ type Props = {
 
 const loopT = (duration: number, extra: object = {}) => ({ duration, repeat: Infinity, ease: "easeInOut" as const, ...extra });
 
+const SHELL = "#D6DEEB";
 const GOLD_STOPS = ["#FFF6C8", "#FFD65C", "#E5A50A", "#9A6A00"];
 
 // Aura palettes: [main, light]. Halo auras also get wings.
@@ -86,11 +87,15 @@ export default function Warrior({
   const back = facing === "back";
   const b = body === "titan" || body === "valkyrie" ? body : "bot";
 
-  const gold = armor === "gold";
-  const rainbow = armor === "rainbow";
-  const base = solid(armor);
-  const light = gold ? "#FFF6C8" : rainbow ? "#FFFFFF" : lighten(base, 0.45);
-  const deep = gold ? "#8A5E00" : rainbow ? "#3B2A6B" : darken(base, 0.5);
+  // Every warrior wears the same pearl shell; the energy color paints the accents,
+  // headwear and weapon. (Older saves still carry an armor color; it is ignored.)
+  void armor;
+  const rainbow = false;
+  const goldShell = false;
+  const gold = energy === "gold"; // gold energy also gets the light sweep
+  const base = SHELL;
+  const light = "#FFFFFF";
+  const deep = "#4E5874";
   const enS = solid(energy);
   const en = energy === "rainbow" ? url("ebow") : energy === "gold" ? url("egold") : energy;
   const special = energy === "rainbow" || energy === "gold";
@@ -107,7 +112,7 @@ export default function Warrior({
             {RAINBOW_STOPS.map((c, i) => <stop key={i} offset={`${(i / (RAINBOW_STOPS.length - 1)) * 100}%`} stopColor={c} />)}
             {loop && <animateTransform attributeName="gradientTransform" type="rotate" values="0 .5 .5;360 .5 .5" dur="6s" repeatCount="indefinite" />}
           </linearGradient>
-        ) : gold ? (
+        ) : goldShell ? (
           <radialGradient id={id("body")} cx={back ? "62%" : "32%"} cy="26%" r="80%">
             {GOLD_STOPS.map((c, i) => <stop key={i} offset={`${[0, 35, 70, 100][i]}%`} stopColor={c} />)}
           </radialGradient>
@@ -355,19 +360,21 @@ function FrontView({ b, weapon, headwear, en, deep, url, id, loop, finish, speci
       {b === "titan" ? (
         <>
           <ellipse cx="100" cy="186" rx="40" ry="6" fill="#0B0D24" opacity="0.18" />
-          <path d="M62 116 Q100 106 138 116" fill="none" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="3" strokeLinecap="round" />
+          <path d="M62 116 Q100 106 138 116" fill="none" stroke={en} strokeWidth="5" strokeLinecap="round" />
           <rect x="70" y="164" width="60" height="8" rx="4" fill={deep} opacity="0.6" />
         </>
       ) : b === "valkyrie" ? (
         <>
-          <path d="M90 112 Q100 106 110 112" fill="none" stroke="#FFFFFF" strokeOpacity="0.45" strokeWidth="3" strokeLinecap="round" />
+          <path d="M90 112 Q100 106 110 112" fill="none" stroke={en} strokeWidth="4" strokeLinecap="round" />
+          <path d="M80 130 L70 156 M120 130 L130 156" fill="none" stroke={en} strokeWidth="3" strokeLinecap="round" opacity="0.85" />
           <rect x="64" y="163" width="72" height="7" rx="3.5" fill={deep} />
           <circle cx="100" cy="166.5" r="4.5" fill={en} stroke="#FFFFFF" strokeWidth="1.2" />
         </>
       ) : (
         <>
           <ellipse cx="100" cy="176" rx="34" ry="8" fill="#0B0D24" opacity="0.18" />
-          <path d="M66 130 Q100 116 134 130" fill="none" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="3" strokeLinecap="round" />
+          <path d="M66 130 Q100 116 134 130" fill="none" stroke={en} strokeWidth="5" strokeLinecap="round" />
+          <path d="M62 150 Q66 168 80 178 M138 150 Q134 168 120 178" fill="none" stroke={en} strokeWidth="3.5" strokeLinecap="round" opacity="0.85" />
         </>
       )}
       <Finish kind={finish} en={en} id={id} part="torso" loop={loop} />
@@ -412,6 +419,7 @@ function FrontView({ b, weapon, headwear, en, deep, url, id, loop, finish, speci
       <Shell b={b} url={url} part="helmet" />
       <Finish kind={finish} en={en} id={id} part="helmet" loop={loop} back={back} />
       <ellipse cx="80" cy="38" rx="15" ry="6" transform="rotate(-18 80 38)" fill="#FFFFFF" opacity="0.65" />
+      <path d="M58 96 Q100 108 142 96" fill="none" stroke={en} strokeWidth="4" strokeLinecap="round" />
       <rect x="63" y="48" width="74" height="42" rx={b === "titan" ? 16 : 21} fill={url("visor")} />
       <path d="M70 56 Q84 50 104 52 L76 84 Q66 76 70 56 Z" fill="#FFFFFF" opacity="0.1" />
       {b === "valkyrie" && headwear === "none" && <Fringe url={url} en={en} />}
@@ -502,7 +510,7 @@ function BackView({ b, weapon, headwear, en, deep, url, id, loop, finish, specia
         </>
       ) : (
         <>
-          <rect x="96" y="28" width="8" height="58" rx="4" fill={deep} opacity="0.7" />
+          <rect x="96" y="28" width="8" height="58" rx="4" fill={en} />
           <g stroke="#0E1130" strokeOpacity="0.35" strokeWidth="3" strokeLinecap="round">
             <path d="M74 70 H88 M74 78 H88 M112 70 H126 M112 78 H126" />
           </g>

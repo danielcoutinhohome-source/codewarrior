@@ -7,7 +7,7 @@ import { useState } from "react";
 import Warrior from "@/components/Warrior";
 import { Button, Logo, Pedestal, Sky, Swatch } from "@/components/ui";
 import { createAccount, validateSignup } from "@/lib/auth";
-import { ARMORS, BODIES, ENERGIES, TITLES } from "@/lib/game";
+import { BODIES, ENERGIES, TITLES } from "@/lib/game";
 
 export default function CreatePage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function CreatePage() {
   const [pass, setPass] = useState("");
   const [confirm, setConfirm] = useState("");
   const [body, setBody] = useState(BODIES[0].value);
-  const [armor, setArmor] = useState(ARMORS[0].color);
+  const armor = "#D6DEEB"; // armor color retired: energy paints the accents
   const [energy, setEnergy] = useState(ENERGIES[0].color);
   const [title, setTitle] = useState(TITLES[0]);
   const [error, setError] = useState<string | null>(null);
@@ -155,17 +155,12 @@ export default function CreatePage() {
               );
             })}
           </Picker>
-          <Picker label="Armor">
-            {ARMORS.map((a) => (
-              <Swatch key={a.color} color={a.color} label={`${a.name} armor`} selected={armor === a.color} onClick={() => setArmor(a.color)} />
-            ))}
-          </Picker>
-          <Picker label="Energy">
+          <Picker label="Energy color">
             {ENERGIES.map((a) => (
               <Swatch key={a.color} color={a.color} label={`${a.name} energy`} selected={energy === a.color} onClick={() => setEnergy(a.color)} />
             ))}
           </Picker>
-          <p className="-mt-3 text-[13px] font-bold text-ink-mute">More armor and energy colors, plus Rainbow and Solid Gold, are in the shop.</p>
+          <p className="-mt-3 text-[13px] font-bold text-ink-mute">Your energy color paints your armor accents, headwear and weapon. More colors, plus Rainbow and Solid Gold, are in the shop.</p>
           <Picker label="Title">
             {TITLES.map((t) => {
               const on = t === title;
