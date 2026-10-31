@@ -23,6 +23,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run verify
       - run: npm test
+      - name: Classroom integration tests
+        run: npx tsx scripts/test-classroom.ts
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /codewarrior

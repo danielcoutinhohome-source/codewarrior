@@ -65,12 +65,17 @@ async function signup(username: string, extra: Record<string, unknown> = {}) {
 }
 
 function battleEvents(sessionId: string, opts: { assignmentId?: string; world?: number; battle?: number; answers: boolean[]; outcome: "won" | "lost" }) {
-  const events: any[] = [{ id: uid(), type: "session.start", at: Date.now() - 300, session: { id: sessionId, kind: "battle", world: opts.world ?? 0, battle: opts.battle ?? 0, assignmentId: opts.assignmentId, questionCount: opts.answers.length, contentVersion: "test-1" } }];
+  // A fast runner may reach this fixture less than 300 ms after enrollment.
+  // Stamp this simulated instant battle at creation time so it cannot silently
+  // move before a join (or back inside a membership after leaving). Array order
+  // preserves start / attempts / finish ordering even within one millisecond.
+  const at = Date.now();
+  const events: any[] = [{ id: uid(), type: "session.start", at, session: { id: sessionId, kind: "battle", world: opts.world ?? 0, battle: opts.battle ?? 0, assignmentId: opts.assignmentId, questionCount: opts.answers.length, contentVersion: "test-1" } }];
   opts.answers.forEach((right, i) => {
-    events.push({ id: uid(), type: "attempt", at: Date.now() - 250 + i * 5, sessionId, attempt: { index: i, round: 0, tryNo: 0, questionId: `q${i}`, skill: i % 2 ? "Integer division" : "Casting", kind: "choice", prompt: `Question ${i}?`, options: ["A", "B"], given: right ? "A" : "B", expected: "A", correct: right, hinted: false } });
-    if (!right) events.push({ id: uid(), type: "attempt", at: Date.now() - 248 + i * 5, sessionId, attempt: { index: i, round: 0, tryNo: 1, questionId: `q${i}`, skill: i % 2 ? "Integer division" : "Casting", kind: "fill", prompt: `Question ${i}?`, code: "int x = ___;", given: "x = 7 / 2", expected: "3", correct: true, hinted: false } });
+    events.push({ id: uid(), type: "attempt", at, sessionId, attempt: { index: i, round: 0, tryNo: 0, questionId: `q${i}`, skill: i % 2 ? "Integer division" : "Casting", kind: "choice", prompt: `Question ${i}?`, options: ["A", "B"], given: right ? "A" : "B", expected: "A", correct: right, hinted: false } });
+    if (!right) events.push({ id: uid(), type: "attempt", at, sessionId, attempt: { index: i, round: 0, tryNo: 1, questionId: `q${i}`, skill: i % 2 ? "Integer division" : "Casting", kind: "fill", prompt: `Question ${i}?`, code: "int x = ___;", given: "x = 7 / 2", expected: "3", correct: true, hinted: false } });
   });
-  events.push({ id: uid(), type: "session.finish", at: Date.now() - 10, sessionId, result: { outcome: opts.outcome, itemsUsed: { potion: 1 }, hintsUsed: 0, bestCombo: 3 } });
+  events.push({ id: uid(), type: "session.finish", at, sessionId, result: { outcome: opts.outcome, itemsUsed: { potion: 1 }, hintsUsed: 0, bestCombo: 3 } });
   return events;
 }
 
@@ -274,7 +279,6 @@ async function main() {
     // is still shared (it would look like it happened before the join otherwise).
     const skewKid = await signup("skew_kid");
     await call("POST", "/join", skewKid.token, { code: rotated.body.class.joinCode });
-    await new Promise((r) => setTimeout(r, 400)); // test runs start 300 ms in the past
     const slow = uid();
     const slowEvents = battleEvents(slow, { world: 0, battle: 0, answers: [true], outcome: "won" }).map((e: any) => ({ ...e, at: e.at - 600_000 }));
     await fetch(`${BASE}/sync`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${skewKid.token}` }, body: JSON.stringify({ events: slowEvents, sentAt: Date.now() - 600_000 }) });
@@ -288,7 +292,6 @@ async function main() {
     eq((await call("GET", `/classes/${cls.id}/sessions/${other}`, T2)).status, 404, "but never by another teacher");
     await call("PATCH", `/classes/${cls.id}/membership`, s2.token, { sharePlay: true });
     await call("POST", `/classes/${cls.id}/leave`, s2.token);
-    await new Promise((r) => setTimeout(r, 400)); // test runs start 300 ms in the past
     const afterLeave = uid();
     await call("POST", "/sync", s2.token, { events: battleEvents(afterLeave, { world: 0, battle: 2, answers: [true], outcome: "won" }) });
     sum = await call("GET", `/classes/${cls.id}/summary`, T);
