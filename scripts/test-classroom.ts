@@ -234,6 +234,10 @@ async function main() {
     sum = await call("GET", `/classes/${cls.id}/summary`, T);
     ok(!sum.body.recent.some((r: any) => r.id === sneak), "a non-member's work never reaches the class");
     const mm = sum.body.recent.find((r: any) => r.id === mismatch);
+    if (!mm || mm.assignmentId !== null) {
+      const det = await call("GET", `/classes/${cls.id}/students/${s2.me.id}`, T);
+      console.log("DEBUG", JSON.stringify({ mm, periods: det.body.periods, sessions: det.body.sessions?.map((x: any) => [x.id.slice(0, 6), x.startedAt, x.receivedAt, x.assignmentId, x.contextNote]), recent: sum.body.recent.map((r: any) => [r.id.slice(0, 6), r.studentName]), mismatch: mismatch.slice(0, 6), now: Date.now() }));
+    }
     ok(mm && mm.assignmentId === null, "battle outside the assignment isn't credited to it");
 
     // Losses and abandoned runs are recorded separately.
