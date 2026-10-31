@@ -48,7 +48,7 @@ export default function Home() {
             <ButtonLink href="/create/" size="lg">CREATE MY WARRIOR</ButtonLink>
             <ButtonLink href="/login/" tone="white" size="lg">LOG IN</ButtonLink>
           </div>
-          <p className="mt-4 text-sm font-bold text-ink-mute">No email or Google account needed. Progress saves on this device.</p>
+          <p className="mt-4 text-sm font-bold text-ink-mute">No email or Google account needed. Play on this device, or save online with a class account.</p>
         </motion.div>
 
         <motion.div className="relative flex flex-[1_1_360px] items-end justify-center gap-2" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: ready ? 1 : 0, scale: ready ? 1 : 0.92 }} transition={{ type: "spring", stiffness: 160, damping: 18, delay: 0.1 }}>

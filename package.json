@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify-questions.ts",
-    "test": "tsx scripts/test-battle.ts && tsx scripts/test-enemies.tsx && tsx scripts/test-cosmetics.tsx && tsx scripts/test-enemy-moves.tsx && tsx scripts/test-player-moves.tsx && tsx scripts/test-cinematic-duels.tsx && tsx scripts/test-learn.ts && tsx scripts/test-world-progression.tsx && tsx scripts/test-progress-merge.ts"
+    "test": "tsx scripts/test-battle.ts && tsx scripts/test-enemies.tsx && tsx scripts/test-cosmetics.tsx && tsx scripts/test-enemy-moves.tsx && tsx scripts/test-player-moves.tsx && tsx scripts/test-cinematic-duels.tsx && tsx scripts/test-learn.ts && tsx scripts/test-world-progression.tsx && tsx scripts/test-progress-merge.ts",
+    "test:quality": "tsx scripts/e2e-quality.ts"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
@@ -27,6 +28,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.6.2",
+    "playwright": "^1.64.1",
     "postcss": "^8.5.32",
     "tailwindcss": "3.4",
     "tsx": "^4.23.15",

@@ -38,6 +38,14 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   into the browser only. Database changes go in a **new** migration in
   `classroom-server/src/schema.ts` (never edit a released one). See `classroom-server/README.md`.
 
+## Target devices
+
+Students and teachers use Chromebooks. Prioritize Chrome, keyboard/trackpad access,
+short laptop viewports, and modest CPU/GPU/RAM. Keep critical controls reachable, avoid
+expensive decorative rendering, and keep text alternatives when school policies block
+microphones or other optional browser capabilities. CPU-throttled desktop Chrome tests
+are useful approximations, not proof of performance on school hardware.
+
 ## Hard rules
 
 - Nothing in this project may cost money. Use free tiers only; no paid services or API keys.
@@ -74,3 +82,10 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   reloading in hidden tabs. `src/lib/learn/bank.ts` now holds `BANK_GENS`/`gensForSkill` (import
   from there, not lessons.ts) so the teacher and Learn pages don't load the question bank.
   Deploy now fails if the classroom server's health check never answers.
+
+- David/Codex, Q1/Q2 implementation in PR #13: repeatable browser QA, Chromebook-sized
+  maps with the fight control in view, scene-scaled characters, readable world/preview names
+  and progress captions.
+  No active file claim; validation and screenshot review are recorded in the PR. Claude
+  Q4/learning/results-screen work is untouched. Playwright is now a dev dependency, also
+  supporting Claude's existing `scripts/e2e-classroom.ts`.
