@@ -48,7 +48,14 @@ to work already in progress. Preserve the user's review-before-merge workflow.
 
 ## Currently working on
 
-- (nothing in progress)
+- **Q3** / Claude (for Daniel) / commits on main, small and separate. Claimed files:
+  `classroom-server/`, `src/lib/cloud/`, `src/components/cloud/`, `scripts/test-classroom.ts`,
+  `scripts/e2e-classroom.ts`. Verifying offline/reconnect exactly-once, refresh mid-battle,
+  teacher live reconnect, account switching, stale progress writes; fixing demonstrated gaps.
+- **Q4** / Claude (for Daniel) / after Q3. Will claim `src/app/learn`, `src/lib/learn`,
+  `src/lib/tutor`, `tutor-server/`, and a small post-battle "practice what you missed" link
+  in `src/app/battle/page.tsx` (results screen only; reporter calls untouched). Codex: if Q2
+  needs the battle page at the same time, note it here and I'll adapt.
 
 ## Recently finished
 
