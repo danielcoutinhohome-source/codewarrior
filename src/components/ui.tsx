@@ -2,11 +2,13 @@
 
 import { motion, type HTMLMotionProps } from "framer-motion";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 const tones = {
   ember: { bg: "#FF8A00", edge: "#D96F00", fg: "#FFFFFF" },
   ocean: { bg: "#2D9CDB", edge: "#1F7DB5", fg: "#FFFFFF" },
+  grass: { bg: "#3EC46D", edge: "#2BA155", fg: "#FFFFFF" },
+  violet: { bg: "#8B5CF6", edge: "#6D4BD8", fg: "#FFFFFF" },
   white: { bg: "#FFFFFF", edge: "#C5D7EC", fg: "#1F7DB5" },
   danger: { bg: "#FF5A5F", edge: "#D9434A", fg: "#FFFFFF" },
 };
@@ -15,34 +17,30 @@ type Tone = keyof typeof tones;
 const spring = { type: "spring", stiffness: 600, damping: 30 } as const;
 
 // Chunky 3D button: it sits on a darker edge and presses down into it.
-export function Button({
-  tone = "ember",
-  size = "md",
-  className = "",
-  children,
-  ...rest
-}: { tone?: Tone; size?: "md" | "lg" } & HTMLMotionProps<"button">) {
+type ButtonProps = { tone?: Tone; size?: "sm" | "md" | "lg" } & HTMLMotionProps<"button">;
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ tone = "ember", size = "md", className = "", children, style, ...rest }, ref) {
   const t = tones[tone];
   return (
     <motion.button
+      ref={ref}
       {...rest}
-      whileHover={rest.disabled ? undefined : { y: -2 }}
+      whileHover={rest.disabled ? undefined : { filter: "brightness(1.07)" }}
       whileTap={rest.disabled ? undefined : { y: 5, boxShadow: `0 1px 0 ${t.edge}` }}
       transition={spring}
-      style={{ background: t.bg, color: t.fg, boxShadow: `0 6px 0 ${t.edge}`, ...(tone === "white" ? { border: "3px solid #D5E4F5" } : {}) }}
+      style={{ background: t.bg, color: t.fg, boxShadow: `0 6px 0 ${t.edge}`, ...(tone === "white" ? { border: "3px solid #D5E4F5" } : {}), ...style }}
       className={`rounded-btn font-display tracking-wide disabled:cursor-not-allowed disabled:opacity-60 ${
-        size === "lg" ? "px-7 py-4 text-2xl" : "px-5 py-2.5 text-lg"
+        size === "lg" ? "px-7 py-4 text-2xl" : size === "sm" ? "px-3.5 py-1.5 text-base" : "px-5 py-2.5 text-lg"
       } ${className}`}
     >
       {children}
     </motion.button>
   );
-}
+});
 
 export function ButtonLink({ href, tone = "ember", size = "md", className = "", children }: { href: string; tone?: Tone; size?: "md" | "lg"; className?: string; children: ReactNode }) {
   const t = tones[tone];
   return (
-    <motion.div whileHover={{ y: -2 }} whileTap={{ y: 5 }} transition={spring} className="inline-block">
+    <motion.div whileHover={{ filter: "brightness(1.07)" }} whileTap={{ y: 5 }} transition={spring} className="inline-block">
       <Link
         href={href}
         style={{ background: t.bg, color: t.fg, boxShadow: `0 6px 0 ${t.edge}`, ...(tone === "white" ? { border: "3px solid #D5E4F5" } : {}) }}

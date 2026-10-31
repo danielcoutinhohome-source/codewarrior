@@ -24,6 +24,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Check every question against real Java
+        run: npm run verify
+      - name: Battle rule tests
+        run: npm test
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /codewarrior

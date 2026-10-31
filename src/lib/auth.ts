@@ -1,4 +1,5 @@
-import { db, type Account, type Avatar, type Progress } from "./db";
+import { db, emptyStats, type Account, type Avatar, type Progress } from "./db";
+import { STARTER_COINS, STARTER_INVENTORY, STARTER_OWNED } from "./game";
 
 const SESSION_KEY = "cw.session";
 const ITERATIONS = 150_000;
@@ -41,11 +42,15 @@ export async function createAccount(username: string, password: string, avatar: 
   const progress: Progress = {
     id,
     xp: 0,
-    coins: 0,
+    coins: STARTER_COINS,
     streak: 1,
     lastActiveDay: todayKey(),
-    currentWorld: 0,
-    battlesWon: {},
+    stars: {},
+    inventory: { ...STARTER_INVENTORY },
+    owned: [...STARTER_OWNED],
+    stats: emptyStats(),
+    skills: {},
+    updatedAt: Date.now(),
   };
   await db.transaction("rw", db.accounts, db.progress, async () => {
     await db.accounts.add(account);

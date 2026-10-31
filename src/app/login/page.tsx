@@ -8,6 +8,7 @@ import Warrior from "@/components/Warrior";
 import { Button, Logo, Sky } from "@/components/ui";
 import { listWarriors, logIn } from "@/lib/auth";
 import type { Account } from "@/lib/db";
+import { importBackup } from "@/lib/progress";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -92,7 +93,7 @@ export default function LoginPage() {
                     <motion.button
                       type="button"
                       onClick={() => setName(w.username)}
-                      whileHover={{ y: -2 }}
+                      whileHover={{ scale: 1.02 }}
                       whileTap={{ y: 2 }}
                       className="flex w-full items-center gap-4 rounded-2xl border-[3px] bg-white px-4 py-3 text-left transition-colors"
                       style={{ borderColor: on ? "#2D9CDB" : "#D5E4F5", background: on ? "#E2F3FF" : "#FFFFFF" }}
@@ -110,6 +111,27 @@ export default function LoginPage() {
               })}
             </ul>
           )}
+          <div className="mt-5 border-t-2 border-line pt-4">
+            <label className="text-sm font-black text-ink-soft" htmlFor="restore">Have a backup file?</label>
+            <input
+              id="restore"
+              type="file"
+              accept="application/json,.json"
+              className="mt-2 block w-full text-sm font-bold text-ink-soft file:mr-3 file:rounded-xl file:border-0 file:bg-ocean-soft file:px-3 file:py-2 file:font-black file:text-ocean-deep"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                try {
+                  const acc = await importBackup(await f.text());
+                  setWarriors(await listWarriors());
+                  setName(acc.username);
+                  setError(null);
+                } catch (err) {
+                  setError((err as Error).message);
+                }
+              }}
+            />
+          </div>
         </section>
       </main>
     </Sky>
