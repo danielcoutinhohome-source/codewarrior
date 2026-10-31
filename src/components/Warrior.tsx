@@ -3,8 +3,13 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useId, type ReactNode } from "react";
 import { RAINBOW_STOPS, darken, lighten, solid } from "@/lib/color";
+import { EXTRA_AURA_COLORS, HEADWEAR, weaponSpec } from "@/lib/cosmetics";
+import WarriorAuras from "./WarriorAuras";
+import { Headwear, SurfaceFinish, WeaponArt } from "./WarriorGear";
 
 type Props = {
+  weapon?: string;
+  headwear?: string;
   body?: string; // "bot" | "titan" | "valkyrie"
   armor?: string; // hex, "gold" or "rainbow"
   energy?: string; // hex, "gold" or "rainbow"
@@ -12,7 +17,7 @@ type Props = {
   finish?: string; // "standard" | "metal" | "circuit"
   aura?: string; // "none" | "ember" | "frost" | "storm" | "royal" | "halo-*"
   facing?: "front" | "back";
-  size?: number; // width in px; height keeps the 200x240 ratio
+  size?: number; // width in px; padded art keeps headwear and polearms visible
   idle?: boolean; // hover, blink and glow loops
   hurt?: boolean; // eyes squeeze shut
   className?: string;
@@ -23,7 +28,8 @@ const loopT = (duration: number, extra: object = {}) => ({ duration, repeat: Inf
 const GOLD_STOPS = ["#FFF6C8", "#FFD65C", "#E5A50A", "#9A6A00"];
 
 // Aura palettes: [main, light]. Halo auras also get wings.
-export const AURA_COLORS: Record<string, [string, string]> = {
+export const AURA_COLORS: Record<string, readonly [string, string]> = {
+  ...EXTRA_AURA_COLORS,
   ember: ["#FF7A00", "#FFD166"],
   frost: ["#4CC3FF", "#FFFFFF"],
   storm: ["#8B5CF6", "#7DF9FF"],
@@ -55,8 +61,10 @@ function shapes(body: string, fill: string): Shape {
   };
 }
 
-// The player's avatar: a hovering bot knight with an energy blade and a hex shield.
+// Shared avatar renderer for every frame, loadout, preview, and map view.
 export default function Warrior({
+  weapon = "saber",
+  headwear = "none",
   body = "bot",
   armor = "#2D9CDB",
   energy = "#FF5A5F",
@@ -69,6 +77,7 @@ export default function Warrior({
   hurt = false,
   className,
 }: Props) {
+  headwear = HEADWEAR.some((h) => h.value === headwear) ? headwear : "none";
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const id = (s: string) => `${s}-${uid}`;
   const url = (s: string) => `url(#${id(s)})`;
@@ -88,10 +97,11 @@ export default function Warrior({
   const halo = hasWings(aura);
   const [auraA, auraB] = AURA_COLORS[aura] || ["#FFFFFF", "#FFFFFF"];
 
-  const v = { b, en, enS, deep, url, id, loop, finish, back, gold };
+  const v = { b, en, enS, deep, url, id, loop, finish, back, gold, weapon, headwear };
+  const weaponColor = weaponSpec(weapon)?.color || enS;
 
   return (
-    <svg viewBox="0 0 200 240" width={size} height={size * 1.2} role="img" aria-label="Warrior avatar" className={className} style={{ overflow: "visible" }}>
+    <svg viewBox="-22 -60 244 308" width={size} height={size * 1.2} role="img" aria-label="Warrior avatar" className={className} style={{ overflow: "visible" }}>
       <defs>
         {rainbow ? (
           <linearGradient id={id("body")} x1="0" y1="0" x2="1" y2="1">
@@ -133,6 +143,9 @@ export default function Warrior({
           <stop offset="50%" stopColor={enS} stopOpacity="0.85" />
           <stop offset="100%" stopColor={enS} stopOpacity="0" />
         </linearGradient>
+        <linearGradient id={id("weapon")} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={weaponColor}/><stop offset="0.45" stopColor={lighten(weaponColor, 0.75)}/><stop offset="1" stopColor={weaponColor}/>
+        </linearGradient>
         <linearGradient id={id("blade")} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor={enS} />
           <stop offset="50%" stopColor="#FFFFFF" />
@@ -168,6 +181,8 @@ export default function Warrior({
           {shapes(b, "#000").torso}
           {shapes(b, "#000").helmet}
         </clipPath>
+        <clipPath id={id("shell-torso")}>{shapes(b, "#000").torso}</clipPath>
+        <clipPath id={id("shell-helmet")}>{shapes(b, "#000").helmet}</clipPath>
         <filter id={id("blur")} x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="4" />
         </filter>
@@ -194,7 +209,7 @@ export default function Warrior({
 
         {halo && !back && <Wings url={url} loop={loop} stroke={auraA} />}
         {back ? <BackView {...v} special={special} halo={halo} /> : <FrontView {...v} special={special} eye={eye} hurt={hurt} />}
-        {halo && <Halo a={auraA} c={auraB} loop={loop} y={b === "valkyrie" ? 4 : 0} />}
+        {halo && <Halo a={auraA} c={auraB} loop={loop} y={headwear !== "none" ? -42 : b === "valkyrie" ? 4 : 0} />}
       </motion.g>
       <Aura kind={aura} loop={loop} url={url} a={auraA} c={auraB} layer="front" />
     </svg>
@@ -203,6 +218,8 @@ export default function Warrior({
 
 type ViewProps = {
   b: string;
+  weapon: string;
+  headwear: string;
   en: string;
   enS: string;
   deep: string;
@@ -270,10 +287,11 @@ function Shield({ url, en, front }: { url: ViewProps["url"]; en: string; front: 
   );
 }
 
-function Finish({ kind, en, id, back }: { kind: string; en: string; id: ViewProps["id"]; back?: boolean }) {
+function Finish({ kind, en, id, back, part, loop }: { kind: string; en: string; id: ViewProps["id"]; back?: boolean; part: "torso" | "helmet"; loop: boolean }) {
+  const clip = `url(#${id(`shell-${part}`)})`;
   if (kind === "metal")
     return (
-      <g pointerEvents="none" clipPath={`url(#${id("shell")})`}>
+      <g pointerEvents="none" clipPath={clip}>
         <path d={back ? "M118 116 L128 108 L136 150 L126 160 Z" : "M70 118 L80 110 L88 152 L78 162 Z"} fill="#FFFFFF" opacity="0.32" />
         <path d={back ? "M120 30 L130 30 L138 100 L128 100 Z" : "M66 34 L74 30 L80 98 L72 100 Z"} fill="#FFFFFF" opacity="0.28" />
         <ellipse cx={back ? 128 : 74} cy="132" rx="5" ry="14" fill="#FFFFFF" opacity="0.4" />
@@ -281,7 +299,7 @@ function Finish({ kind, en, id, back }: { kind: string; en: string; id: ViewProp
     );
   if (kind === "circuit")
     return (
-      <g pointerEvents="none" fill="none" stroke={en} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" clipPath={`url(#${id("shell")})`}>
+      <g pointerEvents="none" fill="none" stroke={en} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" clipPath={clip}>
         <g filter={`url(#${id("soft")})`} opacity="0.9">
           <path d="M62 140 H74 L80 132 H88 M138 140 H126 L120 150 H112 M76 168 L86 160 H98 M124 166 L116 160" />
           <path d="M56 50 H64 L68 44 M144 50 H136 L132 44" />
@@ -293,7 +311,7 @@ function Finish({ kind, en, id, back }: { kind: string; en: string; id: ViewProp
         <circle cx="98" cy="160" r="2.2" fill={en} />
       </g>
     );
-  return null;
+  return <SurfaceFinish kind={kind} en={en} clip={clip} id={(name) => id(`${part}-${name}`)} loop={loop}/>;
 }
 
 // Gold armor gets a light sweep across it.
@@ -327,11 +345,11 @@ function Fringe({ url, en }: { url: ViewProps["url"]; en: string }) {
   );
 }
 
-function FrontView({ b, en, deep, url, id, loop, finish, special, gold, eye, hurt }: ViewProps & { eye: string; hurt: boolean }) {
+function FrontView({ b, weapon, headwear, en, deep, url, id, loop, finish, special, gold, eye, hurt, back }: ViewProps & { eye: string; hurt: boolean }) {
   const core = b === "valkyrie" ? { y: 140, r: 13 } : { y: b === "titan" ? 146 : 148, r: 16 };
   return (
     <>
-      {b === "valkyrie" && <HairBack url={url} />}
+      {b === "valkyrie" && headwear === "none" && <HairBack url={url} />}
       <Shell b={b} url={url} part="torso" />
       {b === "titan" ? (
         <>
@@ -351,7 +369,7 @@ function FrontView({ b, en, deep, url, id, loop, finish, special, gold, eye, hur
           <path d="M66 130 Q100 116 134 130" fill="none" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="3" strokeLinecap="round" />
         </>
       )}
-      <Finish kind={finish} en={en} id={id} />
+      <Finish kind={finish} en={en} id={id} part="torso" loop={loop} />
       <circle cx="100" cy={core.y} r={core.r + 1} fill="#0E1130" />
       <motion.circle cx="100" cy={core.y} r={core.r} fill={url("glow")} animate={loop ? { opacity: [0.75, 1, 0.75] } : undefined} transition={loopT(1.8)} />
       <text x="100" y={core.y + 4} textAnchor="middle" fontSize={core.r < 15 ? 9 : 11} fontWeight="800" fill="#FFFFFF" fontFamily="JetBrains Mono, monospace">{"</>"}</text>
@@ -367,10 +385,10 @@ function FrontView({ b, en, deep, url, id, loop, finish, special, gold, eye, hur
         </>
       )}
 
-      <Sword url={url} en={en} special={special} loop={loop} />
+      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
       <Shield url={url} en={en} front />
 
-      {b !== "valkyrie" && (
+      {b !== "valkyrie" && headwear === "none" && (
         <>
           <path d="M100 2 L114 30 H86 Z" fill={en} />
           <path d="M100 2 L107 30 H100 Z" fill="#FFFFFF" opacity="0.35" />
@@ -392,10 +410,11 @@ function FrontView({ b, en, deep, url, id, loop, finish, special, gold, eye, hur
         </>
       )}
       <Shell b={b} url={url} part="helmet" />
+      <Finish kind={finish} en={en} id={id} part="helmet" loop={loop} back={back} />
       <ellipse cx="80" cy="38" rx="15" ry="6" transform="rotate(-18 80 38)" fill="#FFFFFF" opacity="0.65" />
       <rect x="63" y="48" width="74" height="42" rx={b === "titan" ? 16 : 21} fill={url("visor")} />
       <path d="M70 56 Q84 50 104 52 L76 84 Q66 76 70 56 Z" fill="#FFFFFF" opacity="0.1" />
-      {b === "valkyrie" && <Fringe url={url} en={en} />}
+      {b === "valkyrie" && headwear === "none" && <Fringe url={url} en={en} />}
       {gold && <Sheen id={id} loop={loop} />}
 
       {hurt ? (
@@ -418,12 +437,13 @@ function FrontView({ b, en, deep, url, id, loop, finish, special, gold, eye, hur
           {b === "valkyrie" && <path d="M77 62 L70 56 M77 64 L69 61 M123 62 L130 56 M123 64 L131 61" stroke={eye} strokeWidth="2.2" strokeLinecap="round" />}
         </motion.g>
       )}
+      <Headwear kind={headwear} paint={url}/>
     </>
   );
 }
 
 // Seen from behind, for the first-person world view.
-function BackView({ b, en, deep, url, id, loop, finish, special, gold, halo }: ViewProps & { halo: boolean }) {
+function BackView({ b, weapon, headwear, en, deep, url, id, loop, finish, special, gold, halo, back }: ViewProps & { halo: boolean }) {
   const pack = b === "valkyrie" ? { y: 118, h: 40 } : b === "titan" ? { y: 120, h: 52 } : { y: 122, h: 48 };
   return (
     <>
@@ -431,7 +451,7 @@ function BackView({ b, en, deep, url, id, loop, finish, special, gold, halo }: V
 
       <Shell b={b} url={url} part="torso" />
       <ellipse cx="100" cy={b === "titan" ? 184 : 176} rx="34" ry="8" fill="#0B0D24" opacity="0.2" />
-      <Finish kind={finish} en={en} id={id} back />
+      <Finish kind={finish} en={en} id={id} part="torso" loop={loop} back />
       {b === "titan" && (
         <>
           <rect x="32" y="98" width="38" height="28" rx="13" fill={url("body")} />
@@ -448,9 +468,9 @@ function BackView({ b, en, deep, url, id, loop, finish, special, gold, halo }: V
       <motion.circle cx="112" cy={pack.y + pack.h - 8} r="4" fill={en} animate={loop ? { opacity: [1, 0.6, 1] } : undefined} transition={loopT(0.6)} />
 
       {halo && <Wings url={url} loop={loop} stroke="none" back />}
-      <Sword url={url} en={en} special={special} loop={loop} />
+      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
 
-      {b !== "valkyrie" && (
+      {b !== "valkyrie" && headwear === "none" && (
         <>
           <path d="M100 2 L114 30 H86 Z" fill={en} />
           <path d="M100 2 L93 30 H100 Z" fill="#FFFFFF" opacity="0.3" />
@@ -468,9 +488,10 @@ function BackView({ b, en, deep, url, id, loop, finish, special, gold, halo }: V
         </>
       )}
       <Shell b={b} url={url} part="helmet" />
+      <Finish kind={finish} en={en} id={id} part="helmet" loop={loop} back={back} />
       <ellipse cx="122" cy="38" rx="15" ry="6" transform="rotate(18 122 38)" fill="#FFFFFF" opacity="0.55" />
       {gold && <Sheen id={id} loop={loop} />}
-      {b === "valkyrie" ? (
+      {b === "valkyrie" && headwear === "none" ? (
         <>
           {/* long hair down the back */}
           <path d="M62 48 Q64 20 100 18 Q136 20 138 48 Q146 100 136 150 Q124 144 116 156 Q108 146 100 160 Q92 146 84 156 Q76 144 64 150 Q54 100 62 48 Z" fill={url("hair")} />
@@ -486,6 +507,7 @@ function BackView({ b, en, deep, url, id, loop, finish, special, gold, halo }: V
           </g>
         </>
       )}
+      <Headwear kind={headwear} paint={url} back/>
     </>
   );
 }
@@ -515,11 +537,11 @@ function Wings({ url, loop, stroke, back }: { url: ViewProps["url"]; loop: boole
 
 function Halo({ a, c, loop, y }: { a: string; c: string; loop: boolean; y: number }) {
   return (
-    <motion.g animate={loop ? { y: [y, y - 4, y] } : { y }} transition={loopT(2.2)} pointerEvents="none">
+    <g transform={`translate(0 ${y})`} pointerEvents="none"><motion.g animate={loop ? { y: [0, -4, 0] } : undefined} transition={loopT(2.2)}>
       <ellipse cx="100" cy="2" rx="40" ry="10" fill="none" stroke={a} strokeWidth="12" opacity="0.3" />
       <ellipse cx="100" cy="2" rx="36" ry="8" fill="none" stroke={a} strokeWidth="6" />
       <ellipse cx="100" cy="2" rx="36" ry="8" fill="none" stroke={c} strokeWidth="2" />
-    </motion.g>
+    </motion.g></g>
   );
 }
 
@@ -529,6 +551,7 @@ const sparkle = "M0 -7 L1.6 -1.6 L7 0 L1.6 1.6 L0 7 L-1.6 1.6 L-7 0 L-1.6 -1.6 Z
 // The animated effect around the warrior. Drawn big and bright so it reads at a glance.
 function Aura({ kind, loop, url, a, c, layer }: { kind: string; loop: boolean; url: ViewProps["url"]; a: string; c: string; layer: "back" | "front" }) {
   if (!kind || kind === "none" || !AURA_COLORS[kind]) return null;
+  if (EXTRA_AURA_COLORS[kind]) return <WarriorAuras kind={kind} loop={loop} layer={layer}/>;
   const halo = hasWings(kind);
   if (layer === "front") return <AuraFront kind={kind} loop={loop} a={a} c={c} halo={halo} />;
   return (

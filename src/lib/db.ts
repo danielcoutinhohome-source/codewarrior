@@ -2,12 +2,14 @@ import Dexie, { type EntityTable } from "dexie";
 import { STARTER_COINS, STARTER_INVENTORY, STARTER_OWNED } from "./game";
 
 export type Avatar = {
+  weapon?: string; // missing on older saves: classic energy blade
+  headwear?: string; // missing on older saves: original frame headwear
   body?: string; // "bot" | "titan" | "valkyrie"
   armor: string;
   energy: string;
   title: string;
-  finish?: string; // "standard" | "metal" | "circuit"
-  aura?: string; // "none" | "ember" | "frost" | "storm" | "royal"
+  finish?: string; // legacy finish IDs and the extended finish catalog
+  aura?: string; // legacy aura IDs and the extended aura catalog
 };
 
 export type Account = {

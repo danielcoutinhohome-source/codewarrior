@@ -17,6 +17,8 @@ const SLOTS: { kind: ItemKind; label: string }[] = [
   { kind: "body", label: "Body" },
   { kind: "armor", label: "Armor" },
   { kind: "energy", label: "Energy" },
+  { kind: "weapon", label: "Weapon" },
+  { kind: "headwear", label: "Headwear" },
   { kind: "finish", label: "Finish" },
   { kind: "aura", label: "Aura" },
   { kind: "title", label: "Title" },
@@ -79,7 +81,7 @@ export default function ProfilePage() {
             <Pedestal>
               <AnimatePresence mode="popLayout">
                 <motion.div key={JSON.stringify(a)} initial={{ scale: 0.85, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 380, damping: 18 }}>
-                  <Warrior body={a.body} armor={a.armor} energy={a.energy} finish={a.finish} aura={a.aura} size={180} />
+                  <Warrior weapon={a.weapon} headwear={a.headwear} body={a.body} armor={a.armor} energy={a.energy} finish={a.finish} aura={a.aura} size={180} />
                 </motion.div>
               </AnimatePresence>
             </Pedestal>

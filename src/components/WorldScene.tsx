@@ -213,7 +213,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           <Ambient W={W} H={H} hz={horizon} t={t} />
           {/* your warrior from behind; it bobs faster while walking */}
           <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2] } : { y: 0, rotate: 0 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
-            <WarriorArt facing="back" body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
+            <WarriorArt facing="back" weapon={avatar.weapon} headwear={avatar.headwear} body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
           </motion.div>
           <div aria-hidden className="pointer-events-none absolute inset-0" style={{ zIndex: 650, background: "radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(15,18,45,.22))" }} />
         </>

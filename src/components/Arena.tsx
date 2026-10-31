@@ -7,6 +7,7 @@ import Warrior from "./Warrior";
 import { play } from "@/lib/sfx";
 import { solid } from "@/lib/color";
 import type { Avatar } from "@/lib/db";
+import { weaponSpec } from "@/lib/cosmetics";
 import type { Enemy, Theme } from "@/lib/game";
 
 export type ArenaHandle = {
@@ -75,7 +76,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const [glow, setGlow] = useState<{ id: number; color: string } | null>(null);
   const [vignette, setVignette] = useState(false);
 
-  const en = solid(p.avatar.energy);
+  const en = weaponSpec(p.avatar.weapon)?.color || solid(p.avatar.energy);
   const heroSize = p.compact ? 118 : 168;
   const foeSize = p.compact ? (p.boss ? 150 : 126) : p.boss ? 220 : 178;
 
@@ -470,7 +471,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
 
         <div ref={heroRef} className="absolute bottom-[14%] left-[8%] z-10" style={{ width: heroSize, willChange: "transform" }}>
           <div ref={heroBody} className="relative" style={{ transformOrigin: "50% 80%" }}>
-            <HeroArt body={p.avatar.body} armor={p.avatar.armor} energy={en} finish={p.avatar.finish} aura={p.avatar.aura} size={heroSize} hurt={heroHurt} />
+            <HeroArt weapon={p.avatar.weapon} headwear={p.avatar.headwear} body={p.avatar.body} armor={p.avatar.armor} energy={p.avatar.energy} finish={p.avatar.finish} aura={p.avatar.aura} size={heroSize} hurt={heroHurt} />
             <AnimatePresence>
               {p.shield && (
                 // Firewall: a curved energy barrier on the side facing the enemy.
@@ -510,7 +511,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         {ghosts.map((g) => (
           <motion.div key={g.id} className="pointer-events-none absolute z-[9]" style={{ left: g.x, top: g.y, width: g.w, filter: `drop-shadow(0 0 6px ${g.who === "hero" ? en : p.enemy.color}) saturate(1.4)` }} initial={{ opacity: 0.55 }} animate={{ opacity: 0 }} transition={{ duration: 0.34, ease: "easeOut" }}>
             {g.who === "hero" ? (
-              <HeroArt body={p.avatar.body} armor={p.avatar.armor} energy={p.avatar.energy} finish={p.avatar.finish} size={g.w} idle={false} />
+              <HeroArt weapon={p.avatar.weapon} headwear={p.avatar.headwear} body={p.avatar.body} armor={p.avatar.armor} energy={p.avatar.energy} finish={p.avatar.finish} size={g.w} idle={false} />
             ) : (
               <FoeArt enemy={p.enemy} boss={p.boss} size={g.w} idle={false} />
             )}

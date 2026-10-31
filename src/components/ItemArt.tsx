@@ -1,13 +1,28 @@
 "use client";
 
 import Warrior from "./Warrior";
+import { useId } from "react";
+import { Headwear, WeaponArt } from "./WarriorGear";
+import { weaponSpec } from "@/lib/cosmetics";
 import { PowerIcon } from "./icons";
 import type { Avatar } from "@/lib/db";
 import type { ShopItem } from "@/lib/game";
-import { RAINBOW_STOPS, paintCss } from "@/lib/color";
+import { RAINBOW_STOPS, paintCss, solid, lighten, darken } from "@/lib/color";
 
 // A small picture of a shop item, drawn on the player's own warrior where it helps.
 export default function ItemArt({ it, avatar, size = 84 }: { it: ShopItem; avatar: Avatar; size?: number }) {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const hairId = `item-hair-${uid}`;
+  const spec = it.kind === "weapon" ? weaponSpec(it.value) : undefined;
+  if (spec) return <svg width={size * 0.8} height={size * 0.9} viewBox="115 -8 112 246" aria-hidden="true"><WeaponArt value={it.value} paint={(name) => name === "weapon" ? spec.color : "#64748B"}/></svg>;
+  if (it.kind === "headwear" && it.value !== "none") {
+    const color = solid(avatar.energy);
+    const stops = avatar.energy === "rainbow" ? RAINBOW_STOPS : avatar.energy === "gold" ? ["#FFF6C8", "#FFC83D", "#B97F00"] : [lighten(color, 0.4), color, darken(color, 0.45)];
+    return <svg width={size * 0.9} height={size * 0.85} viewBox={it.value === "beard" ? "36 78 128 70" : "10 -48 180 158"} aria-hidden="true">
+      <defs><linearGradient id={hairId} x1="0" y1="0" x2="0" y2="1">{stops.map((color, i) => <stop key={i} offset={`${i / (stops.length - 1) * 100}%`} stopColor={color}/>)}</linearGradient></defs>
+      <Headwear kind={it.value} paint={() => `url(#${hairId})`}/>
+    </svg>;
+  }
   if (it.kind === "power") return <PowerIcon kind={it.id} size={size * 0.62} />;
   if (it.kind === "armor")
     return (
@@ -17,7 +32,7 @@ export default function ItemArt({ it, avatar, size = 84 }: { it: ShopItem; avata
       />
     );
   if (it.kind === "energy") {
-    const g = `cw-ie-${it.id}`;
+    const g = `cw-ie-${uid}`;
     const fill = it.value === "rainbow" || it.value === "gold" ? `url(#${g})` : it.value;
     return (
       <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 40 40" aria-hidden>
@@ -44,10 +59,12 @@ export default function ItemArt({ it, avatar, size = 84 }: { it: ShopItem; avata
       body={it.kind === "body" ? it.value : avatar.body}
       armor={avatar.armor}
       energy={avatar.energy}
+      weapon={it.kind === "weapon" ? it.value : avatar.weapon}
+      headwear={it.kind === "headwear" ? it.value : avatar.headwear}
       finish={it.kind === "finish" ? it.value : avatar.finish}
       aura={it.kind === "aura" ? it.value : "none"}
       size={size * (it.kind === "aura" ? 0.56 : 0.62)}
-      idle={it.kind === "aura"}
+      idle={false}
     />
   );
 }
