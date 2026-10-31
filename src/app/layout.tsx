@@ -7,6 +7,7 @@ import "@fontsource/nunito/900.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/800.css";
 import "./globals.css";
+import DbStatus from "@/components/DbStatus";
 
 export const metadata: Metadata = {
   title: "CodeWarrior",
@@ -33,7 +34,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: RECOVER }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <DbStatus />
+      </body>
     </html>
   );
 }

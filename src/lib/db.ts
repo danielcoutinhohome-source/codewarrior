@@ -142,3 +142,15 @@ db.version(3).stores({
   attempts: "++id, accountId, [accountId+at], [accountId+skill]",
   conversations: "id, accountId, [accountId+updatedAt]",
 });
+
+// A newer version of the site opened in another tab needs this tab to let go of the save,
+// or its upgrade waits forever (Safari freezes background tabs, so they never answer).
+// Step aside and reload into the new version.
+if (typeof window !== "undefined") {
+  db.on("versionchange", () => {
+    db.close();
+    window.setTimeout(() => window.location.reload(), 50);
+    return false;
+  });
+  db.on("blocked", () => window.dispatchEvent(new CustomEvent("cw-db", { detail: "blocked" })));
+}
