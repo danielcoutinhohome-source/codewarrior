@@ -26,22 +26,25 @@ export function expand(families: Family[]): Gen[] {
     skill: f.skill, tier: f.tier, varied: true,
     make(r: Rng) {
       const p = f.make(r);
-      const suffix = kind === "fill" ? (typeof p.value === "number" ? r.pick([-9, -7, -4, -2, 2, 4, 7, 9]) : text(r, 2)) : undefined;
-      const expression = kind === "fill" ? `(${p.expression}) + ___` : p.expression;
+      const suffix = kind === "fill" ? (typeof p.value === "number" ? r.pick([-9, -7, -4, -2, 2, 4, 7, 9]) : text(r, r.int(1, 4))) : undefined;
+      const prefix = kind === "fill" && typeof p.value === "string" && r.pick([true, false]);
+      const subtract = kind === "fill" && typeof p.value === "number" && r.pick([true, false]);
+      const complete = (expr: string) => prefix ? `(___) + (${expr})` : `(${expr}) ${subtract ? "-" : "+"} (___)`;
+      const expression = kind === "fill" ? complete(p.expression) : p.expression;
       const javaBody = `${p.body}\nSystem.out.print(${expression});`;
       const java = p.classes
         ? { src: `${p.classes}\npublic class Main { public static void main(String[] args) {\n${javaBody}\n} }`, wrap: "file" as const, expect: String(p.value) }
         : { src: javaBody, wrap: "main" as const, expect: String(p.value) };
       const code = p.csp
-        ? `${p.csp.body}\nDISPLAY(${kind === "fill" ? `(${p.csp.expression}) + ___` : p.csp.expression})`
+        ? `${p.csp.body}\nDISPLAY(${kind === "fill" ? complete(p.csp.expression) : p.csp.expression})`
         : `${p.classes ? p.classes + "\n// In main:\n" : ""}${javaBody}`;
       const course = p.csp ? "AP CSP pseudocode. " : "";
       if (kind === "fill") {
-        const target = typeof p.value === "number" ? p.value + Number(suffix) : p.value + String(suffix);
+        const target = typeof p.value === "number" ? p.value + (subtract ? -1 : 1) * Number(suffix) : prefix ? String(suffix) + p.value : p.value + String(suffix);
         const answer = typeof suffix === "number" ? String(suffix) : literal(String(suffix));
         return { ...fill(f.skill, `${course}Fill the blank with one ${typeof suffix === "number" ? "integer literal" : "quoted string literal"} so the displayed value is ${literal(String(target))}.`, code, [answer],
           p.hint + " Then compare that result with the requested final value.",
-          `${p.explanation} Before the blank is added, the value is ${literal(String(p.value))}. Add ${answer} to produce ${literal(String(target))}.`,
+          `${p.explanation} The computed value is ${literal(String(p.value))}. Filling the blank with ${answer} makes this expression display ${literal(String(target))}.`,
           { ...java, expect: String(target) }), literalAnswer: true };
       }
       if (kind === "predict") {

@@ -24,7 +24,9 @@ Each displayed question and its answer/explanation/reference code come from the 
 case. Multiple-choice positions are shuffled, with four distinct choices; String choices are
 quoted so an empty-string distractor is visible. The new fill questions explicitly request
 an integer or quoted String literal; their literal-only grading preserves required quotes.
-Existing question grading remains compatible.
+Integer blanks vary addition/subtraction, and String blanks vary prefix/suffix placement and
+length, so there is no fixed “take the last two characters” answer shortcut. Existing question
+grading remains compatible.
 
 New generators reuse existing topic/skill keys. Lessons that already look up these skills can
 use the additional examples without editing Learn Mode. Several templates can teach one skill;

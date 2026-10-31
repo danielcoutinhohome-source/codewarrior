@@ -11,7 +11,7 @@ for (const [world, bank] of VARIANT_BANKS.entries()) {
   assert.deepEqual([0, 1, 2].map(t => bank.filter(g => g.tier === t).length), [3, 6, 3]);
   for (const g of bank) {
     templates++;
-    const content = new Set<string>(), answers = new Set<string>(), positions = new Set<number>();
+    const content = new Set<string>(), answers = new Set<string>(), positions = new Set<number>(), fillShapes = new Set<string>();
     for (let seed = 0; seed < 200; seed++) {
       const q = g.make(rng(seed + 271));
       const repeated = g.make(rng(seed + 271));
@@ -32,6 +32,7 @@ for (const [world, bank] of VARIANT_BANKS.entries()) {
       if (q.kind === "fill") {
         assert.ok(q.code?.includes("___"));
         assert.ok(q.literalAnswer);
+        fillShapes.add(q.code!.split("\n").filter(line => line.includes("___")).join("\n").replace(/"[^"\n]*"/g, '"text"').replace(/-?\d+/g, "N"));
         const answer = q.answers![0];
         assert.equal(isRight(q, answer.startsWith('"') ? answer.slice(1, -1) : '"' + answer + '"'), false, "Literal blanks distinguish String literals from numbers/identifiers");
       }
@@ -41,6 +42,7 @@ for (const [world, bank] of VARIANT_BANKS.entries()) {
     assert.ok(content.size >= 140, `${world}:${g.skill}: insufficient varied programs (${content.size}/200)`);
     assert.ok(answers.size >= 4, `${world}:${g.skill}: answers should change too`);
     if (positions.size) assert.equal(positions.size, 4, "Correct choices are shuffled across every position");
+    if (fillShapes.size) assert.ok(fillShapes.size >= 2, "Blanks vary their operation/placement as well as the requested output");
   }
   assert.equal(BANKS[world].length, 112);
   assert.deepEqual([0, 1, 2].map(t => BANKS[world].filter(g => g.tier === t).length), [28, 56, 28]);
