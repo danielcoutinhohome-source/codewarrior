@@ -1,4 +1,4 @@
-import type { Assignment, AssignmentState, ClassInfo, Feedback, SessionSummary } from "@/lib/cloud/protocol";
+import type { Assignment, AssignmentState, ClassInfo, Credit, Feedback, SessionSummary } from "@/lib/cloud/protocol";
 
 export type SkillStat = { skill: string; firstTries: number; missed: number; students?: number };
 export type StudentRow = {
@@ -18,7 +18,7 @@ export type StudentRow = {
   lastActivity: number | null;
   skills: SkillStat[];
 };
-export type Progress = { state: AssignmentState; done: number; needed: number; completedAt: number | null; late: boolean };
+export type Progress = { state: AssignmentState; done: number; needed: number; completedAt: number | null; late: boolean; credits: Credit[] };
 export type Summary = {
   class: ClassInfo;
   students: StudentRow[];

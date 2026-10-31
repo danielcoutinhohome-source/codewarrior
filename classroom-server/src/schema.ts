@@ -184,4 +184,13 @@ CREATE TABLE rate_limits (
 );
 `,
   },
+  {
+    version: 2,
+    name: "assignment option: earlier wins count unless the teacher requires playing from the assignment",
+    sql: `
+ALTER TABLE assignments ADD COLUMN require_launch INTEGER NOT NULL DEFAULT 0;
+-- Assignments made before this option existed keep their original rule.
+UPDATE assignments SET require_launch = 1;
+`,
+  },
 ];

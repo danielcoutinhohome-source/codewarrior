@@ -274,8 +274,9 @@ function AssignmentCard({ a, multi }: { a: StudentAssignment; multi: boolean }) 
   const [label, color, bg] = STATE[a.state];
   const launches =
     a.target.kind === "battles"
-      ? a.target.battles.map(([w, b]) => ({ href: `/battle/?w=${w}&b=${b}&assignment=${a.id}`, label: battleName(w, b) }))
-      : [{ href: `/learn/practice/?lesson=${a.target.lessonId}&difficulty=${a.target.difficulty}&count=${a.target.count}&assignment=${a.id}`, label: `Practice: ${a.target.lessonTitle} (${a.target.count} questions)` }];
+      ? a.target.battles.map(([w, b]) => ({ key: `${w}-${b}`, href: `/battle/?w=${w}&b=${b}&assignment=${a.id}`, label: battleName(w, b) }))
+      : [{ key: a.target.lessonId, href: `/learn/practice/?lesson=${a.target.lessonId}&difficulty=${a.target.difficulty}&count=${a.target.count}&assignment=${a.id}`, label: `Practice: ${a.target.lessonTitle} (${a.target.count} questions)` }];
+  const credit = (k: string) => a.credits?.find((c) => c.target === k);
   return (
     <li className="rounded-2xl border-2 border-line p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -286,13 +287,19 @@ function AssignmentCard({ a, multi }: { a: StudentAssignment; multi: boolean }) 
         <span className="rounded-full px-2.5 py-1 text-xs font-black" style={{ color, background: bg }}>{label}{a.late ? " (late)" : ""}</span>
       </div>
       {a.instructions && <p className="mt-2 whitespace-pre-wrap text-sm font-bold text-ink-soft">{a.instructions}</p>}
-      <div className="mt-2 text-xs font-black text-ink-mute">{a.done} of {a.needed} done · only work started from these buttons counts</div>
+      <div className="mt-2 text-xs font-black text-ink-mute">
+        {a.done} of {a.needed} done ·{" "}
+        {a.requireLaunch ? "your teacher wants these played from here: only work started from these buttons counts" : "battles you already won count too"}
+      </div>
       <div className="mt-2 flex flex-wrap gap-2">
-        {launches.map((l) => (
-          <Link key={l.href} href={l.href} className="rounded-xl border-2 border-ocean bg-white px-3 py-1.5 text-sm font-black text-ocean-deep hover:bg-ocean-soft">
-            {l.label} →
-          </Link>
-        ))}
+        {launches.map((l) => {
+          const c = credit(l.key);
+          return (
+            <Link key={l.href} href={l.href} className="rounded-xl border-2 px-3 py-1.5 text-sm font-black hover:bg-ocean-soft" style={{ borderColor: c ? "#3EC46D" : "#2D9CDB", color: c ? "#1E7A3E" : "#1F7DB5", background: c ? "#E3F9EA" : "#FFFFFF" }}>
+              {c ? "✓ " : ""}{l.label}{c ? (c.viaAssignment ? "" : " (already won)") : " →"}
+            </Link>
+          );
+        })}
       </div>
     </li>
   );

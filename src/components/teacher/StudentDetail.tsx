@@ -74,9 +74,16 @@ export default function StudentDetail({ classId, studentId, version, onBack, onS
           {d.assignments.length === 0 ? <p className="mt-2 font-bold text-ink-mute">No published assignments.</p> : (
             <ul className="mt-2 flex flex-col gap-2">
               {d.assignments.map((a) => (
-                <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 text-sm font-bold">
-                  <span className="text-ink">{a.title}</span>
-                  <span className="flex items-center gap-2 text-ink-soft">{a.done}/{a.needed}<Pill v={a.state} map={STATE_LABEL} />{a.late && <span className="text-xs text-danger-deep">late</span>}</span>
+                <li key={a.id} className="text-sm font-bold">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-ink">{a.title}</span>
+                    <span className="flex items-center gap-2 text-ink-soft">{a.done}/{a.needed}<Pill v={a.state} map={STATE_LABEL} />{a.late && <span className="text-xs text-danger-deep">late</span>}</span>
+                  </div>
+                  {a.credits.filter((c) => !c.viaAssignment).map((c) => (
+                    <button key={c.target} type="button" onClick={() => onSession(c.sessionId)} className="block text-xs font-black text-ocean-deep hover:underline">
+                      Credit from an earlier win ({dateTime(c.at)}) · view it
+                    </button>
+                  ))}
                 </li>
               ))}
             </ul>

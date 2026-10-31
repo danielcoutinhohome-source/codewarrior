@@ -64,6 +64,7 @@ export default function Assignments({ data, onChanged }: { data: Summary; onChan
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-black text-ink">{a.title}</span>
                       <span className="rounded-full px-2 py-0.5 text-xs font-black" style={{ background: a.status === "published" ? "#E3F9EA" : "#EEF4FB", color: a.status === "published" ? "#1E7A3E" : "#4A5175" }}>{a.status === "published" ? "Published" : "Draft"}</span>
+                      <span className="rounded-full bg-sky px-2 py-0.5 text-xs font-black text-ink-soft">{a.requireLaunch ? "Must play from assignment" : "Earlier wins count"}</span>
                       {a.version > 1 && <span className="text-xs font-bold text-ink-mute">edited (v{a.version})</span>}
                     </div>
                     <div className="text-xs font-bold text-ink-mute">{due(a)} · {a.target.kind === "battles" ? a.target.battles.map(([w, b]) => battleLabel(w, b)).join("; ") : `Practice: ${a.target.lessonTitle}, ${a.target.count} questions, ${a.target.difficulty}`}</div>
@@ -95,7 +96,7 @@ export default function Assignments({ data, onChanged }: { data: Summary; onChan
                           return (
                             <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-sky px-2 py-1 text-sm font-bold">
                               <span>{s.name}</span>
-                              <span className="flex items-center gap-1">{st ? `${st.done}/${st.needed}` : ""}{st && <Pill v={st.state} map={STATE_LABEL} />}{st?.late && <span className="text-xs text-danger-deep">late</span>}</span>
+                              <span className="flex items-center gap-1">{st?.credits?.some((c) => !c.viaAssignment) && <span className="text-xs text-ink-mute" title="Credit from a win before or outside this assignment">earlier win</span>}{st ? `${st.done}/${st.needed}` : ""}{st && <Pill v={st.state} map={STATE_LABEL} />}{st?.late && <span className="text-xs text-danger-deep">late</span>}</span>
                             </li>
                           );
                         })}
@@ -122,6 +123,7 @@ function AssignmentForm({ data, initial, onDone, onCancel }: { data: Summary; in
   const [difficulty, setDifficulty] = useState(initial?.target.kind === "practice" ? initial.target.difficulty : "mixed");
   const [count, setCount] = useState(initial?.target.kind === "practice" ? initial.target.count : 8);
   const [dueAt, setDueAt] = useState(toLocalInput(initial?.dueAt ?? null));
+  const [requireLaunch, setRequireLaunch] = useState(initial?.requireLaunch ?? false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const locked = !!initial?.targetsLocked;
@@ -139,9 +141,9 @@ function AssignmentForm({ data, initial, onDone, onCancel }: { data: Summary; in
     const target: AssignmentTarget = kind === "battles"
       ? { kind, battles: [...battles].map((k) => k.split("-").map(Number) as [number, number]) }
       : { kind, lessonId, lessonTitle: lesson?.title ?? lessonId, difficulty: difficulty as "mixed", count };
-    const body = { title, instructions, target, dueAt: dueAt ? new Date(dueAt).getTime() : null, dueTz: tzName(), status };
+    const body = { title, instructions, target, dueAt: dueAt ? new Date(dueAt).getTime() : null, dueTz: tzName(), status, requireLaunch };
     try {
-      if (initial) await api("PATCH", `/assignments/${initial.id}`, locked ? { title, instructions, dueAt: body.dueAt, dueTz: body.dueTz, status } : body);
+      if (initial) await api("PATCH", `/assignments/${initial.id}`, locked ? { title, instructions, dueAt: body.dueAt, dueTz: body.dueTz, status, requireLaunch } : body);
       else await api("POST", `/classes/${data.class.id}/assignments`, body);
       onDone();
     } catch (e) {
@@ -220,6 +222,17 @@ function AssignmentForm({ data, initial, onDone, onCancel }: { data: Summary; in
           </div>
         )}
       </fieldset>
+      <label className="flex items-start gap-3 rounded-2xl border-2 border-line px-4 py-3">
+        <input type="checkbox" checked={requireLaunch} onChange={(e) => setRequireLaunch(e.target.checked)} className="mt-1 h-4 w-4 accent-[#2D9CDB]" />
+        <span>
+          <span className="block font-black text-ink">Students must play it from this assignment</span>
+          <span className="text-sm font-bold text-ink-soft">
+            {requireLaunch
+              ? "On: only battles started from this assignment count, even if a student already won them. Use it to keep class time on this work."
+              : "Off: if a student already won these battles (or finished this practice) on their class account, it counts and they don't have to redo it."}
+          </span>
+        </span>
+      </label>
       <label className="field-label" htmlFor="af-due">
         Due <span className="font-bold normal-case text-ink-mute">(optional · {tz})</span>
         <input id="af-due" className="field" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />

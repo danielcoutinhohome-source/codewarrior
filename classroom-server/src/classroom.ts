@@ -14,6 +14,7 @@ import {
   type AssignmentState,
   type AssignmentTarget,
   type ClassInfo,
+  type Credit,
   type Me,
   type SyncAck,
   type SyncEvent,
@@ -435,6 +436,7 @@ export class Classroom extends DurableObject<Env> {
       createdAt: a.created_at as number,
       updatedAt: a.updated_at as number,
       publishedAt: (a.published_at as number) ?? null,
+      requireLaunch: !!a.require_launch,
       targetsLocked: a.status === "published" && sessions > 0,
     };
   }
@@ -456,6 +458,7 @@ export class Classroom extends DurableObject<Env> {
       if (body.status !== "draft" && body.status !== "published") throw new HttpError(400, "bad_request", "Status must be draft or published.");
       out.status = body.status;
     }
+    if (!partial || body.requireLaunch !== undefined) out.requireLaunch = body.requireLaunch === true;
     return out;
   }
   private async createAssignment(req: Request, classId: string, body: Record<string, unknown>) {
@@ -466,8 +469,8 @@ export class Classroom extends DurableObject<Env> {
     const id = randomId();
     const t = now();
     this.run(
-      "INSERT INTO assignments (id, class_id, title, instructions, target_json, due_at, due_tz, status, version, created_at, updated_at, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)",
-      id, classId, a.title, a.instructions, JSON.stringify(a.target), a.dueAt, a.dueTz, a.status, t, t, a.status === "published" ? t : null,
+      "INSERT INTO assignments (id, class_id, title, instructions, target_json, due_at, due_tz, status, version, created_at, updated_at, published_at, require_launch) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)",
+      id, classId, a.title, a.instructions, JSON.stringify(a.target), a.dueAt, a.dueTz, a.status, t, t, a.status === "published" ? t : null, a.requireLaunch ? 1 : 0,
     );
     this.broadcast(classId, "assignments");
     return { assignment: this.assignmentOut(this.one("SELECT * FROM assignments WHERE id = ?", id)!) };
@@ -495,11 +498,12 @@ export class Classroom extends DurableObject<Env> {
       dueAt: p.dueAt !== undefined ? (p.dueAt as number | null) : cur.dueAt,
       dueTz: (p.dueTz as string) ?? cur.dueTz,
       status: (p.status as string) ?? cur.status,
+      requireLaunch: p.requireLaunch !== undefined ? (p.requireLaunch as boolean) : cur.requireLaunch,
     };
-    const contentChanged = next.title !== cur.title || next.instructions !== cur.instructions || JSON.stringify(next.target) !== JSON.stringify(cur.target) || next.dueAt !== cur.dueAt || next.dueTz !== cur.dueTz;
+    const contentChanged = next.title !== cur.title || next.instructions !== cur.instructions || JSON.stringify(next.target) !== JSON.stringify(cur.target) || next.dueAt !== cur.dueAt || next.dueTz !== cur.dueTz || next.requireLaunch !== cur.requireLaunch;
     this.run(
-      "UPDATE assignments SET title = ?, instructions = ?, target_json = ?, due_at = ?, due_tz = ?, status = ?, version = version + ?, updated_at = ?, published_at = COALESCE(published_at, ?) WHERE id = ?",
-      next.title, next.instructions, JSON.stringify(next.target), next.dueAt, next.dueTz, next.status, contentChanged ? 1 : 0, now(), next.status === "published" ? now() : null, id,
+      "UPDATE assignments SET title = ?, instructions = ?, target_json = ?, due_at = ?, due_tz = ?, status = ?, require_launch = ?, version = version + ?, updated_at = ?, published_at = COALESCE(published_at, ?) WHERE id = ?",
+      next.title, next.instructions, JSON.stringify(next.target), next.dueAt, next.dueTz, next.status, next.requireLaunch ? 1 : 0, contentChanged ? 1 : 0, now(), next.status === "published" ? now() : null, id,
     );
     this.broadcast(a.class_id as string, "assignments");
     return { assignment: this.assignmentOut(this.one("SELECT * FROM assignments WHERE id = ?", id)!) };
@@ -523,30 +527,41 @@ export class Classroom extends DurableObject<Env> {
     return { assignments: this.all("SELECT * FROM assignments WHERE class_id = ? AND deleted_at IS NULL AND status = 'published' ORDER BY COALESCE(due_at, 9e15), created_at", classId).map((a) => this.assignmentOut(a)) };
   }
 
-  // Completion comes only from work launched from this assignment (assignment_id on the
-  // session), so an unrelated battle can never complete it.
-  private assignmentProgress(a: Assignment, studentId: string): { state: AssignmentState; done: number; needed: number; completedAt: number | null; late: boolean } {
-    let done = 0, needed = 1, completedAt: number | null = null;
+  // Completion rules. By default any win recorded on the student's class account counts
+  // (students who played ahead aren't sent back). With requireLaunch, only runs started from
+  // this assignment count. Either way an unrelated battle never completes it: the run must be
+  // the assigned battle or topic. Device-only progress (no recorded answers) never counts.
+  private creditFor(a: Assignment, studentId: string, target: string): Credit | null {
+    const scope = a.requireLaunch ? "assignment_id = ? AND" : "(assignment_id = ? OR 1) AND";
+    let r: { id: string; t: number; assignment_id: string | null } | null;
     if (a.target.kind === "battles") {
-      needed = a.target.battles.length;
-      for (const [w, b] of a.target.battles) {
-        const r = this.one<{ t: number | null }>("SELECT MIN(COALESCE(finished_at, finished_received_at)) AS t FROM play_sessions WHERE assignment_id = ? AND student_id = ? AND kind = 'battle' AND world = ? AND battle = ? AND outcome = 'won'", a.id, studentId, w, b);
-        if (r?.t) {
-          done++;
-          completedAt = Math.max(completedAt ?? 0, r.t);
-        }
-      }
+      const [w, b] = target.split("-").map(Number);
+      r = this.one(
+        `SELECT id, COALESCE(finished_at, finished_received_at) AS t, assignment_id FROM play_sessions WHERE ${scope} student_id = ? AND kind = 'battle' AND world = ? AND battle = ? AND outcome = 'won'
+         ORDER BY (assignment_id = ?1) DESC, t ASC LIMIT 1`,
+        a.id, studentId, w, b,
+      );
     } else {
-      const r = this.one<{ t: number | null }>("SELECT MIN(COALESCE(finished_at, finished_received_at)) AS t FROM play_sessions WHERE assignment_id = ? AND student_id = ? AND kind = 'practice' AND outcome = 'completed' AND answered >= ?", a.id, studentId, a.target.count);
-      if (r?.t) {
-        done = 1;
-        completedAt = r.t;
-      }
+      r = this.one(
+        `SELECT id, COALESCE(finished_at, finished_received_at) AS t, assignment_id FROM play_sessions WHERE ${scope} student_id = ? AND kind = 'practice' AND lesson_id = ? AND outcome = 'completed' AND answered >= ?
+         ORDER BY (assignment_id = ?1) DESC, t ASC LIMIT 1`,
+        a.id, studentId, a.target.lessonId, a.target.count,
+      );
     }
+    return r ? { target, sessionId: r.id, at: r.t, viaAssignment: r.assignment_id === a.id } : null;
+  }
+  private targetKeys(a: Assignment) {
+    return a.target.kind === "battles" ? a.target.battles.map(([w, b]) => `${w}-${b}`) : [a.target.lessonId];
+  }
+  private assignmentProgress(a: Assignment, studentId: string): { state: AssignmentState; done: number; needed: number; completedAt: number | null; late: boolean; credits: Credit[] } {
+    const keys = this.targetKeys(a);
+    const credits = keys.map((k) => this.creditFor(a, studentId, k)).filter((c): c is Credit => !!c);
+    const needed = keys.length, done = credits.length;
+    const completedAt = done ? Math.max(...credits.map((c) => c.at)) : null;
     const started = !!this.one("SELECT 1 FROM play_sessions WHERE assignment_id = ? AND student_id = ? LIMIT 1", a.id, studentId);
     const complete = done >= needed;
-    const state: AssignmentState = complete ? "completed" : a.dueAt && now() > a.dueAt ? "overdue" : started ? "in_progress" : "not_started";
-    return { state, done, needed, completedAt: complete ? completedAt : null, late: !!(complete && a.dueAt && completedAt && completedAt > a.dueAt) };
+    const state: AssignmentState = complete ? "completed" : a.dueAt && now() > a.dueAt ? "overdue" : started || done > 0 ? "in_progress" : "not_started";
+    return { state, done, needed, completedAt: complete ? completedAt : null, late: !!(complete && a.dueAt && completedAt && completedAt > a.dueAt), credits };
   }
 
   // ---------- ingestion ----------
@@ -912,7 +927,22 @@ export class Classroom extends DurableObject<Env> {
     const u = await this.teacher(req);
     this.ownedClass(u, classId);
     const s = this.one(`${Classroom.VIS} SELECT vis.*, u.display_name AS student_name, a.title AS assignment_title FROM vis JOIN users u ON u.id = vis.student_id LEFT JOIN assignments a ON a.id = vis.assignment_id WHERE vis.id = ?2`, classId, sessionId);
-    if (!s) throw new HttpError(404, "not_found", "Result not found in this class.");
+    const shown = s ?? this.creditedRun(classId, sessionId);
+    if (!shown) throw new HttpError(404, "not_found", "Result not found in this class.");
+    return this.sessionWithAttempts(shown, sessionId);
+  }
+  // A run outside the sharing window can still be opened by the teacher when it is what earned
+  // a student credit on one of this class's published assignments (the credit is the reason).
+  private creditedRun(classId: string, sessionId: string): Row | null {
+    const s = this.one("SELECT s.*, u.display_name AS student_name FROM play_sessions s JOIN users u ON u.id = s.student_id WHERE s.id = ?", sessionId);
+    if (!s || !this.one("SELECT 1 FROM memberships WHERE class_id = ? AND student_id = ?", classId, s.student_id)) return null;
+    for (const row of this.all("SELECT * FROM assignments WHERE class_id = ? AND deleted_at IS NULL AND status = 'published' AND require_launch = 0", classId)) {
+      const a = this.assignmentOut(row);
+      if (this.assignmentProgress(a, s.student_id as string).credits.some((c) => c.sessionId === sessionId)) return { ...s, assignment_title: null };
+    }
+    return null;
+  }
+  private sessionWithAttempts(s: Row, sessionId: string) {
     const attempts = this.all("SELECT a.*, ? AS content_version FROM attempts a WHERE session_id = ? ORDER BY idx, round, try_no", s.content_version, sessionId);
     return { session: { ...this.sessionOut(s), contentVersion: s.content_version }, attempts: attempts.map((a) => this.attemptOut(a)) };
   }

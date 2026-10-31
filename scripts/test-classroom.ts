@@ -225,10 +225,27 @@ async function main() {
     eq(detail.body.session.contentVersion, "test-1", "content version recorded");
 
     // An unrelated battle doesn't complete an assignment; a bogus assignment is downgraded.
-    const asg2 = await call("POST", `/classes/${cls.id}/assignments`, T, { title: "Boss", target: { kind: "battles", battles: [[0, 4]] }, status: "published" });
+    const asg2 = await call("POST", `/classes/${cls.id}/assignments`, T, { title: "Boss", target: { kind: "battles", battles: [[0, 4]] }, status: "published", requireLaunch: true });
+    eq(asg2.body.assignment.requireLaunch, true, "teacher can require playing from the assignment");
     const other = uid();
     await call("POST", "/sync", s2.token, { events: battleEvents(other, { world: 0, battle: 4, answers: [true, true, true], outcome: "won" }) });
-    eq((await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg2.body.assignment.id][s2.me.id].state, "not_started", "unassigned play doesn't complete an assignment");
+    eq((await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg2.body.assignment.id][s2.me.id].state, "not_started", "with 'must play from assignment', an earlier win doesn't count");
+    // Default: an earlier win of the same battle counts, and the teacher can see which run.
+    const asg3 = await call("POST", `/classes/${cls.id}/assignments`, T, { title: "Boss (earlier wins ok)", target: { kind: "battles", battles: [[0, 4], [0, 3]] }, status: "published" });
+    eq(asg3.body.assignment.requireLaunch, false, "earlier wins count by default");
+    let st3 = (await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg3.body.assignment.id][s2.me.id];
+    ok(st3.state === "in_progress" && st3.done === 1 && st3.credits[0].sessionId === other && st3.credits[0].viaAssignment === false, "earlier boss win credited; the other battle still needed");
+    eq((await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg3.body.assignment.id][s1.me.id].state, "not_started", "a student without the win gets no credit");
+    await call("POST", "/sync", s2.token, { events: battleEvents(uid(), { world: 0, battle: 3, answers: [true], outcome: "won" }) });
+    st3 = (await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg3.body.assignment.id][s2.me.id];
+    eq(st3.state, "completed", "finishing the remaining battle anywhere completes it");
+    await call("POST", "/sync", s2.token, { events: battleEvents(uid(), { world: 0, battle: 2, answers: [true], outcome: "lost" }) });
+    const asg4 = await call("POST", `/classes/${cls.id}/assignments`, T, { title: "Battle 3", target: { kind: "battles", battles: [[0, 2]] }, status: "published" });
+    eq((await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg4.body.assignment.id][s2.me.id].state, "not_started", "a lost battle never earns credit");
+    const req = await call("PATCH", `/assignments/${asg3.body.assignment.id}`, T, { requireLaunch: true });
+    ok(req.body.assignment.requireLaunch && req.body.assignment.version === 2, "teacher can switch the rule later (bumps the version)");
+    eq((await call("GET", `/classes/${cls.id}/summary`, T)).body.assignmentStates[asg3.body.assignment.id][s2.me.id].state, "not_started", "after switching, earlier wins stop counting");
+    await call("PATCH", `/assignments/${asg3.body.assignment.id}`, T, { requireLaunch: false });
     const mismatch = uid();
     await call("POST", "/sync", s2.token, { events: battleEvents(mismatch, { assignmentId: asg2.body.assignment.id, world: 1, battle: 0, answers: [true], outcome: "won" }) });
     const outsider = await signup("outsider");
@@ -251,7 +268,7 @@ async function main() {
     eq(sum.body.recent.find((r: any) => r.id === lost)?.outcome, "lost", "losses recorded");
     eq(sum.body.recent.find((r: any) => r.id === quit)?.outcome, "abandoned", "abandoned run is not a completed battle");
     const ben = sum.body.students.find((s: any) => s.username === "ben_student");
-    eq([ben.wins, ben.losses, ben.abandoned], [2, 1, 1], "roster counts wins, losses and abandoned runs separately");
+    eq([ben.wins, ben.losses, ben.abandoned], [3, 2, 1], "roster counts wins, losses and abandoned runs separately");
 
     // A device whose clock is 10 minutes slow: times are corrected, so play right after joining
     // is still shared (it would look like it happened before the join otherwise).
@@ -267,6 +284,8 @@ async function main() {
     await call("PATCH", `/classes/${cls.id}/membership`, s2.token, { sharePlay: false });
     sum = await call("GET", `/classes/${cls.id}/summary`, T);
     ok(!sum.body.recent.some((r: any) => r.id === other), "turning sharing off hides unassigned play");
+    eq((await call("GET", `/classes/${cls.id}/sessions/${other}`, T)).status, 200, "a run that earned assignment credit stays viewable even with sharing off");
+    eq((await call("GET", `/classes/${cls.id}/sessions/${other}`, T2)).status, 404, "but never by another teacher");
     await call("PATCH", `/classes/${cls.id}/membership`, s2.token, { sharePlay: true });
     await call("POST", `/classes/${cls.id}/leave`, s2.token);
     await new Promise((r) => setTimeout(r, 400)); // test runs start 300 ms in the past

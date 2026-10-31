@@ -79,7 +79,12 @@ them. An item leaves the queue only after the server acknowledges it.
   signed in on that device.
 - Runs left open by a closed tab become `abandoned` (not a completed battle) after 2 minutes
   without a heartbeat.
-- Assignments: completion counts only runs launched from that assignment. Published assignments
+- Assignments: by default a battle (or practice topic) the student already completed on their
+  class account counts, so students who played ahead aren't sent back; the teacher can open the
+  run that earned the credit. With **Students must play it from this assignment** ticked, only
+  runs started from the assignment count. Either way only the assigned battle or topic counts, a
+  loss never does, and device-only progress (no recorded answers) never does. Assignments created
+  before this option existed keep the strict rule (migration 2). Published assignments
   with recorded work keep their battles/topic fixed; title, instructions and due date can change
   and bump the version stored on later submissions. Game stars are shown as recorded; there is
   no grading.

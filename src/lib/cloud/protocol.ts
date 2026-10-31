@@ -76,8 +76,14 @@ export type Assignment = {
   createdAt: number;
   updatedAt: number;
   publishedAt: number | null;
+  // false (default): a battle/topic the student already completed on their class account counts.
+  // true: only work started from this assignment counts (e.g. to keep class time on task).
+  requireLaunch: boolean;
   targetsLocked?: boolean; // published and has recorded work
 };
+
+// Which run earned credit for one part of an assignment.
+export type Credit = { target: string; sessionId: string; at: number; viaAssignment: boolean };
 
 export type AssignmentState = "not_started" | "in_progress" | "completed" | "overdue";
 export type StudentAssignment = Assignment & {
@@ -87,6 +93,7 @@ export type StudentAssignment = Assignment & {
   late: boolean;
   done: number; // targets completed
   needed: number;
+  credits: Credit[]; // target key ("w-b" or lesson id) -> the run that earned it
 };
 
 // ---- recorded work ----
