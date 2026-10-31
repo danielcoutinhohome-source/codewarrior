@@ -131,7 +131,7 @@ export default function LoginPage() {
                       style={{ borderColor: on ? "#2D9CDB" : "#D5E4F5", background: on ? "#E2F3FF" : "#FFFFFF" }}
                     >
                       <span className="grid h-14 w-14 flex-none place-items-center overflow-hidden rounded-full border-[3px] border-gold bg-sky-night">
-                        <Warrior weapon={w.avatar.weapon} headwear={w.avatar.headwear} body={w.avatar.body} armor={w.avatar.armor} energy={w.avatar.energy} size={52} idle={false} className="mt-3" />
+                        <Warrior weapon={w.avatar.weapon} headwear={w.avatar.headwear} body={w.avatar.body} armor={w.avatar.armor} energy={w.avatar.energy} finish={w.avatar.finish} size={44} idle={false} />
                       </span>
                       <span>
                         <span className="block font-display text-xl leading-tight">{w.username}</span>
