@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Monster from "@/components/Monster";
 import TopBar from "@/components/TopBar";
 import WorldScene, { type SceneHandle } from "@/components/WorldScene";
@@ -27,6 +27,10 @@ export default function MapPage() {
 function useBoxWidth() {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [w, setW] = useState(0);
+  // Measure before paint so the scene never renders one blank frame at width 0.
+  useLayoutEffect(() => {
+    if (el) setW(el.clientWidth);
+  }, [el]);
   useEffect(() => {
     if (!el) return;
     const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
@@ -98,11 +102,30 @@ function WorldMap() {
         <TopBar account={account} progress={progress} />
 
         <div ref={boxRef} className="relative overflow-hidden rounded-[30px] border-[3px]" style={{ borderColor: world.theme.roadEdge, boxShadow: `0 10px 0 ${world.theme.roadEdge}` }}>
-          <AnimatePresence mode="wait">
-            <motion.div key={w} initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} transition={{ duration: 0.45, ease }}>
-              {boxW > 0 && <WorldScene ref={scene} worldIndex={w} world={world} avatar={account.avatar} stars={stars} unlocked={unlocked} selected={selected} onSelect={choose} height={sceneH} />}
-            </motion.div>
-          </AnimatePresence>
+          {/* Worlds crossfade: the old scene stays fully drawn underneath while the new one
+              fades in on top, so switching never shows an empty frame. */}
+          <div className="grid">
+            <AnimatePresence initial={false}>
+              <motion.div key={w} className="[grid-area:1/1]" initial={{ opacity: 0, scale: 1.03 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0.99, transition: { duration: 0.5 } }} transition={{ duration: 0.45, ease }}>
+                {boxW > 0 && (
+                  <WorldScene
+                    ref={(h) => {
+                      if (h) scene.current = h;
+                    }}
+                    worldIndex={w}
+                    world={world}
+                    avatar={account.avatar}
+                    stars={stars}
+                    unlocked={unlocked}
+                    selected={selected}
+                    onSelect={choose}
+                    height={sceneH}
+                    width={boxW}
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
 
           {/* top overlay: world name and switching */}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-[700] flex items-start justify-between gap-2 p-3 sm:p-4">

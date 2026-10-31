@@ -20,6 +20,7 @@ type Props = {
   selected: number;
   onSelect: (b: number) => void;
   height: number;
+  width: number;
 };
 
 // Distance of each battle down the road. The camera walks forward as you win.
@@ -31,18 +32,6 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 const MonsterArt = memo(Monster);
 const WarriorArt = memo(Warrior);
-
-function useWidth<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [w, setW] = useState(0);
-  useEffect(() => {
-    if (!ref.current) return;
-    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, w] as const;
-}
 
 type Geo = { W: number; H: number; horizon: number };
 
@@ -63,8 +52,8 @@ function Placed({ cam, z, lat, g, w, h, zIndex, children, fadeNear = true }: { c
 
 // First-person view down the road: your warrior in front, each enemy waiting by its level,
 // and the boss hidden in fog until the four battles before it are won.
-const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldIndex, world, avatar, stars, unlocked, selected, onSelect, height }, ref) {
-  const [box, W] = useWidth<HTMLDivElement>();
+const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldIndex, world, avatar, stars, unlocked, selected, onSelect, height, width }, ref) {
+  const W = width;
   const H = height;
   const horizon = H * 0.38;
   const g = useMemo(() => ({ W, H, horizon }), [W, H, horizon]);
@@ -120,7 +109,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   const warriorSize = mobile ? W * 0.3 : Math.min(W * 0.2, 190);
 
   return (
-    <div ref={box} className="relative w-full overflow-hidden" style={{ height: H }}>
+    <div className="relative w-full overflow-hidden" style={{ height: H }}>
       {W > 0 && (
         <>
           {/* sky and ground */}
