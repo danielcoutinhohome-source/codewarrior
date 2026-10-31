@@ -16,6 +16,8 @@ const eq = (a: unknown, b: unknown, msg: string) => { assert.deepEqual(a, b, msg
 
 type Res = { status: number; body: any };
 async function call(method: string, path: string, token?: string, body?: unknown, headers: Record<string, string> = {}): Promise<Res> {
+  // Uploads carry the device clock, like the real client.
+  if (path === "/sync" && body && typeof body === "object") body = { ...(body as object), sentAt: Date.now() };
   const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
   const text = await r.text();
   let parsed: unknown = text;
@@ -249,6 +251,16 @@ async function main() {
     eq(sum.body.recent.find((r: any) => r.id === quit)?.outcome, "abandoned", "abandoned run is not a completed battle");
     const ben = sum.body.students.find((s: any) => s.username === "ben_student");
     eq([ben.wins, ben.losses, ben.abandoned], [2, 1, 1], "roster counts wins, losses and abandoned runs separately");
+
+    // A device whose clock is 10 minutes slow: times are corrected, so play right after joining
+    // is still shared (it would look like it happened before the join otherwise).
+    const skewKid = await signup("skew_kid");
+    await call("POST", "/join", skewKid.token, { code: rotated.body.class.joinCode });
+    await new Promise((r) => setTimeout(r, 400)); // test runs start 300 ms in the past
+    const slow = uid();
+    const slowEvents = battleEvents(slow, { world: 0, battle: 0, answers: [true], outcome: "won" }).map((e: any) => ({ ...e, at: e.at - 600_000 }));
+    await fetch(`${BASE}/sync`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${skewKid.token}` }, body: JSON.stringify({ events: slowEvents, sentAt: Date.now() - 600_000 }) });
+    ok((await call("GET", `/classes/${cls.id}/summary`, T)).body.recent.some((r: any) => r.id === slow), "a device with a slow clock still shares play made after joining");
 
     // ---- sharing policy ----
     await call("PATCH", `/classes/${cls.id}/membership`, s2.token, { sharePlay: false });

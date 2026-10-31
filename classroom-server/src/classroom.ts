@@ -597,6 +597,11 @@ export class Classroom extends DurableObject<Env> {
     this.bump(`sync:${u.id}`, 600_000);
     const acks: SyncAck[] = [];
     const touched = new Set<string>();
+    // Device clocks are often off. The device sends its clock reading at upload time; the
+    // difference from server time corrects every event time in the batch (queued offline
+    // events too, since they were stamped by the same clock).
+    const sentAt = typeof body.sentAt === "number" && Number.isFinite(body.sentAt) ? body.sentAt : null;
+    const skew = sentAt === null ? 0 : now() - sentAt;
     for (const raw of events as SyncEvent[]) {
       const id = (raw as { id?: unknown })?.id;
       if (!isId(id)) {
@@ -610,7 +615,7 @@ export class Classroom extends DurableObject<Env> {
       }
       try {
         const sessionId = this.ctx.storage.transactionSync(() => {
-          const sid = this.applyEvent(u, raw);
+          const sid = this.applyEvent(u, raw, skew);
           this.run("INSERT INTO receipts (event_id, user_id, status, received_at) VALUES (?, ?, 'ok', ?)", id, u.id, now());
           return sid;
         });
@@ -635,8 +640,9 @@ export class Classroom extends DurableObject<Env> {
     return Math.min(hi, Math.max(lo, Math.round(n)));
   }
 
-  private applyEvent(u: User, e: SyncEvent): string | null {
+  private applyEvent(u: User, raw: SyncEvent, skew: number): string | null {
     const t = now();
+    const e = typeof raw.at === "number" ? ({ ...raw, at: raw.at + skew } as SyncEvent) : raw;
     if (e.type === "session.start") {
       const s = e.session || ({} as SyncEvent & { session: never })["session"];
       if (!s || !isId(s.id)) throw new HttpError(400, "bad_request", "invalid session id");

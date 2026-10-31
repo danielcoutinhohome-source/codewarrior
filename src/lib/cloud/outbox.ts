@@ -134,7 +134,7 @@ async function upload() {
     set({ state: "syncing" });
     let res: SyncResponse;
     try {
-      res = await api<SyncResponse>("POST", "/sync", { events: batch.map((b) => b.event) }, { token: session.token, timeoutMs: 30_000 });
+      res = await api<SyncResponse>("POST", "/sync", { events: batch.map((b) => b.event), sentAt: Date.now() }, { token: session.token, timeoutMs: 30_000 });
     } catch (e) {
       const err = e as CloudError;
       if (err.status === 401) {
