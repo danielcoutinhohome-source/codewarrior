@@ -5,3 +5,7 @@ out
 next-env.d.ts
 .DS_Store
 .env*.local
+
+# local classroom/tutor dev secrets and state
+.dev.vars
+.wrangler/

@@ -1,0 +1,17 @@
+name = "codewarrior-classroom"
+main = "src/worker.ts"
+compatibility_date = "2026-06-01"
+
+# One Durable Object (SQLite storage, available on the Workers Free plan) holds every
+# classroom record, so ingestion is transactional and live updates come from the same place.
+# Free plan: past the daily limits requests fail; nothing is billed. See README.md.
+[[durable_objects.bindings]]
+name = "CLASSROOM"
+class_name = "Classroom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Classroom"]
+
+[vars]
+ALLOWED_ORIGINS = "https://danielcoutinhohome-source.github.io"
