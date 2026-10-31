@@ -84,7 +84,8 @@ are useful approximations, not proof of performance on school hardware.
   Deploy now fails if the classroom server's health check never answers.
 
 - David/Codex, Q1/Q2 implementation in PR #13: repeatable browser QA, Chromebook-sized
-  maps with the fight control in view, readable world/preview names and progress captions.
+  maps with the fight control in view, scene-scaled characters, readable world/preview names
+  and progress captions.
   No active file claim; validation and screenshot review are recorded in the PR. Claude
   Q4/learning/results-screen work is untouched. Playwright is now a dev dependency, also
   supporting Claude's existing `scripts/e2e-classroom.ts`.

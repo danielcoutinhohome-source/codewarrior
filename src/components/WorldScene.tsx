@@ -130,7 +130,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   const mobile = W < 640;
   const details = useMemo(() => worldDetails(t, mobile), [t, mobile]);
   const mark = roadMarkSize(t, W, roadHalf0);
-  const warriorSize = mobile ? W * 0.3 : Math.min(W * 0.2, 190);
+  const warriorSize = mobile ? W * 0.3 : Math.min(W * 0.2, 190, H * .35);
 
   return (
     <div className="relative w-full overflow-hidden" style={{ height: H }}>
@@ -186,7 +186,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             const open = unlocked[b];
             const next = open && !won;
             const hidden = !won && (!open || (boss && !approach.ready));
-            const size = boss ? Math.min(W * 0.5, 460) : Math.min(W * 0.3, 270);
+            const size = boss ? Math.min(W * 0.5, 460, H * .65) : Math.min(W * 0.3, 270, H * .5);
             const padW = Math.max(W*.12, roadHalf0 * 0.95);
             const zi = boss ? (hidden ? 285 : 400 - Math.round(z * 10)) : 400 - Math.round(z * 10);
             return (

@@ -125,6 +125,9 @@ async function main() {
           assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `${name} ${w}: gate fits horizontally`);
           assert.ok(box.y >= scene.y && box.y + box.height <= scene.y + scene.height, `${name} ${w}: gate fits vertically`);
           assert.ok(box.height > scene.height * .45, `${name} ${w}: gate is imposing`);
+          const bossArt = page.locator('[data-boss-camera] svg[role="img"]').filter({ has: page.locator("title", { hasText: WORLDS[w].enemies[4].name }) });
+          const bossBox = await bossArt.boundingBox();
+          assert.ok(bossBox && bossBox.y >= box.y - 2, `${name} ${w}: boss art does not spill above the gate`);
           await noOverflow(page, `${name} ${w} gate`); await capture(page, `${name}-world-${w + 1}-gate`);
           // Trial click checks actual hit testing without opening the puzzle.
           await gate.click({ trial: true });
