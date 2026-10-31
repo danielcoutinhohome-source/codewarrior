@@ -76,10 +76,10 @@ export async function enqueue(userId: string, events: SyncEvent[], opts: { urgen
 }
 
 async function refreshCounts() {
+  // Counted from the indexes, not loaded: a long offline session can queue thousands of events.
   const me = getCloud()?.me.id;
-  const all = await db.outbox.toArray();
-  const mine = all.filter((i) => i.userId === me).length;
-  set({ pending: mine, otherPending: all.length - mine });
+  const [all, mine] = await Promise.all([db.outbox.count(), me ? db.outbox.where("userId").equals(me).count() : 0]);
+  set({ pending: mine, otherPending: all - mine });
 }
 
 export async function pendingFor(sessionId: string) {
@@ -120,7 +120,9 @@ async function upload() {
   }
   const userId = session.me.id;
   for (;;) {
-    const batch = (await db.outbox.where("userId").equals(userId).sortBy("seq")).slice(0, 100);
+    // Index entries with the same userId are ordered by primary key (seq), so this is the
+    // oldest 100 without loading the whole queue.
+    const batch = await db.outbox.where("userId").equals(userId).limit(100).toArray();
     if (!batch.length) {
       failures = 0;
       await refreshCounts();
