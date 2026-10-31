@@ -32,7 +32,7 @@ type Props = {
 // Distance of each battle down the road. The camera walks forward as you win.
 export const DEPTH = [1.8, 3.6, 5.4, 7.2, 10.2];
 const SIDE = [-1, 1, -1, 1, 0];
-const camFor = (b: number) => (b === BOSS ? DEPTH[BOSS] - 2.3 : Math.max(0, DEPTH[b] - 1.6));
+const camFor = (b: number) => (b === BOSS ? DEPTH[BOSS] - 1.65 : Math.max(0, DEPTH[b] - 1.6));
 const NEAR = 0.38;
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -68,6 +68,8 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   const cameraBattle = Math.min(selected,furthest);
   const approach = bossApproach(stars, selected);
   const reduced = !!useReduceMotion();
+  const focusGate = cameraBattle === BOSS && approach.ready && !stars[BOSS];
+  const doorHeight = Math.min(W * 1.1, H * .9);
   const storeKey = `cw.cam.${worldIndex}`;
 
   // Camera: start where the player last stood in this world, then walk to the selected battle.
@@ -82,14 +84,35 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   });
   const cam = useMotionValue(startCam);
   const [moving, setMoving] = useState(false);
+  // Walk first, then settle into a slight upward close-up. Keep the HUD and
+  // warrior outside this transform, and cancel both phases when navigating away.
+  const gateFocus = useMotionValue(0);
+  const viewScale = useTransform(gateFocus, [0, 1], [1, 1.14]);
+  const viewY = useTransform(gateFocus, [0, 1], [0, -H * .035]);
   useEffect(() => {
     const to = camFor(cameraBattle);
-    if (Math.abs(cam.get() - to) < 0.01) return;
-    setMoving(true);
+    if (reduced) {
+      cam.set(to);
+      gateFocus.set(focusGate ? 1 : 0);
+      setMoving(false);
+      return;
+    }
+    const reset = animate(gateFocus, 0, { duration: .35, ease });
+    let settle: { stop: () => void } | undefined;
+    const arrive = () => {
+      setMoving(false);
+      if (focusGate) settle = animate(gateFocus, 1, { duration: 1.15, ease });
+    };
     const dist = Math.abs(cam.get() - to);
-    const ctl = animate(cam, to, { duration: Math.min(2.2, 0.7 + dist * 0.35), ease, onComplete: () => setMoving(false) });
-    return () => ctl.stop();
-  }, [cameraBattle, cam, storeKey]);
+    if (dist < .01) {
+      reset.stop();
+      arrive();
+      return () => settle?.stop();
+    }
+    setMoving(true);
+    const walk = animate(cam, to, { duration: Math.min(2.2, .7 + dist * .35), ease, onComplete: arrive });
+    return () => { walk.stop(); reset.stop(); settle?.stop(); };
+  }, [cameraBattle, cam, gateFocus, focusGate, reduced, storeKey]);
   useMotionValueEvent(cam, "change", (v) => {
     try {
       sessionStorage.setItem(storeKey, String(v));
@@ -99,7 +122,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   useImperativeHandle(ref, () => ({
     async charge(b: number) {
       setMoving(true);
-      await animate(cam, DEPTH[b] - 0.95, { duration: 0.55, ease: [0.55, 0, 0.75, 0.2] });
+      await animate(cam, DEPTH[b] - 0.95, { duration: reduced ? 0 : 0.55, ease: [0.55, 0, 0.75, 0.2] });
     },
   }));
 
@@ -113,6 +136,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
     <div className="relative w-full overflow-hidden" style={{ height: H }}>
       {W > 0 && (
         <>
+          <motion.div data-boss-camera={focusGate ? "arrival" : "travel"} className="absolute inset-0" style={{ scale: viewScale, y: viewY, transformOrigin: "50% 45%" }}>
           {/* sky and ground */}
           <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${t.skyTop} 0%, ${t.skyBottom} ${(horizon / H) * 100}%, ${t.groundFar} ${(horizon / H) * 100}%, ${t.groundNear} 100%)` }} />
           <Backdrop W={W} H={H} hz={horizon} t={t} />
@@ -144,7 +168,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             </Placed>
           ))}
 
-          {!stars[BOSS] && <Placed cam={cam} z={DEPTH[BOSS]-.2} lat={0} g={g} w={W*.58} h={W*.68} zIndex={299}>
+          {!stars[BOSS] && <Placed cam={cam} z={DEPTH[BOSS]-.2} lat={0} g={g} w={doorHeight * 240 / 280} h={doorHeight} zIndex={299}>
             <button type="button" aria-label={approach.ready?"Approach and unseal the boss gate":"Boss gate: break four seals first"} disabled={!approach.ready} onClick={()=>onEnterBoss?onEnterBoss():onSelect(BOSS)} className="block h-full w-full rounded-lg focus-visible:outline focus-visible:outline-4 focus-visible:outline-cyan-200 disabled:cursor-not-allowed"><BossDoor theme={t} ready={approach.ready}/></button>
           </Placed>}
           {/* The mist lives at the boss depth, so it stays on the threshold as
@@ -213,13 +237,12 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             );
           })}
 
-          <div aria-hidden className="pointer-events-none absolute inset-0" style={{zIndex:450,background:"radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(5,9,20,.5) 100%)"}}/>
+          </motion.div>
           <p className="pointer-events-none absolute inset-x-0 bottom-4 z-[650] text-center text-[10px] font-bold uppercase tracking-[.25em] text-white/60">{approach.ready ? "The threshold awaits" : `${approach.cleared} / 4 seals broken · something waits ahead`}</p>
           {/* your warrior from behind; it bobs faster while walking */}
           <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2] } : { y: 0, rotate: 0 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
             <WarriorArt facing="back" weapon={avatar.weapon} headwear={avatar.headwear} body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
           </motion.div>
-          <div aria-hidden className="pointer-events-none absolute inset-0" style={{ zIndex: 650, background: "radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(15,18,45,.22))" }} />
         </>
       )}
     </div>

@@ -6,7 +6,6 @@ export function PassageFrame({ theme:t }: {theme:Theme}) {
   const cave=t.scene==="caverns"||t.scene==="peaks",woods=t.scene==="woods"||t.scene==="lagoon",tech=t.scene==="citadel";
   const shadow=darken(t.groundNear,.65),edge=darken(t.far,.35);
   return <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 1000 600" preserveAspectRatio="none">
-    <path d="M0 600 L0 235 L430 218 L365 600 Z M1000 600 V235 L570 218 L635 600 Z" fill={shadow} opacity=".35"/>
     {[-1,1].map(side=><g key={side} transform={side===1?"translate(1000 0) scale(-1 1)":undefined}>
       {woods?<><path d="M-40 620 L24 340 L16 0 H138 L105 290 L172 225 L205 90 L227 93 L205 267 L109 371 L87 620 Z" fill={shadow}/><path d="M62 336 L75 190 L149 147 L172 30 M82 221 L30 135" fill="none" stroke={edge} strokeWidth="13"/><path d="M0 0 H350 Q310 85 241 56 Q171 134 104 75 Q40 134 0 108 Z" fill={shadow}/><path d="M0 535 Q87 468 176 502 L138 529 L75 525 L20 600" fill={shadow}/></>:
       cave?<><path d="M0 0 H259 L219 85 L182 65 L158 178 L115 126 L89 314 L128 468 L77 600 H0 Z" fill={shadow}/><path d="M0 0 L86 81 L50 181 L89 314 L28 409 L77 600 H0" fill={edge} opacity=".6"/><path d="M84 0 L116 121 L149 0 M174 0 L185 70 L213 0" fill={edge}/><path d="M8 555 L37 443 L64 541 L95 500 L118 600 H0 Z" fill={edge}/>{t.scene==="caverns"&&<path d="M37 469 L47 506 L40 543 M103 151 L96 181" stroke="#AC86CF" strokeWidth="2" fill="none" opacity=".7"/>}</>:
