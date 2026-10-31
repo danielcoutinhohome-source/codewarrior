@@ -5,6 +5,7 @@ import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useS
 import Monster from "./Monster";
 import Warrior from "./Warrior";
 import { StarIcon } from "./icons";
+import { Ambient, Backdrop, RoadExtras, RoadMark, Scenery, roadMarkSize } from "./worldArt";
 import type { Avatar } from "@/lib/db";
 import { BOSS, type Decor, type World } from "@/lib/game";
 
@@ -114,6 +115,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
     }
     return out;
   }, [t.decor]);
+  const mark = roadMarkSize(t, W, roadHalf0);
   const mobile = W < 640;
   const warriorSize = mobile ? W * 0.3 : Math.min(W * 0.2, 190);
 
@@ -123,34 +125,17 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
         <>
           {/* sky and ground */}
           <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${t.skyTop} 0%, ${t.skyBottom} ${(horizon / H) * 100}%, ${t.groundFar} ${(horizon / H) * 100}%, ${t.groundNear} 100%)` }} />
-          {t.night ? (
-            <>
-              {Array.from({ length: 30 }).map((_, i) => (
-                <motion.span key={i} aria-hidden className="absolute rounded-full bg-white" style={{ left: `${(i * 37) % 100}%`, top: ((i * 53) % 100) * (horizon / 100) * 0.92, width: i % 4 ? 2 : 3, height: i % 4 ? 2 : 3 }} animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 2 + (i % 5) * 0.6, repeat: Infinity, delay: i * 0.13 }} />
-              ))}
-              <div aria-hidden className="absolute rounded-full" style={{ right: "14%", top: horizon * 0.22, width: W * 0.06, height: W * 0.06, background: "#FFF6D6", boxShadow: "0 0 50px 14px rgba(255,246,214,.3)" }} />
-            </>
-          ) : (
-            <div aria-hidden className="absolute rounded-full" style={{ left: "16%", top: horizon * 0.24, width: W * 0.08, height: W * 0.08, background: "#FFF7C7", boxShadow: "0 0 80px 30px rgba(255,243,176,.55)" }} />
-          )}
-          {!t.night &&
-            [0.12, 0.58, 0.82].map((x, i) => (
-              <motion.div key={x} aria-hidden className="absolute rounded-full bg-white/75" style={{ left: `${x * 100}%`, top: horizon * (0.22 + i * 0.18), width: W * (0.12 - i * 0.02), height: W * 0.026 }} animate={{ x: [0, i % 2 ? -26 : 26, 0] }} transition={{ duration: 18 + i * 5, repeat: Infinity, ease: "easeInOut" }} />
-            ))}
+          <Backdrop W={W} H={H} hz={horizon} t={t} />
           <svg aria-hidden className="absolute inset-0" width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-            {t.peaks ? (
-              <path d={`M0 ${horizon} L${W * 0.1} ${horizon - H * 0.13} L${W * 0.2} ${horizon - H * 0.05} L${W * 0.34} ${horizon - H * 0.19} L${W * 0.48} ${horizon - H * 0.06} L${W * 0.64} ${horizon - H * 0.17} L${W * 0.79} ${horizon - H * 0.06} L${W * 0.91} ${horizon - H * 0.14} L${W} ${horizon - H * 0.05} L${W} ${horizon} Z`} fill={t.far} />
-            ) : (
-              <path d={`M0 ${horizon} Q${W * 0.12} ${horizon - H * 0.08} ${W * 0.26} ${horizon - H * 0.03} Q${W * 0.42} ${horizon - H * 0.11} ${W * 0.58} ${horizon - H * 0.02} Q${W * 0.76} ${horizon - H * 0.09} ${W} ${horizon - H * 0.03} L${W} ${horizon} Z`} fill={t.far} opacity="0.85" />
-            )}
             <polygon points={`${W / 2 - roadHalf0 * 1.2},${H} ${W / 2 + roadHalf0 * 1.2},${H} ${W / 2 + 2},${horizon} ${W / 2 - 2},${horizon}`} fill={t.roadEdge} />
             <polygon points={`${W / 2 - roadHalf0 * 1.1},${H} ${W / 2 + roadHalf0 * 1.1},${H} ${W / 2 + 1.5},${horizon} ${W / 2 - 1.5},${horizon}`} fill={t.road} />
           </svg>
+          <RoadExtras W={W} H={H} hz={horizon} t={t} half={roadHalf0} />
 
-          {/* center dashes stream toward you as the camera walks */}
-          {Array.from({ length: 30 }).map((_, i) => (
-            <Placed key={`d${i}`} cam={cam} z={0.8 + i * 0.7} lat={0} g={g} w={Math.max(4, W * 0.012)} h={Math.max(10, W * 0.06)} zIndex={5}>
-              <div className="h-full w-full rounded-full" style={{ background: t.roadLine }} />
+          {/* road markings stream toward you as the camera walks */}
+          {Array.from({ length: Math.round(20 / mark.gap) }).map((_, i) => (
+            <Placed key={`d${i}`} cam={cam} z={0.8 + i * mark.gap} lat={0} g={g} w={mark.w} h={mark.h} zIndex={5}>
+              <RoadMark t={t} />
             </Placed>
           ))}
 
@@ -225,6 +210,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
             );
           })}
 
+          <Ambient W={W} H={H} hz={horizon} t={t} />
           {/* your warrior from behind; it bobs faster while walking */}
           <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2] } : { y: 0, rotate: 0 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
             <WarriorArt facing="back" body={avatar.body} armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
@@ -237,65 +223,3 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
 });
 
 export default WorldScene;
-
-function Scenery({ kind }: { kind: Decor }) {
-  switch (kind) {
-    case "palm":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <path d="M50 100 Q46 70 54 40" stroke="#9C6B3C" strokeWidth="7" fill="none" strokeLinecap="round" />
-          <path d="M54 40 Q30 28 12 42 M54 40 Q78 26 92 40 M54 40 Q40 16 22 18 M54 40 Q70 14 86 20 M54 40 Q56 20 52 8" stroke="#2FAE55" strokeWidth="9" fill="none" strokeLinecap="round" />
-        </svg>
-      );
-    case "pine":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <rect x="45" y="78" width="10" height="22" rx="3" fill="#8A5A2E" />
-          <path d="M50 6 L80 50 H64 L86 80 H14 L36 50 H20 Z" fill="#2E8B57" />
-          <path d="M50 6 L80 50 H64 L86 80 H50 Z" fill="#257A4B" />
-        </svg>
-      );
-    case "rock":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <path d="M14 100 L24 64 L46 52 L72 60 L88 100 Z" fill="#A9B2C3" />
-          <path d="M46 52 L72 60 L88 100 L56 100 Z" fill="#8E98AC" />
-        </svg>
-      );
-    case "crystal":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <path d="M40 100 L30 50 L44 20 L56 52 Z" fill="#B394FF" />
-          <path d="M44 20 L56 52 L52 100 L40 100 Z" fill="#8B5CF6" />
-          <path d="M60 100 L58 60 L70 36 L80 62 L74 100 Z" fill="#7DF9FF" opacity="0.9" />
-        </svg>
-      );
-    case "pillar":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <rect x="34" y="20" width="32" height="76" fill="#D7D9E3" />
-          <rect x="54" y="20" width="12" height="76" fill="#B9BCCB" />
-          <rect x="28" y="12" width="44" height="10" rx="2" fill="#C5C8D6" />
-          <rect x="28" y="92" width="44" height="8" rx="2" fill="#C5C8D6" />
-          <path d="M38 26 v18 h10 l-5 -6 l5 -6 z" fill="#E5484D" />
-        </svg>
-      );
-    case "lily":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <ellipse cx="50" cy="86" rx="40" ry="12" fill="#3FAE6A" />
-          <path d="M50 86 L90 80 A40 12 0 0 0 82 76 Z" fill="#7FD3EA" />
-          <circle cx="40" cy="80" r="7" fill="#FF8FB1" />
-        </svg>
-      );
-    case "obelisk":
-      return (
-        <svg viewBox="0 0 100 100" width="100%" height="100%">
-          <path d="M40 100 L44 20 L50 8 L56 20 L60 100 Z" fill="#3B3F8F" />
-          <path d="M50 8 L56 20 L60 100 L50 100 Z" fill="#2B2F6B" />
-          <text x="50" y="56" textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontWeight="800" fontSize="9" fill="#FFC83D">{"{}"}</text>
-          <circle cx="50" cy="22" r="3" fill="#FFC83D" />
-        </svg>
-      );
-  }
-}

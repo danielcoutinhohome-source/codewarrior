@@ -14,9 +14,19 @@ export type Enemy = {
   label: string; // programming cue engraved on its sigil
 };
 
-export type Decor = "palm" | "pine" | "rock" | "crystal" | "pillar" | "lily" | "obelisk";
+export type Decor =
+  | "palm" | "umbrella" | "sandcastle" | "shell"
+  | "pine" | "oak" | "mushroom" | "signpost" | "bush"
+  | "lily" | "reed" | "buoy" | "rockisle"
+  | "rock" | "snowpine" | "snowman" | "iceblock"
+  | "crystal" | "stalagmite" | "crates" | "torch" | "minecart"
+  | "pillar" | "banner" | "hedge" | "lamp"
+  | "obelisk" | "holo" | "server";
+
+export type Scene = "shore" | "woods" | "lagoon" | "peaks" | "caverns" | "castle" | "citadel";
 
 export type Theme = {
+  scene: Scene;
   skyTop: string;
   skyBottom: string;
   far: string; // distant hills or peaks
@@ -57,7 +67,7 @@ export const WORLDS: World[] = [
       { name: "Division Ray", design: "division-ray", color: "#5761BC", accent: "#BEA7FF", label: "7/2 = 3", attackName: "Split Current", attackStyle: "spit", lore: "A storm-winged ray that splits every current into smaller pieces." },
       { name: "Compiler Leviathan", design: "compiler-leviathan", color: "#174B67", accent: "#FFB84D", label: "ERROR", attackName: "Compile Breaker", attackStyle: "slam", lore: "The wreck of a compiler, rebuilt into the shore’s last line of defense." },
     ],
-    theme: { skyTop: "#5CB8F5", skyBottom: "#D9F2FF", far: "#7CCDF2", groundNear: "#F0D58C", groundFar: "#F7E7B8", road: "#FFF6DD", roadEdge: "#E3C27A", roadLine: "#E8D3A0", fog: "#F2FAFF", decor: ["palm", "rock"] },
+    theme: { scene: "shore", skyTop: "#5CB8F5", skyBottom: "#D9F2FF", far: "#7CCDF2", groundNear: "#F0D58C", groundFar: "#F7E7B8", road: "#FFF6DD", roadEdge: "#E3C27A", roadLine: "#E8D3A0", fog: "#F2FAFF", decor: ["palm", "umbrella", "sandcastle", "palm", "shell", "rock"] },
   },
   {
     name: "Branch Woods",
@@ -71,7 +81,7 @@ export const WORLDS: World[] = [
       { name: "Nested Basilisk", design: "nested-basilisk", color: "#257B77", accent: "#A2F6C0", label: "if{if{", attackName: "Nested Venom", attackStyle: "spit", lore: "Every armored coil hides another decision beneath it." },
       { name: "Elder Else", design: "elder-else", color: "#55435B", accent: "#EAB96B", label: "else ?", attackName: "Branch Collapse", attackStyle: "slam", lore: "The ancient decision tree. Every branch leads back to its throne." },
     ],
-    theme: { skyTop: "#7FCBA0", skyBottom: "#E6F7DD", far: "#5FA873", groundNear: "#5DB54C", groundFar: "#8ED37A", road: "#D9B27A", roadEdge: "#A87E47", roadLine: "#C69D63", fog: "#EEF8EA", decor: ["pine", "rock"] },
+    theme: { scene: "woods", skyTop: "#7FCBA0", skyBottom: "#E6F7DD", far: "#5FA873", groundNear: "#5DB54C", groundFar: "#8ED37A", road: "#D9B27A", roadEdge: "#A87E47", roadLine: "#C69D63", fog: "#EEF8EA", decor: ["oak", "pine", "mushroom", "signpost", "pine", "bush"] },
   },
   {
     name: "Loop Lagoon",
@@ -85,7 +95,7 @@ export const WORLDS: World[] = [
       { name: "Breakpoint Bastion", design: "break-turtle", color: "#52766F", accent: "#FFCB70", label: "break", attackName: "Reef Break", attackStyle: "slam", lore: "A reef fortress that stops the current with one armored impact." },
       { name: "Ouroboros, Unbound", design: "ouroboros", color: "#136E7C", accent: "#63FFCB", label: "while(true)", attackName: "Endless Tide", attackStyle: "spit", lore: "A twin-headed sea dragon locked in a cycle without an exit." },
     ],
-    theme: { skyTop: "#4FC3F0", skyBottom: "#D3F3FF", far: "#86D9C7", groundNear: "#3DB5DA", groundFar: "#7FD3EA", road: "#C99A5E", roadEdge: "#8E6538", roadLine: "#A8793F", fog: "#E8F8FF", decor: ["lily", "palm"] },
+    theme: { scene: "lagoon", skyTop: "#4FC3F0", skyBottom: "#D3F3FF", far: "#86D9C7", groundNear: "#3DB5DA", groundFar: "#7FD3EA", road: "#C99A5E", roadEdge: "#8E6538", roadLine: "#A8793F", fog: "#E8F8FF", decor: ["lily", "reed", "buoy", "lily", "rockisle", "reed"] },
   },
   {
     name: "String Peaks",
@@ -99,7 +109,7 @@ export const WORLDS: World[] = [
       { name: "Equals Echo", design: "echo-wraith", color: "#6B7DC5", accent: "#BDEAFF", label: "==", attackName: "Mirror Pulse", attackStyle: "spit", lore: "Two mirrored masks. One identity that is never what it seems." },
       { name: "Null, the Hollow King", design: "null-lich", color: "#383F74", accent: "#A5F0FF", label: "null", attackName: "Absolute Null", attackStyle: "spit", lore: "An empty crown above a frozen kingdom. Nothing waits behind the mask." },
     ],
-    theme: { skyTop: "#9DB4FF", skyBottom: "#EEF2FF", far: "#FFFFFF", groundNear: "#E3EAF6", groundFar: "#F3F6FC", road: "#C2CDE2", roadEdge: "#97A6C4", roadLine: "#AEBBD6", fog: "#F7F9FF", decor: ["pine", "crystal"], peaks: true },
+    theme: { scene: "peaks", skyTop: "#9DB4FF", skyBottom: "#EEF2FF", far: "#FFFFFF", groundNear: "#E3EAF6", groundFar: "#F3F6FC", road: "#C2CDE2", roadEdge: "#97A6C4", roadLine: "#AEBBD6", fog: "#F7F9FF", decor: ["snowpine", "snowman", "iceblock", "snowpine", "crystal"], peaks: true },
   },
   {
     name: "Array Caverns",
@@ -113,7 +123,7 @@ export const WORLDS: World[] = [
       { name: "Listbreaker Drill", design: "list-driller", color: "#B97A46", accent: "#93E8FF", label: "add()", attackName: "Insert Impact", attackStyle: "slam", lore: "A tunnel machine that inserts itself through solid bedrock." },
       { name: "Index Colossus", design: "index-colossus", color: "#564477", accent: "#D5A4FF", label: "[-1]", attackName: "Bounds Rupture", attackStyle: "slam", lore: "A living fault line built from the cavern’s shattered boundaries." },
     ],
-    theme: { skyTop: "#2A2350", skyBottom: "#5B4D9E", far: "#3A3070", groundNear: "#3D3466", groundFar: "#5A4E92", road: "#7C6DC0", roadEdge: "#5A4C99", roadLine: "#A699E8", fog: "#8F7FE0", decor: ["crystal", "rock"], night: true },
+    theme: { scene: "caverns", skyTop: "#2A2350", skyBottom: "#5B4D9E", far: "#3A3070", groundNear: "#3D3466", groundFar: "#5A4E92", road: "#7C6DC0", roadEdge: "#5A4C99", roadLine: "#A699E8", fog: "#8F7FE0", decor: ["crystal", "stalagmite", "crates", "torch", "crystal", "minecart"], night: true },
   },
   {
     name: "Class Castle",
@@ -127,7 +137,7 @@ export const WORLDS: World[] = [
       { name: "Basecase Gargoyle", design: "base-gargoyle", color: "#8C6165", accent: "#FFBA7A", label: "n <= 1", attackName: "Terminal Dive", attackStyle: "lunge", lore: "An awakened stone guardian perched at the end of every descent." },
       { name: "Stack Tyrant", design: "stack-tyrant", color: "#6251A0", accent: "#F6C778", label: "fact(n)", attackName: "Stack Collapse", attackStyle: "slam", lore: "A walking citadel rising one forbidden call above its own foundations." },
     ],
-    theme: { skyTop: "#FF9F86", skyBottom: "#FFE0B8", far: "#C77E78", groundNear: "#8F92A6", groundFar: "#B5B7C6", road: "#C9CBD8", roadEdge: "#8D90A4", roadLine: "#A9ACBE", fog: "#FFF0E3", decor: ["pillar", "rock"] },
+    theme: { scene: "castle", skyTop: "#FF9F86", skyBottom: "#FFE0B8", far: "#C77E78", groundNear: "#8F92A6", groundFar: "#B5B7C6", road: "#C9CBD8", roadEdge: "#8D90A4", roadLine: "#A9ACBE", fog: "#FFF0E3", decor: ["pillar", "banner", "hedge", "lamp", "pillar", "hedge"] },
   },
   {
     name: "LeetCode Citadel",
@@ -148,7 +158,7 @@ export const WORLDS: World[] = [
       { name: "Merge Minotaur", design: "merge-minotaur", color: "#9E4B54", accent: "#FFD193", label: "#88", attackName: "Merge Cleaver", attackStyle: "lunge", lore: "A bronze-horned executioner that joins two blades into a single verdict." },
       { name: "The Final Judge", design: "final-judge", color: "#433A75", accent: "#FFB868", label: "Accepted?", attackName: "Final Verdict", attackStyle: "spit", lore: "The citadel’s celestial arbiter. Every unfinished algorithm ends here." },
     ],
-    theme: { skyTop: "#14173A", skyBottom: "#3B3F8F", far: "#23275C", groundNear: "#262A55", groundFar: "#363B7A", road: "#FFC83D", roadEdge: "#C99400", roadLine: "#FFF1B0", fog: "#6D72D6", decor: ["obelisk", "crystal"], night: true },
+    theme: { scene: "citadel", skyTop: "#14173A", skyBottom: "#3B3F8F", far: "#23275C", groundNear: "#262A55", groundFar: "#363B7A", road: "#FFC83D", roadEdge: "#C99400", roadLine: "#FFF1B0", fog: "#6D72D6", decor: ["obelisk", "holo", "server", "obelisk", "crystal"], night: true },
   },
 ];
 
