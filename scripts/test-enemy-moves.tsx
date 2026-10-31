@@ -68,6 +68,11 @@ async function main() {
       assert.equal((scene.match(/data-landmark=/g)||[]).length,2);
       assert.equal((scene.match(/aria-label="Battle /g)||[]).length,4);
       assert.ok(scene.includes('aria-label="Boss'));
+      const clearedScene = renderToStaticMarkup(<WorldScene worldIndex={WORLDS.indexOf(world)} world={world} avatar={{ armor: "#6179A0", energy: "#58DFFF", title: "Byte Knight" }} stars={[3,2,1,3,2]} unlocked={[true,true,true,true,true]} selected={4} onSelect={()=>{}} height={560} width={mobile?390:1000}/>);
+      assert.equal((clearedScene.match(/data-defeated=/g)||[]).length,5,"All defeated enemies, including the boss, stay rendered");
+      for(const enemy of world.enemies) assert.ok(clearedScene.includes(`data-defeated="${enemy.design}"`));
+      assert.ok(clearedScene.includes("grayscale(1)") && clearedScene.includes("rotate(70deg)"));
+      assert.ok(!clearedScene.includes("data-boss-door=")&&!clearedScene.includes("data-boss-fog="),"Cleared boss stays visible beyond the opened threshold");
       const ground = renderToStaticMarkup(<WorldGroundDetails theme={world.theme} width={mobile?390:1000} height={560}/>);
       assert.ok(!/NaN|undefined/.test(ground));
       assert.deepEqual(layout,worldDetails(world.theme,mobile));
