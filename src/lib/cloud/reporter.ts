@@ -46,7 +46,7 @@ export function startRun(s: Omit<SessionStart, "id" | "contentVersion">): Run | 
   let chain = Promise.resolve();
   // Events are written in order; each write is awaited before the next so the queue order
   // matches play order even if the database is slow.
-  const push = (e: SyncEvent) => (chain = chain.then(() => enqueue(userId, [e])).catch((err) => console.error("couldn't queue classroom event", err)));
+  const push = (e: SyncEvent) => (chain = chain.then(() => enqueue(userId, [e], { urgent: e.type !== "attempt" })).catch((err) => console.error("couldn't queue classroom event", err)));
   const open = readOpen();
   open[id] = { userId, beat: Date.now() };
   writeOpen(open);
@@ -95,7 +95,7 @@ export async function recoverAbandoned() {
   const stale = Object.entries(o).filter(([, v]) => Date.now() - v.beat > 120_000);
   if (!stale.length) return;
   for (const [id, v] of stale) {
-    await enqueue(v.userId, [{ id: crypto.randomUUID(), type: "session.abandon", at: v.beat, sessionId: id }]);
+    await enqueue(v.userId, [{ id: crypto.randomUUID(), type: "session.abandon", at: v.beat, sessionId: id }], { urgent: true });
     delete o[id];
   }
   writeOpen(o);

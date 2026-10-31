@@ -100,15 +100,23 @@ function Dashboard() {
     void loadSummary();
   }, [loadSummary]);
 
-  // Live updates: coalesce bursts (a student finishing a battle sends several events).
+  // Live updates: a short wait collects a burst (several students finishing at once) into one
+  // reload, and reloads happen at most every 3 seconds, which keeps database reads low.
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastLoad = useRef(0);
+  const classesToo = useRef(false);
   const onLive = useCallback(
     (what: string) => {
-      if (debounce.current) clearTimeout(debounce.current);
+      if (what === "class" || what === "roster") classesToo.current = true;
+      if (debounce.current) return; // a reload is already scheduled
+      const wait = Math.max(600, 3000 - (Date.now() - lastLoad.current));
       debounce.current = setTimeout(() => {
+        debounce.current = null;
+        lastLoad.current = Date.now();
         void loadSummary();
-        if (what === "class" || what === "roster") void loadClasses();
-      }, 400);
+        if (classesToo.current) void loadClasses();
+        classesToo.current = false;
+      }, wait);
     },
     [loadSummary, loadClasses],
   );

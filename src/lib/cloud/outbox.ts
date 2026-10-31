@@ -54,11 +54,25 @@ function markSaved(ids: string[]) {
   set({ saved: trimmed });
 }
 
-export async function enqueue(userId: string, events: SyncEvent[]) {
+// Events are always written to the device first. Answers are then uploaded in small batches
+// (a few seconds apart) to stay well inside the free plan's daily limits; the end of a run
+// (and anything urgent) uploads immediately so the teacher sees results within seconds.
+const BATCH_MS = 5000;
+let batchTimer: ReturnType<typeof setTimeout> | null = null;
+export async function enqueue(userId: string, events: SyncEvent[], opts: { urgent?: boolean } = {}) {
   const items: OutboxItem[] = events.map((e) => ({ id: e.id, userId, sessionId: e.type === "session.start" ? e.session.id : e.sessionId, event: e, createdAt: Date.now() }));
   await db.outbox.bulkAdd(items);
   await refreshCounts();
-  void flush();
+  if (opts.urgent) {
+    if (batchTimer) clearTimeout(batchTimer);
+    batchTimer = null;
+    void flush();
+  } else if (!batchTimer) {
+    batchTimer = setTimeout(() => {
+      batchTimer = null;
+      void flush();
+    }, BATCH_MS);
+  }
 }
 
 async function refreshCounts() {

@@ -147,8 +147,13 @@ async function main() {
 
     // 9-10. Student wins; result saved; appears on the teacher's device automatically.
     await T.getByRole("button", { name: "Overview" }).click();
+    let uploads = 0;
+    const countSync = (r: { url: () => string; method: () => string }) => { if (r.url().endsWith("/v1/sync") && r.method() === "POST") uploads++; };
+    S.on("request", countSync);
     await play(S, 1);
     await S.getByText("Saved to your class.").waitFor({ timeout: 15_000 });
+    S.off("request", countSync);
+    console.log(`    (${uploads} uploads for this battle)`);
     const t0 = Date.now();
     await T.locator("li", { hasText: "Ava E." }).filter({ hasText: "Won" }).first().waitFor({ timeout: 15_000 });
     step(`battle saved to class; teacher dashboard updated in ${Date.now() - t0} ms after the student saw "Saved"`);
@@ -180,6 +185,8 @@ async function main() {
     await S.setViewportSize({ width: 1280, height: 900 });
     await T.setViewportSize({ width: 1280, height: 900 });
     await T.getByRole("button", { name: "Assignments" }).click();
+    await T.getByText("Completed: 1").waitFor();
+    await T.waitForURL(/tab=assignments/);
 
     // 12. Refresh, sign out, sign back in: records remain.
     await T.reload();

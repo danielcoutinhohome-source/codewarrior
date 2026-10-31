@@ -614,7 +614,8 @@ export class Classroom extends DurableObject<Env> {
           this.run("INSERT INTO receipts (event_id, user_id, status, received_at) VALUES (?, ?, 'ok', ?)", id, u.id, now());
           return sid;
         });
-        if (sessionId) touched.add(sessionId);
+        // Teachers are notified when a run starts or ends, not for every answer.
+        if (sessionId && raw.type !== "attempt") touched.add(sessionId);
         acks.push({ id, status: "ok" });
       } catch (e) {
         const reason = e instanceof HttpError ? e.message : "invalid event";
@@ -703,7 +704,9 @@ export class Classroom extends DurableObject<Env> {
         str(a.prompt, 4000, "prompt", { trim: false }), optStr(a.code, 8000) ?? null, options ? JSON.stringify(options) : null, str(a.given, 4000, "given", { trim: false }),
         optStr(a.expected, 4000) ?? null, correct, a.hinted ? 1 : 0, this.clampTime(e.at, ses.started_at, t), t,
       );
-      this.recompute(sid);
+      // Totals are derived once the run ends (saves a write per answer); an answer arriving
+      // after the end (out-of-order upload) updates them right away.
+      if (ses.outcome !== "in_progress") this.recompute(sid);
       return sid;
     }
     if (e.type === "session.finish") {
@@ -723,7 +726,10 @@ export class Classroom extends DurableObject<Env> {
       return sid;
     }
     if (e.type === "session.abandon") {
-      if (ses.outcome === "in_progress") this.run("UPDATE play_sessions SET outcome = 'abandoned', finished_at = ?, finished_received_at = ? WHERE id = ?", this.clampTime(e.at, ses.started_at, t), t, sid);
+      if (ses.outcome === "in_progress") {
+        this.run("UPDATE play_sessions SET outcome = 'abandoned', finished_at = ?, finished_received_at = ? WHERE id = ?", this.clampTime(e.at, ses.started_at, t), t, sid);
+        this.recompute(sid);
+      }
       return sid;
     }
     throw new HttpError(400, "bad_request", "unknown event type");
