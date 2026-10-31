@@ -81,9 +81,11 @@ function Dashboard() {
 
   // Only the latest request for the current class may update the screen.
   const req = useRef(0);
+  const lastLoad = useRef(0);
   const loadSummary = useCallback(async () => {
     if (!classId) return;
     const n = ++req.current;
+    lastLoad.current = Date.now();
     try {
       const s = await api<Summary>("GET", `/classes/${classId}/summary`);
       if (n !== req.current) return;
@@ -101,18 +103,25 @@ function Dashboard() {
   }, [loadSummary]);
 
   // Live updates: a short wait collects a burst (several students finishing at once) into one
-  // reload, and reloads happen at most every 3 seconds, which keeps database reads low.
+  // reload, and reloads happen at most every 3 seconds, which keeps database reads low. While the
+  // tab is hidden nothing reloads; coming back catches up once if anything changed meanwhile.
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastLoad = useRef(0);
   const classesToo = useRef(false);
+  const changedWhileHidden = useRef(false);
   const onLive = useCallback(
     (what: string) => {
       if (what === "class" || what === "roster") classesToo.current = true;
+      if (what === "visible") {
+        if (!changedWhileHidden.current && Date.now() - lastLoad.current < 60_000) return;
+        changedWhileHidden.current = false;
+      } else if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        changedWhileHidden.current = true;
+        return;
+      }
       if (debounce.current) return; // a reload is already scheduled
       const wait = Math.max(600, 3000 - (Date.now() - lastLoad.current));
       debounce.current = setTimeout(() => {
         debounce.current = null;
-        lastLoad.current = Date.now();
         void loadSummary();
         if (classesToo.current) void loadClasses();
         classesToo.current = false;
