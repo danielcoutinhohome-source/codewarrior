@@ -22,7 +22,7 @@ The existing opt-in battle playtest hook supplies answers to exercise the battle
 ## What is checked
 
 - Landing/signup layouts at 390 x 844 and 1280 x 900; successful device signup.
-- Seven world paths and seven ready boss gates at each viewport.
+- Seven world paths, battle arenas, and ready boss gates at each viewport.
 - Gate height, full framing, and actual click hit testing; no horizontal page overflow.
 - Navigation during the camera approach, plus the game's reduced-motion final framing.
 - A real battle with an incorrect answer, retry, player attack, and victory; uncaught JS errors.

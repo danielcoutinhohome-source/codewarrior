@@ -82,7 +82,7 @@ async function main() {
         await page.locator("#cw-pass").fill(password);
         await page.locator("#cw-confirm").fill(password);
         await page.getByRole("button", { name: "FORGE MY WARRIOR", exact: true }).click();
-        await page.waitForURL(/\/map\//, { timeout: 30_000 });
+        await page.waitForURL(/\/map\/?(?:\?|$)/, { timeout: 30_000 });
         await page.locator("[data-boss-camera]").waitFor();
 
         for (let w = 0; w < WORLDS.length; w++) {
@@ -92,6 +92,11 @@ async function main() {
           await page.getByRole("button", { name: "FIGHT!", exact: true }).waitFor();
           await noOverflow(page, `${name} ${WORLDS[w].name}`);
           await capture(page, `${name}-world-${w + 1}-path`);
+          await page.getByRole("button", { name: "FIGHT!", exact: true }).click();
+          await page.waitForFunction(() => (window as any).__cw?.phase === "answering");
+          await noOverflow(page, `${name} ${WORLDS[w].name} arena`);
+          await capture(page, `${name}-world-${w + 1}-arena`);
+
 
           await checkpoint(page, id, w, true);
           await page.goto(`${site}/map/?w=${w}`);
@@ -143,10 +148,14 @@ async function main() {
               await capture(page, `${name}-battle-attack`);
             }
           }
-          else if (["correct", "revealed"].includes(state.phase)) await page.evaluate(() => (window as any).__cw.next());
-          await page.waitForFunction(() => (window as any).__cw?.phase !== "busy");
+          else if (["correct", "revealed"].includes(state.phase)) {
+            await page.evaluate(() => (window as any).__cw.next());
+            await page.waitForFunction(() => (window as any).__cw?.phase === "answering");
+            continue;
+          }
+          await page.waitForFunction(() => ["correct", "revealed", "over"].includes((window as any).__cw?.phase));
         }
-        await page.getByText("VICTORY", { exact: true }).waitFor();
+        await page.getByText("VICTORY!", { exact: true }).waitFor();
         await noOverflow(page, `${name} result`); await capture(page, `${name}-battle-result`);
         assert.deepEqual(errors, [], `${name}: no uncaught browser errors`);
         console.log(`Quality checks passed at ${name}px: signup, seven paths/gates, hit targets, reduced motion, battle retry and victory.`);
