@@ -31,7 +31,15 @@ Live: https://danielcoutinhohome-source.github.io/codewarrior/
 
 Question types: predict the output, fill the blank, multiple choice, drag lines into order. Generators produce new numbers on every battle.
 
+The bank contains **420 unique question templates: 60 in each world**, preserving the original 88 templates and adding 332 handwritten items. Every world has **15 novice (25%), 30 intermediate (50%), and 15 hard (25%)** templates, represented by tiers 0, 1, and 2. These percentages describe the bank; battle selection still follows the existing tier progression and bosses prioritize hard material.
+
+New questions cover AP-style code tracing, missing expressions, condition equivalence, boundary tests, debugging, algorithm contracts, data representation, and procedural/list abstraction. CSP pseudocode questions explicitly say **AP CSP** and use its one-based list indexes; Java questions use zero-based indexes. Existing class/recursion and LeetCode enrichment remains in its matching world. This is original practice content, not official or copied AP exam material, and is not intended to cover every CSP exam topic.
+
+Content references: [College Board AP CSA course framework](https://apcentral.collegeboard.org/courses/ap-computer-science-a) and [AP CSP exam reference sheet](https://apcentral.collegeboard.org/media/pdf/ap-computer-science-principles-exam-reference-sheet.pdf). The existing four interaction types are retained; multiple choice remains single-select.
+
 **Every code question is checked against real Java.** `npm run verify` compiles and runs each one with `javac`, and the deploy fails if any expected answer is wrong.
+
+The verifier also enforces the per-world counts and difficulty split, detects duplicate template content, checks accepted answers and multiple-choice keys, and exercises 1,050 battle selections. Java metadata verifies executable examples (including Java equivalents for CSP trace questions); conceptual questions and intentional error examples require content review. Pull requests run verification, battle tests, type checking, and the production build before merge.
 
 ## Run it locally
 

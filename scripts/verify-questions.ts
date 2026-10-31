@@ -3,7 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { BANKS, buildBattle, rng, type Question } from "../src/lib/questions/index";
+import { BANKS, buildBattle, isRight, rng, type Question } from "../src/lib/questions/index";
 
 const SEEDS = Number(process.env.SEEDS || 8);
 const dir = "/tmp/cw-verify";
@@ -31,6 +31,17 @@ function add(q: Question, variant: string, src: string) {
 function check(q: Question) {
   if (!q.prompt || !q.hint || !q.explain) problems.push(`${q.skill}: missing text`);
   if (q.kind === "choice" && (q.correct === undefined || !q.options?.[q.correct])) problems.push(`${q.skill}: bad choice index`);
+  if (q.kind === "choice") {
+    if (q.options?.length !== 4 || new Set(q.options).size !== 4) problems.push(`${q.skill}: needs four distinct options`);
+    for (let i = 0; i < (q.options?.length || 0); i++) {
+      if (isRight(q, i) !== (i === q.correct)) problems.push(`${q.skill}: incorrect choice grading`);
+    }
+  } else if (q.kind === "order") {
+    if (!q.lines?.length || !isRight(q, q.lines)) problems.push(`${q.skill}: invalid ordering answer`);
+  } else {
+    if (!q.answers?.length || q.answers.some((a) => !a.trim() || !isRight(q, a))) problems.push(`${q.skill}: invalid accepted answer`);
+    if (isRight(q, "__not_an_answer__")) problems.push(`${q.skill}: accepts an incorrect answer`);
+  }
   if (q.kind === "predict" && q.answers![0].includes("\n")) problems.push(`${q.skill}: multi-line predict answer`);
   if (!q.java) return;
   if (q.kind === "predict") {
@@ -46,7 +57,18 @@ function check(q: Question) {
 
 let total = 0;
 BANKS.forEach((bank, w) => {
+  if (bank.length !== 60) problems.push(`world ${w}: expected 60 templates, got ${bank.length}`);
+  for (const [tier, want] of [15, 30, 15].entries()) {
+    const got = bank.filter((g) => g.tier === tier).length;
+    if (got !== want) problems.push(`world ${w} tier ${tier}: expected ${want}, got ${got}`);
+  }
+  // Compare authored content, not generated IDs or option presentation order.
+  const fingerprints = new Set<string>();
   for (const g of bank) {
+    const sample = g.make(rng(2026));
+    const fingerprint = JSON.stringify([sample.kind, sample.prompt, sample.code, sample.options && [...sample.options].sort(), sample.lines]);
+    if (fingerprints.has(fingerprint)) problems.push(`world ${w}: duplicate template ${g.skill}`);
+    fingerprints.add(fingerprint);
     const seeds = g.once ? 1 : SEEDS;
     for (let s = 0; s < seeds; s++) {
       check(g.make(rng(1000 * w + 31 * s + 7)));
@@ -59,6 +81,7 @@ BANKS.forEach((bank, w) => {
       const qs = buildBattle(w, b, s);
       const want = b === 4 ? 8 : 5;
       if (qs.length !== want) problems.push(`world ${w} battle ${b}: ${qs.length} questions`);
+      if (new Set(qs.map((q) => q.skill)).size !== qs.length) problems.push(`world ${w} battle ${b}: repeated skill`);
     }
 });
 
@@ -105,3 +128,4 @@ if (problems.length) {
   process.exit(1);
 }
 console.log("All questions verified.");
+

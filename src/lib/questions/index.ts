@@ -2,9 +2,21 @@ import { BOSS, QUESTIONS_PER_BATTLE, QUESTIONS_PER_BOSS } from "../game";
 import { rng, type Gen, type Question, type Tier } from "./core";
 import { W0, W1, W2 } from "./worlds-a";
 import { W3, W4, W5, W6 } from "./worlds-b";
+import { SYNTAX } from "./ap-syntax";
+import { BRANCHES } from "./ap-branches";
+import { LOOPS } from "./ap-loops";
+import { STRINGS } from "./ap-strings";
+import { ARRAYS } from "./ap-arrays";
+import { CLASSES } from "./ap-classes";
+import { ALGORITHMS } from "./ap-algorithms";
 
 export * from "./core";
-export const BANKS: Gen[][] = [W0, W1, W2, W3, W4, W5, W6];
+// Each world has 60 distinct templates: 15 novice, 30 intermediate, 15 hard.
+// Retain the original generators (and their skills for saved progress).
+export const BANKS: Gen[][] = [
+  [...W0, ...SYNTAX], [...W1, ...BRANCHES], [...W2, ...LOOPS],
+  [...W3, ...STRINGS], [...W4, ...ARRAYS], [...W5, ...CLASSES], [...W6, ...ALGORITHMS],
+];
 
 const TIERS: Tier[][] = [[0], [0, 1], [1], [1, 2], [0, 1, 2]];
 
@@ -48,3 +60,4 @@ export function buildBattle(world: number, battle: number, seed: number): Questi
 }
 
 export const allSkills = () => BANKS.map((b) => [...new Set(b.map((g) => g.skill))]);
+
