@@ -311,5 +311,6 @@ async function main() {
 
 main().catch((e) => {
   console.error(e);
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=classroom tests::${String(e?.message || e).replace(/\n/g, " ").slice(0, 900)}`);
   process.exit(1);
 });
