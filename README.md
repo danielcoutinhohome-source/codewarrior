@@ -86,6 +86,17 @@ free on Cloudflare Workers AI (no API key, no bill; a daily allowance that simpl
 until the next day). Until it is deployed and `TUTOR_URL` is set, the tutor shows as offline and
 everything else works.
 
+## Classes (teacher and student accounts)
+
+Students can create a **class account** (or keep a device-only warrior). Class accounts save
+progress online, work on any device, and can join a teacher's class with an 8-character code.
+Every finished battle and practice set is queued on the device and uploaded automatically;
+results show up on the teacher's dashboard (`/teacher/`) within seconds, with the student's
+actual answers. Teachers create classes, publish assignments, review students, leave feedback
+and export CSV reports. The backend is free (Cloudflare Workers + SQLite Durable Object):
+see [`classroom-server/README.md`](classroom-server/README.md) for the permission model,
+sharing policy, setup and the starter teacher account.
+
 ## Run it locally
 
 ```bash

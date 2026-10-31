@@ -13,9 +13,11 @@ import { lessonById } from "@/lib/learn/lessons";
 import { checkTutor, gradeExplanation, isTutorError, type TutorStatus } from "@/lib/tutor/client";
 import type { Grade } from "../../../tutor-server/src/protocol";
 import { play } from "@/lib/sfx";
+import { startRun, type Run } from "@/lib/cloud/reporter";
 
 export type AskTutor = (focus: string, action: string, text: string) => void;
-export type RunSummary = { total: number; firstTry: number; missedSkills: string[] };
+export type RunSummary = { total: number; firstTry: number; missedSkills: string[]; runId: string | null };
+export type ReportContext = { lessonId?: string; classId?: string; assignmentId?: string };
 
 type Props = {
   accountId: string;
@@ -26,13 +28,16 @@ type Props = {
   onAskTutor?: AskTutor;
   onDone: (s: RunSummary) => void;
   doneLabel?: string;
+  report?: ReportContext; // record this run for the signed-in class account
 };
 
 type Result = { firstTry: boolean; correct: boolean; skill: string; explain?: boolean };
 
 // Runs a set of verified questions: two tries, an optional hint, explanation after answering,
 // and a follow-up question on the same idea after a miss. Every answer is recorded.
-export default function PracticeRunner({ accountId, course, prefs, items: initial, source, onAskTutor, onDone, doneLabel = "SEE RESULTS" }: Props) {
+export default function PracticeRunner({ accountId, course, prefs, items: initial, source, onAskTutor, onDone, doneLabel = "SEE RESULTS", report }: Props) {
+  const run = useRef<Run | null>(null);
+  const hints = useRef(0);
   const [items, setItems] = useState(initial);
   const [pos, setPos] = useState(0);
   const [phase, setPhase] = useState<Phase>("answering");
@@ -56,7 +61,21 @@ export default function PracticeRunner({ accountId, course, prefs, items: initia
     followed.current = new Set();
     followFps.current = new Set();
     seen.current = new Set(initial.flatMap((it) => (it.type === "question" ? [fingerprint(it.q)] : [])));
+    run.current?.abandon();
+    hints.current = 0;
+    run.current = initial.length ? startRun({ kind: "practice", lessonId: report?.lessonId, classId: report?.classId, assignmentId: report?.assignmentId, questionCount: initial.length }) : null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
+  useEffect(() => () => run.current?.abandon(), []);
+
+  const logTry = (it: PracticeItem, i: number, given: string, correct: boolean | null, tryNo: number, wasHinted: boolean) => {
+    if (it.type === "question") {
+      const q = it.q;
+      run.current?.attempt({ index: i, round: 0, tryNo, questionId: q.id, skill: q.skill, kind: q.label === "Find and fix the bug" ? "bug" : q.kind, prompt: q.prompt, code: q.code, options: q.kind === "choice" ? q.options : q.kind === "order" ? q.lines : undefined, given, expected: answerText(q), correct, hinted: wasHinted });
+    } else {
+      run.current?.attempt({ index: i, round: 0, tryNo: 0, questionId: it.task.id, skill: it.task.skill, kind: "explain", prompt: it.task.prompt, code: it.task.code, given, expected: it.task.model, correct: null, hinted: false });
+    }
+  };
 
   const item = items[pos];
   const last = pos >= items.length - 1;
@@ -90,6 +109,7 @@ export default function PracticeRunner({ accountId, course, prefs, items: initia
     const ok = isRight(q, value as never);
     const given = givenText(q, value);
     setLastGiven(given);
+    logTry(item, pos, given, ok, attempt, hinted);
     if (ok) {
       play("learnRight");
       setPhase("correct");
@@ -108,6 +128,7 @@ export default function PracticeRunner({ accountId, course, prefs, items: initia
   const reveal = () => {
     if (!item || item.type !== "question") return;
     setPhase("revealed");
+    logTry(item, pos, "(asked to see the answer)", false, attempt + 1, hinted);
     resolve(false, false, lastGiven ?? "(asked to see the answer)");
   };
 
@@ -116,7 +137,9 @@ export default function PracticeRunner({ accountId, course, prefs, items: initia
     if (last) {
       const rs = Object.values(results).filter((r) => !r.explain);
       const missed = [...new Set(rs.filter((r) => !r.firstTry).map((r) => r.skill))];
-      onDone({ total: rs.length, firstTry: rs.filter((r) => r.firstTry).length, missedSkills: missed });
+      const r = run.current;
+      void r?.finish({ outcome: "completed", itemsUsed: {}, hintsUsed: hints.current });
+      onDone({ total: rs.length, firstTry: rs.filter((r) => r.firstTry).length, missedSkills: missed, runId: r?.id ?? null });
       return;
     }
     setPos((p) => p + 1);
@@ -167,7 +190,7 @@ export default function PracticeRunner({ accountId, course, prefs, items: initia
           tools={
             <>
               {!hinted && (
-                <Button size="sm" tone="white" onClick={() => setHinted(true)}>
+                <Button size="sm" tone="white" onClick={() => { if (!hinted) hints.current++; setHinted(true); }}>
                   HINT
                 </Button>
               )}
@@ -200,13 +223,13 @@ export default function PracticeRunner({ accountId, course, prefs, items: initia
           }
         />
       ) : (
-        <ExplainCard key={`${pos}-${item.task.id}`} item={item} course={course} prefs={prefs} lessonTitle={lesson?.title} onNext={() => { setResults((r) => ({ ...r, [pos]: { correct: true, firstTry: true, skill: item.task.skill, explain: true } })); next(); }} last={last} doneLabel={doneLabel} onAskTutor={onAskTutor} />
+        <ExplainCard key={`${pos}-${item.task.id}`} item={item} course={course} prefs={prefs} lessonTitle={lesson?.title} onNext={(text) => { logTry(item, pos, text, null, 0, false); setResults((r) => ({ ...r, [pos]: { correct: true, firstTry: true, skill: item.task.skill, explain: true } })); next(); }} last={last} doneLabel={doneLabel} onAskTutor={onAskTutor} />
       )}
     </div>
   );
 }
 
-function ExplainCard({ item, course, prefs, lessonTitle, onNext, last, doneLabel, onAskTutor }: { item: Extract<PracticeItem, { type: "explain" }>; course: Course; prefs: LearnPrefs; lessonTitle?: string; onNext: () => void; last: boolean; doneLabel: string; onAskTutor?: AskTutor }) {
+function ExplainCard({ item, course, prefs, lessonTitle, onNext, last, doneLabel, onAskTutor }: { item: Extract<PracticeItem, { type: "explain" }>; course: Course; prefs: LearnPrefs; lessonTitle?: string; onNext: (text: string) => void; last: boolean; doneLabel: string; onAskTutor?: AskTutor }) {
   const t = item.task;
   const [text, setText] = useState("");
   const [status, setStatus] = useState<TutorStatus>({ state: "checking" });
@@ -319,7 +342,7 @@ function ExplainCard({ item, course, prefs, lessonTitle, onNext, last, doneLabel
                   DISCUSS WITH TUTOR
                 </Button>
               )}
-              <Button onClick={onNext}>{last ? doneLabel : "NEXT"}</Button>
+              <Button onClick={() => onNext(text)}>{last ? doneLabel : "NEXT"}</Button>
             </div>
           </motion.div>
         )}

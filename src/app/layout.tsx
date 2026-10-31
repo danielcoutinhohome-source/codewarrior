@@ -8,6 +8,7 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/800.css";
 import "./globals.css";
 import DbStatus from "@/components/DbStatus";
+import CloudSync from "@/components/cloud/CloudSync";
 
 export const metadata: Metadata = {
   title: "CodeWarrior",
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <DbStatus />
+        <CloudSync />
       </body>
     </html>
   );

@@ -7,12 +7,17 @@ import { useState } from "react";
 import Warrior from "@/components/Warrior";
 import { Button, Logo, Pedestal, Sky, Swatch } from "@/components/ui";
 import { createAccount, validateSignup } from "@/lib/auth";
+import { api, classroomEnabled, setCloud } from "@/lib/cloud/client";
+import { enterGame } from "@/lib/cloud/progressSync";
+import { MIN_PASSWORD, USERNAME_RE, type Me } from "@/lib/cloud/protocol";
 import { BODIES, ENERGIES, TITLES } from "@/lib/game";
 
 export default function CreatePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [pass, setPass] = useState("");
+  const [mode, setMode] = useState<"class" | "device">(() => (classroomEnabled() ? "class" : "device"));
+  const [display, setDisplay] = useState("");
   const [confirm, setConfirm] = useState("");
   const [body, setBody] = useState(BODIES[0].value);
   const armor = "#D6DEEB"; // armor color retired: energy paints the accents
@@ -25,7 +30,16 @@ export default function CreatePage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const problem = validateSignup(name.trim(), pass, confirm);
+    const problem =
+      mode === "class"
+        ? !USERNAME_RE.test(name.trim())
+          ? "Usernames are 3 to 20 letters, numbers or underscores."
+          : pass.length < MIN_PASSWORD
+            ? `Passwords need at least ${MIN_PASSWORD} characters.`
+            : pass !== confirm
+              ? "Those passwords don't match."
+              : null
+        : validateSignup(name.trim(), pass, confirm);
     if (problem) {
       setError(problem);
       formShake.start({ x: [0, -10, 9, -6, 4, 0], transition: { duration: 0.4 } });
@@ -34,6 +48,14 @@ export default function CreatePage() {
     setBusy(true);
     setError(null);
     try {
+      if (mode === "class") {
+        const r = await api<{ token: string; me: Me }>("POST", "/auth/register", { username: name.trim(), password: pass, displayName: display.trim() || undefined }, { token: null });
+        setCloud(r);
+        await enterGame(r.me, { body, armor, energy, title });
+        setForged(true);
+        setTimeout(() => router.push("/classroom/"), 1100);
+        return;
+      }
       await createAccount(name.trim(), pass, { body, armor, energy, title });
       setForged(true);
       setTimeout(() => router.push("/map/"), 1100);
@@ -52,6 +74,7 @@ export default function CreatePage() {
         <Link href="/" aria-label="CodeWarrior home"><Logo /></Link>
         <span className="font-bold">
           Already a warrior? <Link href="/login/" className="font-black text-ocean-deep underline-offset-4 hover:underline">Log in</Link>
+          {classroomEnabled() && <> · <Link href="/teacher/signup/" className="font-black text-ocean-deep underline-offset-4 hover:underline">Teacher with an invite?</Link></>}
         </span>
       </header>
 
@@ -66,10 +89,33 @@ export default function CreatePage() {
             <h1 className="font-display text-[44px] leading-none">Create your warrior</h1>
             <p className="mt-2 text-[17px] font-bold text-ink-soft">No email or Google account. Just a name and a password.</p>
           </div>
+          {classroomEnabled() && (
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-[13px] font-black uppercase tracking-wider text-ink-soft">Where should your warrior live?</legend>
+              {([
+                ["class", "Class account", "Saves online so you can join your teacher's class and play on any device."],
+                ["device", "Only this device", "Nothing leaves this browser. You can't join a class with it."],
+              ] as const).map(([v, label, text]) => (
+                <label key={v} className="flex cursor-pointer items-start gap-3 rounded-2xl border-[3px] px-4 py-3" style={{ borderColor: mode === v ? "#2D9CDB" : "#D5E4F5", background: mode === v ? "#E2F3FF" : "#FFFFFF" }}>
+                  <input type="radio" name="cw-mode" value={v} checked={mode === v} onChange={() => { setMode(v); setError(null); }} className="mt-1.5 h-4 w-4 accent-[#2D9CDB]" />
+                  <span>
+                    <span className="block font-black text-ink">{label}</span>
+                    <span className="text-sm font-bold text-ink-soft">{text}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           <label className="field-label" htmlFor="cw-name">
-            Warrior name
-            <input id="cw-name" className="field" autoComplete="username" maxLength={16} value={name} onChange={(e) => { setName(e.target.value); setError(null); }} placeholder="ByteKnight" />
+            {mode === "class" ? "Username" : "Warrior name"}
+            <input id="cw-name" className="field" autoComplete="username" maxLength={mode === "class" ? 20 : 16} value={name} onChange={(e) => { setName(e.target.value); setError(null); }} placeholder="ByteKnight" />
           </label>
+          {mode === "class" && (
+            <label className="field-label" htmlFor="cw-display">
+              Name your teacher sees <span className="font-bold normal-case text-ink-mute">(optional)</span>
+              <input id="cw-display" className="field" maxLength={40} value={display} onChange={(e) => setDisplay(e.target.value)} placeholder="First name and last initial" />
+            </label>
+          )}
           <label className="field-label" htmlFor="cw-pass">
             Secret password
             <input id="cw-pass" className="field" type="password" autoComplete="new-password" value={pass} onChange={(e) => { setPass(e.target.value); setError(null); }} />
@@ -98,7 +144,11 @@ export default function CreatePage() {
               <rect x="4" y="10" width="16" height="11" rx="3" />
               <path d="M8 10V7a4 4 0 0 1 8 0v3" />
             </svg>
-            <span>Your warrior and progress save on this device. Joining a class with your teacher comes in a later update.</span>
+            <span>
+              {mode === "class"
+                ? "Your progress saves to your class account. After you join a class, your battles and answers are shared with that teacher. Don't use a password you use anywhere else."
+                : "Your warrior and progress save only on this device."}
+            </span>
           </div>
 
           <Button type="submit" size="lg" disabled={busy} className="mt-auto w-full">

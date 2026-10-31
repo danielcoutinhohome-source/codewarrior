@@ -4,11 +4,12 @@ import { Classroom, type Env } from "./classroom";
 
 export { Classroom };
 
-const DEV_ORIGINS = ["http://localhost:3000", "http://localhost:4321", "http://127.0.0.1:4321"];
+// Local development on any port. Safe because the API uses bearer tokens, not cookies.
+const isDevOrigin = (o: string) => /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
 
 function corsHeaders(origin: string | null, env: Env): Record<string, string> {
-  const allowed = [...(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean), ...DEV_ORIGINS];
-  if (!origin || !allowed.includes(origin)) return {};
+  const allowed = (env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!origin || !(allowed.includes(origin) || isDevOrigin(origin))) return {};
   return {
     "access-control-allow-origin": origin,
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",

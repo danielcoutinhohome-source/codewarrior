@@ -258,8 +258,17 @@ export class Classroom extends DurableObject<Env> {
     if (!USERNAME_RE.test(username)) throw new HttpError(400, "bad_request", "Invalid username.");
     const existing = this.one<User>("SELECT * FROM users WHERE username_lc = ?", username.toLowerCase());
     if (existing) {
-      if (existing.role === "teacher") return { status: "exists", username: existing.username };
-      throw new HttpError(409, "conflict", "A student account already uses that username. It was not changed.");
+      if (existing.role !== "teacher") throw new HttpError(409, "conflict", "A student account already uses that username. It was not changed.");
+      if (body.reset !== true) return { status: "exists", username: existing.username };
+      // Explicit reset (manual workflow run): new starter password, must change, all sessions end.
+      const pw = checkPassword(body.password, existing.username);
+      const h = await hashPassword(pw);
+      this.ctx.storage.transactionSync(() => {
+        this.run("UPDATE users SET pw_hash = ?, pw_salt = ?, pw_iter = ?, must_change_pw = 1, updated_at = ? WHERE id = ?", h.hash, h.salt, h.iterations, now(), existing.id);
+        this.run("DELETE FROM auth_sessions WHERE user_id = ?", existing.id);
+      });
+      this.closeSockets(existing.id);
+      return { status: "reset", username: existing.username };
     }
     const password = checkPassword(body.password, username);
     const displayName = str(body.displayName, 40, "Name") || username;

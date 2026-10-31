@@ -102,7 +102,15 @@ async function main() {
     eq((await call("POST", "/auth/password", starterToken, { current: "Starter123x", next: "short" })).status, 400, "weak password rejected");
     const changed = await call("POST", "/auth/password", starterToken, { current: "Starter123x", next: "NewSecret456" });
     ok(changed.status === 200 && !changed.body.me.mustChangePassword, "password changed");
-    const T = starterToken;
+    let T = starterToken;
+    // An explicit reset (admin only) restores a starter password and ends sessions.
+    eq((await call("POST", "/admin/provision-teacher", ADMIN, { username: "DetrickTest", password: "Reset-pass-9", reset: true })).body.status, "reset", "admin reset");
+    eq((await call("GET", "/me", T)).status, 401, "reset signed the teacher out");
+    const relog = await call("POST", "/auth/login", undefined, { username: "DetrickTest", password: "Reset-pass-9" });
+    ok(relog.body.me.mustChangePassword, "reset password must be changed again");
+    const T_ = relog.body.token;
+    eq((await call("POST", "/auth/password", T_, { current: "Reset-pass-9", next: "NewSecret456b" })).status, 200, "changed after reset");
+    T = T_;
 
     // ---- classes ----
     const created = await call("POST", "/classes", T, { name: "AP CSA Period 3", course: "csa", section: "P3" });

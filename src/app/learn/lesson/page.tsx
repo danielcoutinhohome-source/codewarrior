@@ -139,7 +139,7 @@ function Lesson() {
               <h3 id="cp-title" className="font-display text-2xl">Checkpoint</h3>
               {stage === "read" && <Button tone="violet" onClick={() => setStage("check")}>START CHECKPOINT · 3 QUESTIONS</Button>}
             </div>
-            {stage === "check" && profile && <PracticeRunner accountId={account.id} course={lesson.course} prefs={profile.prefs} items={items} source="lesson" onDone={finish} doneLabel="FINISH LESSON" onAskTutor={(focus, action, text) => ask(text, action, focus)} />}
+            {stage === "check" && profile && <PracticeRunner accountId={account.id} course={lesson.course} prefs={profile.prefs} items={items} source="lesson" onDone={finish} doneLabel="FINISH LESSON" onAskTutor={(focus, action, text) => ask(text, action, focus)} report={{ lessonId: lesson.id }} />}
             {stage === "done" && summary && (
               <div className="card flex flex-col gap-3 p-5 sm:p-6">
                 <div className="font-display text-2xl text-[#2BA155]">Lesson complete</div>

@@ -102,6 +102,15 @@ export function logOut() {
   } catch {}
 }
 
+// Warriors saved only on this device (class-account warriors sign in through the server).
 export async function listWarriors() {
-  return db.accounts.orderBy("createdAt").reverse().toArray();
+  return (await db.accounts.orderBy("createdAt").reverse().toArray()).filter((a) => !a.cloudUserId);
+}
+
+// Checks a device warrior's password without signing in (used to prove ownership before
+// importing its progress into a class account).
+export async function verifyLocal(id: string, password: string) {
+  const a = await db.accounts.get(id);
+  if (!a || a.cloudUserId) return false;
+  return (await hashPassword(password, fromB64(a.salt))) === a.passwordHash;
 }

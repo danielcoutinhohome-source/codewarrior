@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      reset_teacher_password:
+        description: "Reset DetrickD123 to the TEACHER_INITIAL_PASSWORD secret (they must change it again)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -32,6 +37,8 @@ jobs:
         run: npm run verify
       - name: Game, Learn Mode, tutor server and sound tests
         run: npm test
+      - name: Classroom server integration tests (real Worker + SQLite, student and teacher tokens)
+        run: npx tsx scripts/test-classroom.ts
       # Free AI tutor: deploys tutor-server/ to Cloudflare Workers AI (free plan, no AI key, no bill)
       # when the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets exist. Without them, or if
       # this step fails, the site still deploys and the tutor shows as offline.
@@ -65,6 +72,64 @@ jobs:
             sleep 10
           done
           echo "::warning::The tutor deployed but $url/v1/health did not answer yet. It should start working within a few minutes."
+      # Classroom server (accounts, classes, results, live dashboard): a Cloudflare Worker with one
+      # SQLite Durable Object, on the Workers Free plan. Past the free limits requests fail;
+      # nothing is billed. Uses the pinned wrangler from package.json.
+      - name: Deploy the classroom server
+        id: classroom
+        if: steps.cf.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        working-directory: classroom-server
+        run: |
+          set +e
+          npx wrangler deploy 2>&1 | tee deploy.log
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" != 0 ]; then echo "::error title=classroom deploy failed::$(tail -n 25 deploy.log | sed 's/\x1b\[[0-9;]*m//g' | tr '\n' ' ' | cut -c1-1500)"; exit 1; fi
+          url=$(grep -oE 'https://[A-Za-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          if [ -z "$url" ]; then echo "::error::No workers.dev URL in the classroom deploy output."; exit 1; fi
+          for i in $(seq 1 24); do
+            if curl -fsS "$url/v1/health"; then echo; break; fi
+            sleep 10
+          done
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      # Starter teacher account. Runs only while the TEACHER_INITIAL_PASSWORD secret exists. A
+      # one-time admin token is generated here, set on the Worker, used once and then replaced by
+      # a random value nobody knows. Idempotent: an existing teacher is never changed, so the
+      # starter password can't overwrite a password the teacher already chose.
+      - name: Check for the starter teacher secret
+        id: teacher
+        run: echo "ready=${{ secrets.TEACHER_INITIAL_PASSWORD != '' }}" >> "$GITHUB_OUTPUT"
+      - name: Provision the starter teacher account
+        if: steps.classroom.outputs.url != '' && steps.teacher.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TEACHER_INITIAL_PASSWORD: ${{ secrets.TEACHER_INITIAL_PASSWORD }}
+          TEACHER_USERNAME: DetrickD123
+          URL: ${{ steps.classroom.outputs.url }}
+          RESET: ${{ inputs.reset_teacher_password == true && 'true' || 'false' }}
+        working-directory: classroom-server
+        run: |
+          token=$(openssl rand -hex 32)
+          echo "::add-mask::$token"
+          printf '%s' "$token" | npx wrangler secret put ADMIN_TOKEN > /dev/null
+          sleep 15
+          body=$(jq -n --arg u "$TEACHER_USERNAME" --arg p "$TEACHER_INITIAL_PASSWORD" --argjson r "$RESET" '{username: $u, password: $p, reset: $r}')
+          ok=""
+          for i in $(seq 1 6); do
+            if res=$(curl -fsS -X POST "$URL/v1/admin/provision-teacher" -H "authorization: Bearer $token" -H "content-type: application/json" --data-binary "$body"); then ok=1; break; fi
+            sleep 10
+          done
+          openssl rand -hex 32 | npx wrangler secret put ADMIN_TOKEN > /dev/null
+          if [ -z "$ok" ]; then echo "::error::Teacher provisioning failed."; exit 1; fi
+          echo "Provisioning result: $(echo "$res" | jq -r .status) ($TEACHER_USERNAME)"
+
       - run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: /codewarrior
@@ -72,6 +137,8 @@ jobs:
           # Public URL of the tutor server: the one just deployed, else the TUTOR_URL repository
           # variable. Empty = tutor offline.
           NEXT_PUBLIC_TUTOR_URL: ${{ steps.tutor.outputs.url || vars.TUTOR_URL }}
+          NEXT_PUBLIC_CLASSROOM_URL: ${{ steps.classroom.outputs.url || vars.CLASSROOM_URL }}
+          NEXT_PUBLIC_CONTENT_VERSION: ${{ github.sha }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

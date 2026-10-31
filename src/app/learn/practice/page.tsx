@@ -12,6 +12,8 @@ import { lessonById, lessonForSkill, lessonsFor } from "@/lib/learn/lessons";
 import { DIFFICULTY, buildPracticeSet, type Difficulty } from "@/lib/learn/practice";
 import { addRecent, setCourse } from "@/lib/learn/store";
 import { useLearn } from "@/lib/learn/useLearn";
+import SyncStatus from "@/components/cloud/SyncStatus";
+import { assignmentFor } from "@/lib/cloud/home";
 
 export default function PracticePage() {
   return (
@@ -28,7 +30,7 @@ function Practice() {
   const skill = params.get("skill") || undefined;
   const lessonParam = params.get("lesson") || (skill ? lessonForSkill(skill, profile?.course)?.id : undefined) || "";
   const difficulty = (DIFFICULTY.some((d) => d.id === params.get("difficulty")) ? params.get("difficulty") : "mixed") as Difficulty;
-  const [count, setCount] = useState(5);
+  const [count, setCount] = useState(() => Math.max(3, Math.min(20, Number(params.get("count")) || 5)));
   const [running, setRunning] = useState(false);
   const [round, setRound] = useState(0);
   const [summary, setSummary] = useState<RunSummary | null>(null);
@@ -43,6 +45,7 @@ function Practice() {
   }, [params]);
 
   const lesson = lessonById(lessonParam);
+  const assignment = useMemo(() => assignmentFor(params.get("assignment"), (a) => a.target.kind === "practice" && a.target.lessonId === lesson?.id), [params, lesson?.id]);
   const course: Course = lesson?.course || profile?.course || "csa";
   const items = useMemo(
     () => buildPracticeSet({ course, lessonId: lesson?.id, skill: focusSkill, difficulty, count, seed: Date.now() % 1_000_000 + round }),
@@ -123,13 +126,15 @@ function Practice() {
 
         <div className={`min-w-0 ${running ? "order-1 lg:order-none" : ""}`}>
           {running && profile && items.length > 0 ? (
-            <PracticeRunner accountId={account.id} course={course} prefs={profile.prefs} items={items} source="practice" onDone={done} onAskTutor={ask} />
+            <PracticeRunner accountId={account.id} course={course} prefs={profile.prefs} items={items} source="practice" onDone={done} onAskTutor={ask} report={{ lessonId: lesson?.id, classId: assignment?.classId, assignmentId: assignment?.id }} />
           ) : summary ? (
             <section className="card flex flex-col gap-3 p-5 sm:p-6">
               <div className="font-display text-3xl">Set complete</div>
               <p className="text-lg font-bold text-ink">
                 {summary.firstTry} of {summary.total} right on the first try.
               </p>
+              {assignment && <p className="font-bold text-ink-soft">For your class assignment: {assignment.title}</p>}
+              <SyncStatus sessionId={summary.runId} assigned={!!assignment} />
               {summary.missedSkills.length > 0 ? (
                 <div>
                   <p className="font-bold text-ink-soft">These came up as misses. Practicing one directly is the fastest fix:</p>

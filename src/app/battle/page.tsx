@@ -22,6 +22,9 @@ import { answerText, givenText } from "@/lib/learn/practice";
 import { play } from "@/lib/sfx";
 import { ENEMY_MOVESETS } from "@/lib/enemyCombat";
 import { useWarrior } from "@/lib/useWarrior";
+import SyncStatus from "@/components/cloud/SyncStatus";
+import { assignmentFor } from "@/lib/cloud/home";
+import { startRun, type Run } from "@/lib/cloud/reporter";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -53,6 +56,8 @@ function Battle() {
   const world = WORLDS[w];
   const enemy = world.enemies[b];
   const boss = b === BOSS;
+  // Launched from a class assignment: carries the class context into the recorded result.
+  const assignment = useMemo(() => assignmentFor(params.get("assignment"), (a) => a.target.kind === "battles" && a.target.battles.some(([aw, ab]) => aw === w && ab === b)), [params, w, b]);
   const { account, progress, refresh } = useWarrior();
   const compact = useCompact();
   const arena = useRef<ArenaHandle>(null);
@@ -66,7 +71,9 @@ function Battle() {
   const [hint, setHint] = useState<string | null>(null);
   const [note, setNote] = useState<string | undefined>();
   const [banner, setBanner] = useState<string | null>(null);
-  const [end, setEnd] = useState<null | { victory: boolean; rewards: Rewards | null; firstTry: number; total: number; bestCombo: number }>(null);
+  const [end, setEnd] = useState<null | { victory: boolean; rewards: Rewards | null; firstTry: number; total: number; bestCombo: number; runId: string | null }>(null);
+  const report = useRef<Run | null>(null);
+  const used = useRef<Record<string, number>>({});
   const [leaving, setLeaving] = useState(false);
   const bsRef = useRef<BattleState | null>(null);
   bsRef.current = bs;
@@ -76,7 +83,7 @@ function Battle() {
   // Start (or restart) the battle once the warrior is loaded.
   useEffect(() => {
     if (!progress) return;
-    if (!battleUnlocked(progress, w, b)) {
+    if (!battleUnlocked(progress, w, b) && !assignment) {
       router.replace(`/map/?w=${w}`);
       return;
     }
@@ -88,6 +95,9 @@ function Battle() {
     setGateRequired(false);
     const s = startBattle(w, b, buildBattle(w, b, seed));
     setBs(s);
+    report.current?.abandon();
+    used.current = {};
+    report.current = startRun({ kind: "battle", world: w, battle: b, classId: assignment?.classId, assignmentId: assignment?.id, questionCount: s.questions.length });
     setPhase("intro");
     setHint(null);
     setEnd(null);
@@ -105,12 +115,22 @@ function Battle() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress?.id, w, b, seed, gatePassed]);
 
+  // Leaving mid-battle records the run as abandoned (not as a completed battle).
+  useEffect(() => () => report.current?.abandon(), []);
+
   // Test hook: lets automated playtests read the current answer.
   useEffect(() => {
     try {
       if (localStorage.getItem("cw.debug") !== "1" || !bs) return;
       const q = current(bs);
-      (window as unknown as Record<string, unknown>).__cw = { kind: q.kind, answer: q.kind === "choice" ? q.correct : q.kind === "order" ? q.lines : q.answers?.[0], phase, over: bs.over };
+      const right = q.kind === "choice" ? q.correct! : q.kind === "order" ? q.lines! : q.answers![0];
+      const wrong = q.kind === "choice" ? (q.correct! + 1) % q.options!.length : q.kind === "order" ? [...q.lines!].reverse() : "definitely wrong";
+      (window as unknown as Record<string, unknown>).__cw = {
+        kind: q.kind, answer: right, phase, over: bs.over,
+        // Automated playtests only: answer the current question right or wrong, or move on.
+        play: (ok: boolean) => submitRef.current?.(ok ? right : wrong),
+        next: () => proceedRef.current?.(),
+      };
     } catch {}
   }, [bs, phase]);
 
@@ -119,9 +139,12 @@ function Battle() {
       if (!account) return;
       const sum = summary(s);
       const victory = s.over === "victory";
+      const r = report.current;
+      // Queued on the device before the rewards screen; uploads in the background.
+      await r?.finish({ outcome: victory ? "won" : "lost", itemsUsed: used.current, hintsUsed: used.current.scroll || 0, bestCombo: s.bestCombo });
       const rewards = await recordBattle(account.id, { world: w, battle: b, victory, firstTry: sum.firstTry, total: sum.total, skills: sum.skills });
       await refresh();
-      setEnd({ victory, rewards, firstTry: sum.firstTry, total: sum.total, bestCombo: s.bestCombo });
+      setEnd({ victory, rewards, firstTry: sum.firstTry, total: sum.total, bestCombo: s.bestCombo, runId: r?.id ?? null });
       setPhase("over");
       if (victory) {
         play("victory");
@@ -136,6 +159,10 @@ function Battle() {
     if (!s || !arena.current) return;
     const q = current(s);
     const right = isRight(q, value as never);
+    report.current?.attempt({
+      index: s.queue[s.pos], round: s.round, tryNo: s.attempt, questionId: q.id, skill: q.skill, kind: q.kind, prompt: q.prompt, code: q.code,
+      options: q.kind === "choice" ? q.options : q.kind === "order" ? q.lines : undefined, given: givenText(q, value), expected: answerText(q), correct: right, hinted: s.hinted,
+    });
     // Learn Mode uses these to find recent mistakes. Recorded once per resolved question.
     if (account && (right || s.attempt >= 1)) {
       void recordAttempt({
@@ -175,6 +202,8 @@ function Battle() {
     setPhase(next);
   };
 
+  const submitRef = useRef<((v: string | number | string[]) => Promise<void>) | null>(null);
+  const proceedRef = useRef<(() => void) | null>(null);
   const proceed = () => {
     const s = bsRef.current;
     if (!s || s.over) return;
@@ -189,10 +218,14 @@ function Battle() {
     setPhase("answering");
   };
 
+  submitRef.current = submit;
+  proceedRef.current = proceed;
+
   const usePower = async (kind: Power) => {
     const s = bsRef.current;
     if (!s || !account || !arena.current || (phase !== "answering" && phase !== "retry")) return;
     if (!(await useItem(account.id, kind))) return;
+    used.current[kind] = (used.current[kind] || 0) + 1;
     await refresh();
     if (kind === "potion") {
       setBs(usePotion(s));
@@ -350,7 +383,7 @@ function Battle() {
         </div>
       </div>
 
-      <AnimatePresence>{end && <EndScreen key="end" end={end} w={w} b={b} onAgain={() => { setRevive(!end.victory); setRun((r) => r + 1); }} />}</AnimatePresence>
+      <AnimatePresence>{end && <EndScreen key="end" end={end} w={w} b={b} assigned={!!assignment} onAgain={() => { setRevive(!end.victory); setRun((r) => r + 1); }} />}</AnimatePresence>
 
       <AnimatePresence>
         {leaving && (
@@ -387,7 +420,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose?: () 
   );
 }
 
-function EndScreen({ end, w, b, onAgain }: { end: { victory: boolean; rewards: Rewards | null; firstTry: number; total: number; bestCombo: number }; w: number; b: number; onAgain: () => void }) {
+function EndScreen({ end, w, b, onAgain, assigned }: { end: { victory: boolean; rewards: Rewards | null; firstTry: number; total: number; bestCombo: number; runId: string | null }; w: number; b: number; onAgain: () => void; assigned: boolean }) {
   const world = WORLDS[w];
   const boss = b === BOSS;
   const r = end.rewards;
@@ -411,6 +444,7 @@ function EndScreen({ end, w, b, onAgain }: { end: { victory: boolean; rewards: R
         <div className="text-center">
           <div className="mx-auto w-40"><Monster enemy={world.enemies[b]} boss={boss} size={160} /></div>
           <h2 className="mt-2 font-display text-4xl text-danger-deep">KNOCKED OUT</h2>
+          <SyncStatus sessionId={end.runId} assigned={assigned} />
           <p className="mt-2 font-bold text-ink-soft">
             {world.enemies[b].name} won this round. Every warrior loses sometimes. Health potions and firewalls from the shop help in tough fights.
           </p>
@@ -445,6 +479,7 @@ function EndScreen({ end, w, b, onAgain }: { end: { victory: boolean; rewards: R
         <p className="mt-3 text-sm font-bold text-ink-mute">
           {end.firstTry} of {end.total} right on the first try{r?.replay ? " · replay rewards are halved" : ""}
         </p>
+        <SyncStatus sessionId={end.runId} assigned={assigned} />
         <div className="mt-4 flex flex-col gap-2">
           {r?.levelUp && <Badge color="#8B5CF6">Level up!</Badge>}
           {r?.newTitle && <Badge color="#FF8A00">New title unlocked: {r.newTitle}</Badge>}

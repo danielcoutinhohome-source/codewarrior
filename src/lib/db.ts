@@ -13,8 +13,9 @@ export type Avatar = {
 };
 
 export type Account = {
-  id: string; // lowercased username, unique per device
+  id: string; // lowercased username, unique per device; "c:<user id>" for a class account
   username: string; // as typed
+  cloudUserId?: string; // set for class accounts: the server account this warrior belongs to
   passwordHash: string;
   salt: string;
   avatar: Avatar;
@@ -100,7 +101,18 @@ export type Conversation = {
 export const emptyStats = (): Stats => ({ battles: 0, wins: 0, losses: 0, questions: 0, firstTry: 0, bosses: 0 });
 
 // All saves live in this browser's IndexedDB. Nothing here is sent anywhere.
+// A classroom event waiting to upload. Removed only after the server acknowledges it.
+export type OutboxItem = {
+  seq?: number;
+  id: string; // event id (idempotency key)
+  userId: string; // the class account that created it; never uploaded under another account
+  sessionId: string;
+  event: unknown; // SyncEvent
+  createdAt: number;
+};
+
 export const db = new Dexie("codewarrior") as Dexie & {
+  outbox: EntityTable<OutboxItem, "seq">;
   accounts: EntityTable<Account, "id">;
   progress: EntityTable<Progress, "id">;
   learn: EntityTable<LearnProfile, "id">;
@@ -141,6 +153,16 @@ db.version(3).stores({
   learn: "id",
   attempts: "++id, accountId, [accountId+at], [accountId+skill]",
   conversations: "id, accountId, [accountId+updatedAt]",
+});
+
+// v4: classroom sync outbox. New table only.
+db.version(4).stores({
+  accounts: "id, createdAt",
+  progress: "id",
+  learn: "id",
+  attempts: "++id, accountId, [accountId+at], [accountId+skill]",
+  conversations: "id, accountId, [accountId+updatedAt]",
+  outbox: "++seq, &id, userId, sessionId",
 });
 
 // A newer version of the site opened in another tab needs this tab to let go of the save,

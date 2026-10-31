@@ -9,6 +9,9 @@ import { Button, Logo, Sky } from "@/components/ui";
 import { listWarriors, logIn } from "@/lib/auth";
 import type { Account } from "@/lib/db";
 import { importBackup } from "@/lib/progress";
+import { api, classroomEnabled, setCloud } from "@/lib/cloud/client";
+import { enterGame } from "@/lib/cloud/progressSync";
+import type { Me } from "@/lib/cloud/protocol";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,6 +20,10 @@ export default function LoginPage() {
   const [pass, setPass] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"class" | "device">("device");
+  useEffect(() => {
+    if (classroomEnabled()) setMode("class");
+  }, []);
   const shake = useAnimationControls();
 
   useEffect(() => {
@@ -31,6 +38,14 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
+      if (mode === "class") {
+        const r = await api<{ token: string; me: Me }>("POST", "/auth/login", { username: name.trim(), password: pass }, { token: null });
+        setCloud(r);
+        if (r.me.mustChangePassword) return router.push("/account/?change=1");
+        if (r.me.role === "teacher") return router.push("/teacher/");
+        await enterGame(r.me);
+        return router.push("/map/");
+      }
       await logIn(name, pass);
       router.push("/map/");
     } catch (err) {
@@ -52,8 +67,18 @@ export default function LoginPage() {
       <main className="mx-auto flex max-w-5xl flex-wrap items-start gap-8 px-6 pb-48 pt-2">
         <motion.form onSubmit={submit} animate={shake} className="card flex min-w-0 flex-[1_1_360px] flex-col gap-5 p-8">
           <h1 className="font-display text-[44px] leading-none">Welcome back</h1>
+          {classroomEnabled() && (
+            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-sky p-1" role="tablist" aria-label="Account type">
+              {([["class", "Class account"], ["device", "This device"]] as const).map(([v, label]) => (
+                <button key={v} type="button" role="tab" aria-selected={mode === v} onClick={() => { setMode(v); setError(null); }} className="rounded-xl py-2 text-sm font-black" style={{ background: mode === v ? "#FFFFFF" : "transparent", color: mode === v ? "#1F2440" : "#4A5175", boxShadow: mode === v ? "0 2px 0 #D5E4F5" : undefined }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+          {mode === "class" && <p className="-mt-2 text-sm font-bold text-ink-soft">Students and teachers with a class account sign in here, on any device.</p>}
           <label className="field-label" htmlFor="li-name">
-            Warrior name
+            {mode === "class" ? "Username" : "Warrior name"}
             <input id="li-name" className="field" autoComplete="username" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="field-label" htmlFor="li-pass">
@@ -78,7 +103,7 @@ export default function LoginPage() {
           </Button>
         </motion.form>
 
-        <section className="card min-w-0 flex-[1_1_320px] p-7">
+        <section className="card min-w-0 flex-[1_1_320px] p-7" hidden={mode === "class"}>
           <h2 className="font-display text-2xl">Warriors on this device</h2>
           {warriors === null ? null : warriors.length === 0 ? (
             <p className="mt-3 font-bold text-ink-soft">
