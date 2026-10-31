@@ -94,7 +94,7 @@ export default function StudentDetail({ classId, studentId, version, onBack, onS
             {WORLDS.map((w, i) => (
               <div key={w.name} className="flex items-center justify-between gap-2 rounded-xl bg-sky px-2 py-1 text-xs font-black">
                 <span className="truncate">{w.name}</span>
-                <span className="flex gap-0.5">{[0, 1, 2, 3, BOSS].map((b) => <span key={b} title={`${b === BOSS ? "Boss" : `Battle ${b + 1}`}`} className="h-3 w-3 rounded-full" style={{ background: won.has(`${i}-${b}`) ? (b === BOSS ? "#FF8A00" : "#3EC46D") : "#CFDAE8" }} />)}</span>
+                <span className="flex gap-0.5">{[0, 1, 2, 3, BOSS].map((b) => <span key={b} title={`${b === BOSS ? "Boss" : `Battle ${b + 1}`}`} className="h-3 w-3 rounded-full" style={{ background: won.has(`${i}-${b}`) ? (b === BOSS ? "#1F7DB5" : "#3EC46D") : "#CFDAE8" }} />)}</span>
               </div>
             ))}
           </div>

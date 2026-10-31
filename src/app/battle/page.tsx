@@ -298,7 +298,7 @@ function Battle() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4A5175" strokeWidth="3.2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
           <div className="min-w-0 flex-[1_1_220px]">
-            <div className="text-[12px] font-black uppercase tracking-[0.14em]" style={{ color: boss ? "#D9434A" : "#FF8A00" }}>
+            <div className="text-[12px] font-black uppercase tracking-[0.14em]" style={{ color: boss ? "#D9434A" : "#1F7DB5" }}>
               {world.name} · {boss ? "Boss battle" : `Battle ${b + 1}`}
               {bs.round > 0 && ` · Round ${bs.round + 1}`}
             </div>
@@ -312,7 +312,7 @@ function Battle() {
                 <motion.span
                   key={i}
                   className="h-3.5 w-7 rounded-full"
-                  animate={{ scale: isNow ? 1.15 : 1, background: isNow ? "#FF8A00" : done ? ((bs.firstTry[i] ?? bs.cleared[i]) ? "#3EC46D" : "#FF5A5F") : "#CFDAE8" }}
+                  animate={{ scale: isNow ? 1.15 : 1, background: isNow ? "#1F7DB5" : done ? ((bs.firstTry[i] ?? bs.cleared[i]) ? "#3EC46D" : "#FF5A5F") : "#CFDAE8" }}
                   transition={{ type: "spring", stiffness: 400, damping: 20 }}
                 />
               );
@@ -334,7 +334,7 @@ function Battle() {
             {phase === "intro" ? (
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="card grid place-items-center p-10 text-center">
                 <div className="font-display text-[clamp(34px,5vw,54px)] leading-none">
-                  <span style={{ color: boss ? "#D9434A" : "#FF8A00" }}>{boss ? "BOSS FIGHT" : "BATTLE START"}</span>
+                  <span style={{ color: boss ? "#D9434A" : "#1F7DB5" }}>{boss ? "BOSS FIGHT" : "BATTLE START"}</span>
                 </div>
                 <p className="mt-3 max-w-md text-base font-bold text-ink">{enemy.lore}</p>
                 <span className="mt-3 rounded-full bg-ink px-4 py-2 text-xs font-black uppercase tracking-wider text-white">{ENEMY_MOVESETS[enemy.design].finisher.name}</span>
@@ -481,7 +481,7 @@ function EndScreen({ end, w, b, onAgain, assigned }: { end: { victory: boolean; 
   return (
     <Modal>
       <div className="text-center">
-        <motion.h2 initial={{ scale: 0.4, rotate: -6 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 12 }} className="font-display text-[44px] leading-none" style={{ color: boss ? "#D9434A" : "#FF8A00" }}>
+        <motion.h2 initial={{ scale: 0.4, rotate: -6 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 12 }} className="font-display text-[44px] leading-none" style={{ color: boss ? "#D9434A" : "#1F7DB5" }}>
           {boss ? "BOSS DEFEATED!" : "VICTORY!"}
         </motion.h2>
         <p className="mt-1 font-bold text-ink-soft">You beat {world.enemies[b].name}.</p>
@@ -495,7 +495,7 @@ function EndScreen({ end, w, b, onAgain, assigned }: { end: { victory: boolean; 
         <div className="mt-5 grid grid-cols-3 gap-2">
           <Stat label="XP" value={`+${r?.xp ?? 0}`} color="#6D4BD8" />
           <Stat label="Coins" value={<span className="inline-flex items-center gap-1"><CoinIcon size={22} />+{coins}</span>} color="#8A6400" />
-          <Stat label="Best combo" value={`${end.bestCombo}x`} color="#FF8A00" />
+          <Stat label="Best combo" value={`${end.bestCombo}x`} color="#1F7DB5" />
         </div>
         <p className="mt-3 text-sm font-bold text-ink-mute">
           {end.firstTry} of {end.total} right on the first try{r?.replay ? " · replay rewards are halved" : ""}
@@ -503,7 +503,7 @@ function EndScreen({ end, w, b, onAgain, assigned }: { end: { victory: boolean; 
         <SyncStatus sessionId={end.runId} assigned={assigned} />
         <div className="mt-4 flex flex-col gap-2">
           {r?.levelUp && <Badge color="#8B5CF6">Level up!</Badge>}
-          {r?.newTitle && <Badge color="#FF8A00">New title unlocked: {r.newTitle}</Badge>}
+          {r?.newTitle && <Badge color="#1F7DB5">New title unlocked: {r.newTitle}</Badge>}
           {r?.unlockedWorld !== undefined && <Badge color="#2D9CDB">New world unlocked: {WORLDS[r.unlockedWorld].name}</Badge>}
           {boss && w === WORLDS.length - 1 && <Badge color="#3EC46D">You cleared every world. You&apos;re ready for LeetCode.</Badge>}
         </div>

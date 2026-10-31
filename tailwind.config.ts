@@ -9,7 +9,8 @@ const config: Config = {
         ink: { DEFAULT: "#1F2440", soft: "#4A5175", mute: "#6B7294" },
         sky: { DEFAULT: "#DFF2FF", deep: "#A9DEFF", night: "#2B2F5E", void: "#1C1F45" },
         line: { DEFAULT: "#D5E4F5", deep: "#C5D7EC" },
-        ember: { DEFAULT: "#FF8A00", deep: "#D96F00", soft: "#FFF1E0" },
+        // Brand blue (the logo tile). Primary buttons, highlights and links.
+        brand: { DEFAULT: "#1F7DB5", deep: "#165E8A", soft: "#E2F3FF" },
         ocean: { DEFAULT: "#2D9CDB", deep: "#1F7DB5", soft: "#E2F3FF" },
         grass: { DEFAULT: "#8FDD6A", deep: "#6CC447" },
         gold: { DEFAULT: "#FFC83D", deep: "#E5A300", soft: "#FFF6DB" },

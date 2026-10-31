@@ -197,7 +197,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
                     onClick={() => onSelect(b)}
                     aria-label={`${boss ? "Boss" : `Battle ${b + 1}`}${hidden ? ", hidden in the fog" : `: ${enemy.name}`}${won ? `, won with ${stars[b]} stars` : open ? "" : ", locked"}`}
                     className="grid h-full w-full place-items-center rounded-[50%] border-[6px] border-white font-display text-[34px] text-white"
-                    style={{ background: won ? "#FFC83D" : next ? "#FF8A00" : boss ? "#E5484D" : "#A9B4C8", boxShadow: `0 12px 0 ${won ? "#E5A300" : next ? "#D96F00" : boss ? "#B3343A" : "#7D879E"}${selected === b ? ", 0 0 0 8px rgba(255,255,255,.55)" : ""}` }}
+                    style={{ background: won ? "#FFC83D" : next ? "#1F7DB5" : boss ? "#E5484D" : "#A9B4C8", boxShadow: `0 12px 0 ${won ? "#E5A300" : next ? "#165E8A" : boss ? "#B3343A" : "#7D879E"}${selected === b ? ", 0 0 0 8px rgba(255,255,255,.55)" : ""}` }}
                   >
                     {won ? "✓" : boss ? "!" : b + 1}
                   </button>
@@ -213,7 +213,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
                     whileHover={{ scale: 1.05 }}
                     transition={{ duration: 0.25, ease }}
                   >
-                    {selected === b && !hidden && <span className="absolute bottom-[1%] left-[16%] h-[11%] w-[68%] rounded-[50%] border-[5px] border-white/90" style={{ boxShadow: "0 0 0 5px rgba(255,138,0,.6)" }} />}
+                    {selected === b && !hidden && <span className="absolute bottom-[1%] left-[16%] h-[11%] w-[68%] rounded-[50%] border-[5px] border-white/90" style={{ boxShadow: "0 0 0 5px rgba(31,125,181,.6)" }} />}
                     <span className="block" style={{ filter: won ? "grayscale(1)" : hidden ? "brightness(0)" : undefined, opacity: won ? 0.8 : 1 }}>
                       {won ? (
                         <span className="block" data-defeated={enemy.design} style={{ transform: "translateY(10%) rotate(70deg) scale(0.85)", transformOrigin: "50% 70%" }}>
@@ -222,7 +222,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
                       ) : <MonsterArt enemy={enemy} boss={boss} size={size} silhouette={hidden || !open} idle={!hidden&&!reduced} />}
                     </span>
                     {next && !hidden && (
-                      <motion.span className="absolute left-1/2 top-[-6%] grid h-[15%] w-[15%] min-w-[26px] -translate-x-1/2 place-items-center rounded-full bg-white font-display text-ember" style={{ boxShadow: "0 4px 0 #D96F00", fontSize: size * 0.1 }} animate={{ y: [0, -8, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
+                      <motion.span className="absolute left-1/2 top-[-6%] grid h-[15%] w-[15%] min-w-[26px] -translate-x-1/2 place-items-center rounded-full bg-white font-display text-brand" style={{ boxShadow: "0 4px 0 #165E8A", fontSize: size * 0.1 }} animate={{ y: [0, -8, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
                         !
                       </motion.span>
                     )}

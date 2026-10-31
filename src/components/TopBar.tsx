@@ -61,7 +61,7 @@ export default function TopBar({ account, progress }: { account: Account; progre
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-2xl bg-ember-soft px-3 py-1.5 font-black text-[#B35A00]" title="Day streak">
+        <span className="inline-flex items-center gap-1.5 rounded-2xl bg-brand-soft px-3 py-1.5 font-black text-brand" title="Day streak">
           <FlameIcon /> {progress.streak}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-2xl bg-gold-soft px-3 py-1.5 font-black tabular-nums text-[#8A6400]" title="Coins" data-testid="coins">
