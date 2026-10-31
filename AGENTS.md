@@ -56,6 +56,12 @@ are useful approximations, not proof of performance on school hardware.
 
 ## Currently working on
 
+- **Question variety** / Codex / `codex/ap-question-variety` (provisional PR claim).
+  Scope: `src/lib/questions/variants-*.ts`, question core/index/history,
+  `scripts/verify-questions.ts`, a variety regression script, package test command,
+  and question-bank documentation. Add AP-level randomized families to worlds 1–6;
+  preserve existing skill keys and world 7. Claude Q4 Learn/tutor files stay untouched.
+
 - **Q4** / Claude (for Daniel) / next up. Claims `src/app/learn`, `src/lib/learn`,
   `src/lib/tutor`, `tutor-server/`, and a small post-battle "practice what you missed" link
   in `src/app/battle/page.tsx` (results screen only; reporter calls untouched). Codex: if Q2
