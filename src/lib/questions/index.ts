@@ -14,13 +14,14 @@ import { W0_MORE } from "./more-w1";
 import { W1_MORE } from "./more-w2";
 import { W2_MORE } from "./more-w3";
 import { W3_MORE } from "./more-w4";
+import { W4_MORE } from "./more-w5";
 
 export * from "./core";
 // Each world has 60 distinct templates: 15 novice, 30 intermediate, 15 hard.
 // Retain the original generators (and their skills for saved progress).
 export const BANKS: Gen[][] = [
   [...W0, ...SYNTAX, ...W0_MORE], [...W1, ...BRANCHES, ...W1_MORE], [...W2, ...LOOPS, ...W2_MORE],
-  [...W3, ...STRINGS, ...W3_MORE], [...W4, ...ARRAYS], [...W5, ...CLASSES], [...W6, ...ALGORITHMS],
+  [...W3, ...STRINGS, ...W3_MORE], [...W4, ...ARRAYS, ...W4_MORE], [...W5, ...CLASSES], [...W6, ...ALGORITHMS],
 ];
 
 // The mix rises across all 35 encounters, rather than resetting each world.
