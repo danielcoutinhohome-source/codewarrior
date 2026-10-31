@@ -16,6 +16,8 @@ import { POTION_HEAL, advance, answer, current, startBattle, summary, useHint, u
 import { BOSS, key, PLAYER_HP, POWERS, SHOP, WORLDS, type Power } from "@/lib/game";
 import { battleUnlocked, recordBattle, useItem, type Rewards } from "@/lib/progress";
 import { buildBattle, isRight } from "@/lib/questions";
+import { buildHistory, type QuestionHistory } from "@/lib/questions/history";
+import { db } from "@/lib/db";
 import { recordAttempt } from "@/lib/learn/store";
 import { isCspSkill } from "@/lib/learn/lessons";
 import { answerText, givenText } from "@/lib/learn/practice";
@@ -73,6 +75,23 @@ function Battle() {
   const [banner, setBanner] = useState<string | null>(null);
   const [end, setEnd] = useState<null | { victory: boolean; rewards: Rewards | null; firstTry: number; total: number; bestCombo: number; runId: string | null }>(null);
   const report = useRef<Run | null>(null);
+  // This world's answer history on this device, so question types don't repeat unless missed.
+  const history = useRef<QuestionHistory | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
+  const loadHistory = useCallback(async (accountId: string) => {
+    try {
+      const rows = await db.attempts.where("accountId").equals(accountId).filter((a) => a.source === "battle" && a.world === w).toArray();
+      history.current = buildHistory(rows);
+    } catch {
+      history.current = null; // play normally without history
+    }
+  }, [w]);
+  useEffect(() => {
+    if (!progress?.id) return;
+    let alive = true;
+    void loadHistory(progress.id).then(() => alive && setHistoryReady(true));
+    return () => { alive = false; };
+  }, [progress?.id, loadHistory]);
   const used = useRef<Record<string, number>>({});
   const [leaving, setLeaving] = useState(false);
   const bsRef = useRef<BattleState | null>(null);
@@ -93,7 +112,8 @@ function Battle() {
       if (!passed) { setGateRequired(true); return; }
     }
     setGateRequired(false);
-    const s = startBattle(w, b, buildBattle(w, b, seed));
+    if (!historyReady) return;
+    const s = startBattle(w, b, buildBattle(w, b, seed, history.current ?? undefined));
     setBs(s);
     report.current?.abandon();
     used.current = {};
@@ -113,7 +133,7 @@ function Battle() {
     })();
     return()=>{cancelled=true;};
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progress?.id, w, b, seed, gatePassed]);
+  }, [progress?.id, w, b, seed, gatePassed, historyReady]);
 
   // Leaving mid-battle records the run as abandoned (not as a completed battle).
   useEffect(() => () => report.current?.abandon(), []);
@@ -143,6 +163,7 @@ function Battle() {
       // Queued on the device before the rewards screen; uploads in the background.
       await r?.finish({ outcome: victory ? "won" : "lost", itemsUsed: used.current, hintsUsed: used.current.scroll || 0, bestCombo: s.bestCombo });
       const rewards = await recordBattle(account.id, { world: w, battle: b, victory, firstTry: sum.firstTry, total: sum.total, skills: sum.skills });
+      setTimeout(() => void loadHistory(account.id), 500); // answers are saved just before this; the next fight uses them
       await refresh();
       setEnd({ victory, rewards, firstTry: sum.firstTry, total: sum.total, bestCombo: s.bestCombo, runId: r?.id ?? null });
       setPhase("over");

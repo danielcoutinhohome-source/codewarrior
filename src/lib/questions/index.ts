@@ -1,5 +1,6 @@
 import { BOSS, QUESTIONS_PER_BATTLE, QUESTIONS_PER_BOSS } from "../game";
 import { rng, type Gen, type Question, type Tier } from "./core";
+import type { QuestionHistory } from "./history";
 import { W0, W1, W2 } from "./worlds-a";
 import { W3, W4, W5, W6 } from "./worlds-b";
 import { SYNTAX } from "./ap-syntax";
@@ -9,12 +10,13 @@ import { STRINGS } from "./ap-strings";
 import { ARRAYS } from "./ap-arrays";
 import { CLASSES } from "./ap-classes";
 import { ALGORITHMS } from "./ap-algorithms";
+import { W0_MORE } from "./more-w1";
 
 export * from "./core";
 // Each world has 60 distinct templates: 15 novice, 30 intermediate, 15 hard.
 // Retain the original generators (and their skills for saved progress).
 export const BANKS: Gen[][] = [
-  [...W0, ...SYNTAX], [...W1, ...BRANCHES], [...W2, ...LOOPS],
+  [...W0, ...SYNTAX, ...W0_MORE], [...W1, ...BRANCHES], [...W2, ...LOOPS],
   [...W3, ...STRINGS], [...W4, ...ARRAYS], [...W5, ...CLASSES], [...W6, ...ALGORITHMS],
 ];
 
@@ -32,7 +34,20 @@ export function questionFingerprint(q: Question) {
   return JSON.stringify([q.kind, q.prompt.trim(), q.code?.trim(), q.options ? [...q.options].sort() : null, q.lines ?? null]);
 }
 
-export function freshBattleQuestions(world: number, battle: number, seed: number, count: number, seen: Question[] = []): Question[] {
+// With a history, question types the student keeps missing come back first (up to about 40% of
+// a battle), then types they haven't seen, then the ones seen longest ago. Types they got right
+// stay away until the world's supply runs out. Difficulty targets apply either way.
+function orderByHistory(gens: Gen[], history: QuestionHistory | undefined, reviewLeft: { n: number }) {
+  if (!history) return gens;
+  const review = gens.filter((g) => history.review.has(g.skill));
+  const unseen = gens.filter((g) => !history.lastSeen.has(g.skill));
+  const seen = gens.filter((g) => history.lastSeen.has(g.skill) && !history.review.has(g.skill)).sort((a, b) => history.lastSeen.get(a.skill)! - history.lastSeen.get(b.skill)!);
+  const now = review.slice(0, reviewLeft.n);
+  reviewLeft.n -= now.length;
+  return [...now, ...unseen, ...seen, ...review.slice(now.length)];
+}
+
+export function freshBattleQuestions(world: number, battle: number, seed: number, count: number, seen: Question[] = [], history?: QuestionHistory): Question[] {
   const r = rng(seed * 7919 + world * 101 + battle * 13);
   const bank = BANKS[world];
   const used = new Set(seen.map(questionFingerprint));
@@ -48,14 +63,15 @@ export function freshBattleQuestions(world: number, battle: number, seed: number
     skills.add(g.skill);
     out.push(q);
   };
+  const reviewLeft = { n: Math.ceil(count * 0.4) };
   for (const tier of [0, 1, 2] as Tier[]) {
-    for (const g of r.shuffle(bank.filter(g => g.tier === tier))) {
+    for (const g of orderByHistory(r.shuffle(bank.filter(g => g.tier === tier)), history, reviewLeft)) {
       if (out.filter(q => q.tier === tier).length >= targets[tier]) break;
       take(g);
     }
   }
   // A depleted tier may borrow another tier, but never repeat displayed content.
-  for (const g of r.shuffle(bank)) {
+  for (const g of orderByHistory(r.shuffle(bank), history, { n: 0 })) {
     if (out.length >= count) break;
     take(g);
   }
@@ -65,8 +81,8 @@ export function freshBattleQuestions(world: number, battle: number, seed: number
   return shuffled;
 }
 
-export function buildBattle(world: number, battle: number, seed: number): Question[] {
-  return freshBattleQuestions(world, battle, seed, battle === BOSS ? QUESTIONS_PER_BOSS : QUESTIONS_PER_BATTLE);
+export function buildBattle(world: number, battle: number, seed: number, history?: QuestionHistory): Question[] {
+  return freshBattleQuestions(world, battle, seed, battle === BOSS ? QUESTIONS_PER_BOSS : QUESTIONS_PER_BATTLE, [], history);
 }
 
 export const allSkills = () => BANKS.map((b) => [...new Set(b.map((g) => g.skill))]);

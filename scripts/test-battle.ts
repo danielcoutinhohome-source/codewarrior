@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import { advance, answer, current, startBattle, summary, useShield, useSurge } from "../src/lib/battle";
-import { buildBattle, isRight, questionFingerprint, freshBattleQuestions, difficultyTargets } from "../src/lib/questions/index";
+import { BANKS, buildBattle, isRight, questionFingerprint, freshBattleQuestions, difficultyTargets } from "../src/lib/questions/index";
+import { buildHistory } from "../src/lib/questions/history";
 
 const qs = buildBattle(0, 0, 1);
 // 1) all right: enemy falls, possibly early from combos
@@ -66,4 +67,32 @@ for (let w = 0; w < 7; w++) {
 // Same displayed choice with a different ID / option order is still a repeat.
 const choiceA = { ...qs[0], kind: "choice" as const, options: ["a", "b", "c", "d"] };
 assert.equal(questionFingerprint(choiceA), questionFingerprint({ ...choiceA, id: "new", options: ["d", "c", "a", "b"] }));
+// History: a student who played through a world sees no repeated question types until the
+// world's supply runs out, and missed types come back until right twice in a row.
+{
+  const w = 2;
+  let t = 1;
+  const seenSkills: string[] = [];
+  const rows: { skill: string; firstTry: boolean; at: number }[] = [];
+  for (let b = 0; b < 5; b++) {
+    const qs2 = buildBattle(w, b, 100 + b, buildHistory(rows));
+    for (const q of qs2) {
+      assert.ok(!seenSkills.includes(q.skill), `repeat of ${q.skill} before the bank ran out`);
+      seenSkills.push(q.skill);
+      rows.push({ skill: q.skill, firstTry: true, at: t++ });
+    }
+  }
+  // Miss one type: it comes back in the next battle, and again until right twice in a row.
+  const missed = seenSkills[3];
+  rows.push({ skill: missed, firstTry: false, at: t++ });
+  assert.ok(buildBattle(w, 0, 999, buildHistory(rows)).some((q) => q.skill === missed), "missed type returns");
+  rows.push({ skill: missed, firstTry: true, at: t++ });
+  assert.ok(buildHistory(rows).review.has(missed), "one right isn't enough");
+  rows.push({ skill: missed, firstTry: true, at: t++ });
+  assert.ok(!buildHistory(rows).review.has(missed), "two rights in a row clear it");
+  // Reviews never take over a battle.
+  const many = BANKS[w].map((g, i) => ({ skill: g.skill, firstTry: false, at: i }));
+  const qs3 = buildBattle(w, 4, 5, buildHistory(many));
+  assert.ok(qs3.length === 8);
+}
 console.log("campaign progression and fresh-question regression tests passed");
