@@ -59,9 +59,10 @@ function check(q: Question) {
 
 let total = 0;
 BANKS.forEach((bank, w) => {
-  // Each world: 100 templates, 25 novice / 50 intermediate / 25 hard.
-  if (bank.length !== 100) problems.push(`world ${w}: expected 100 templates, got ${bank.length}`);
-  for (const [tier, want] of [25, 50, 25].entries()) {
+  // Keep the bank composition at 25% novice / 50% intermediate / 25% hard.
+  const expected = w < 6 ? 112 : 100;
+  if (bank.length !== expected) problems.push(`world ${w}: expected ${expected} templates, got ${bank.length}`);
+  for (const [tier, want] of [expected / 4, expected / 2, expected / 4].entries()) {
     const got = bank.filter((g) => g.tier === tier).length;
     if (got !== want) problems.push(`world ${w} tier ${tier}: expected ${want}, got ${got}`);
   }
@@ -72,7 +73,7 @@ BANKS.forEach((bank, w) => {
     const fingerprint = JSON.stringify([sample.kind, sample.prompt, sample.code, sample.options && [...sample.options].sort(), sample.lines]);
     if (fingerprints.has(fingerprint)) problems.push(`world ${w}: duplicate template ${g.skill}`);
     fingerprints.add(fingerprint);
-    const seeds = g.once ? 1 : SEEDS;
+    const seeds = g.once ? 1 : g.varied ? Math.max(32, SEEDS) : SEEDS;
     for (let s = 0; s < seeds; s++) {
       check(g.make(rng(1000 * w + 31 * s + 7)));
       total++;

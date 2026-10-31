@@ -1,5 +1,5 @@
 import { BOSS, QUESTIONS_PER_BATTLE, QUESTIONS_PER_BOSS } from "../game";
-import { rng, type Gen, type Question, type Tier } from "./core";
+import { rng, questionContentKey, type Gen, type Question, type Tier } from "./core";
 import type { QuestionHistory } from "./history";
 import { W0, W1, W2 } from "./worlds-a";
 import { W3, W4, W5, W6 } from "./worlds-b";
@@ -18,13 +18,16 @@ import { W4_MORE } from "./more-w5";
 import { W5_MORE } from "./more-w6";
 import { W6_MORE } from "./more-w7";
 
+import { EARLY_VARIANTS } from "./variants-early";
+import { LATER_VARIANTS } from "./variants-later";
+export const VARIANT_BANKS = [...EARLY_VARIANTS, ...LATER_VARIANTS];
+
 export * from "./core";
-// Each world has 100 distinct templates: 25 novice, 50 intermediate, 25 hard (more-w*.ts
-// hold the second batch).
+// Worlds 1–6: 112 templates (28/56/28); world 7: 100 (25/50/25).
 // Retain the original generators (and their skills for saved progress).
 export const BANKS: Gen[][] = [
-  [...W0, ...SYNTAX, ...W0_MORE], [...W1, ...BRANCHES, ...W1_MORE], [...W2, ...LOOPS, ...W2_MORE],
-  [...W3, ...STRINGS, ...W3_MORE], [...W4, ...ARRAYS, ...W4_MORE], [...W5, ...CLASSES, ...W5_MORE], [...W6, ...ALGORITHMS, ...W6_MORE],
+  [...W0, ...SYNTAX, ...W0_MORE, ...VARIANT_BANKS[0]], [...W1, ...BRANCHES, ...W1_MORE, ...VARIANT_BANKS[1]], [...W2, ...LOOPS, ...W2_MORE, ...VARIANT_BANKS[2]],
+  [...W3, ...STRINGS, ...W3_MORE, ...VARIANT_BANKS[3]], [...W4, ...ARRAYS, ...W4_MORE, ...VARIANT_BANKS[4]], [...W5, ...CLASSES, ...W5_MORE, ...VARIANT_BANKS[5]], [...W6, ...ALGORITHMS, ...W6_MORE],
 ];
 
 // The mix rises across all 35 encounters, rather than resetting each world.
@@ -63,12 +66,17 @@ export function freshBattleQuestions(world: number, battle: number, seed: number
   const targets = difficultyTargets(world, battle, count);
   const take = (g: Gen) => {
     if (skills.has(g.skill)) return;
-    const q = { ...g.make(r), tier: g.tier };
-    const key = questionFingerprint(q);
-    if (used.has(key)) return;
-    used.add(key);
-    skills.add(g.skill);
-    out.push(q);
+    // A generator may have many parameter combinations. Retry a bounded number
+    // of cases before skipping it; static templates still finish quickly.
+    for (let attempt = 0; attempt < (world < 6 && !g.once ? 8 : 1); attempt++) {
+      const q = { ...g.make(r), tier: g.tier };
+      const key = questionFingerprint(q);
+      if (used.has(key) || (world < 6 && history?.recentContent?.has(questionContentKey(q)))) continue;
+      used.add(key);
+      skills.add(g.skill);
+      out.push(q);
+      break;
+    }
   };
   const reviewLeft = { n: Math.ceil(count * 0.4) };
   for (const tier of [0, 1, 2] as Tier[]) {
