@@ -145,3 +145,13 @@ export function Swatch({ color, selected, label, onClick }: { color: string; sel
     />
   );
 }
+
+// The page shell. When a screen had to wait for the save to load, its content eases in
+// slowly instead of popping in; when the warrior was already in memory it shows at once.
+export function Screen({ fade, children }: { fade: boolean; children: React.ReactNode }) {
+  return (
+    <motion.div className="min-h-dvh bg-sky" initial={fade ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
+      {children}
+    </motion.div>
+  );
+}

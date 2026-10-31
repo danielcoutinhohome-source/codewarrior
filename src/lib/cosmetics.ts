@@ -1,20 +1,16 @@
 import type { ShopItem } from "./game";
 
-export const WEAPON_PALETTES = [
-  { id: "crimson", name: "Crimson", color: "#FF426C" },
-  { id: "glacier", name: "Glacier", color: "#58DFFF" },
-  { id: "violet", name: "Void", color: "#A77BFF" },
-  { id: "jade", name: "Jade", color: "#47F5B5" },
-  { id: "solar", name: "Solar", color: "#FFD368" },
-] as const;
+// One of each weapon type. A weapon always glows in the warrior's energy color.
 export const WEAPON_TYPES = ["scythe", "hammer", "glaive"] as const;
 export type WeaponType = (typeof WEAPON_TYPES)[number];
-export const WEAPONS = WEAPON_TYPES.flatMap((type) => WEAPON_PALETTES.map((palette) => ({
-  value: `${type}-${palette.id}`, type, color: palette.color,
-  name: `${palette.name} ${type === "scythe" ? "Scythe" : type === "hammer" ? "Warhammer" : "Glaive"}`,
-  price: type === "scythe" ? 450 : type === "hammer" ? 400 : 500,
-})));
-export const weaponSpec = (value?: string) => WEAPONS.find((weapon) => weapon.value === value);
+export const WEAPONS: { value: WeaponType; type: WeaponType; name: string; price: number }[] = [
+  { value: "scythe", type: "scythe", name: "Reaper Scythe", price: 450 },
+  { value: "hammer", type: "hammer", name: "Warhammer", price: 400 },
+  { value: "glaive", type: "glaive", name: "Glaive", price: 500 },
+];
+// Older saves stored a color with the type, like "scythe-crimson". The type is what counts now.
+export const weaponType = (value?: string) => value?.split("-")[0];
+export const weaponSpec = (value?: string) => WEAPONS.find((weapon) => weapon.value === weaponType(value));
 
 export const HEADWEAR = [
   { value: "wizard", name: "Arcane Wizard", price: 350, blurb: "A sweeping sorcerer's hat with a star charm." },
@@ -60,9 +56,9 @@ export const EXTRA_AURAS = [
 export const EXTRA_AURA_COLORS: Record<string, readonly [string, string]> = Object.fromEntries(EXTRA_AURAS.map((a) => [a.value, a.colors]));
 
 export const EXTRA_COSMETICS: ShopItem[] = [
-  { id: "weapon-saber", kind: "weapon", name: "Classic Energy Blade", price: 0, value: "saber", blurb: "Your original blade, matching your energy color." },
+  { id: "weapon-saber", kind: "weapon", name: "Energy Sword", price: 0, value: "saber", blurb: "Your original blade. Glows in your energy color." },
   ...WEAPONS.map((w): ShopItem => ({ id: `weapon-${w.value}`, kind: "weapon", name: w.name, price: w.price, value: w.value,
-    blurb: w.type === "scythe" ? "A long reaper's staff and a sweeping crescent blade." : w.type === "hammer" ? "A heavy impact head with an exposed energy reactor." : "A double-ended polearm with crystalline spearheads." })),
+    blurb: (w.type === "scythe" ? "A long reaper's staff and a sweeping crescent blade." : w.type === "hammer" ? "A heavy impact head with an exposed energy reactor." : "A double-ended polearm with crystalline spearheads.") + " Glows in your energy color." })),
   { id: "headwear-none", kind: "headwear", name: "Original Look", price: 0, value: "none", blurb: "Your frame's original crest or hairstyle." },
   ...HEADWEAR.map((h): ShopItem => ({ ...h, id: `headwear-${h.value}`, kind: "headwear", blurb: `${h.blurb} Matches your energy color.` })),
   ...EXTRA_FINISHES.map((f): ShopItem => ({ ...f, id: `finish-${f.value}`, kind: "finish" })),

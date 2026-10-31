@@ -76,7 +76,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const [glow, setGlow] = useState<{ id: number; color: string } | null>(null);
   const [vignette, setVignette] = useState(false);
 
-  const en = weaponSpec(p.avatar.weapon)?.color || solid(p.avatar.energy);
+  const en = solid(p.avatar.energy);
   const heroSize = p.compact ? 118 : 168;
   const foeSize = p.compact ? (p.boss ? 150 : 126) : p.boss ? 220 : 178;
 

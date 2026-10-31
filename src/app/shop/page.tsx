@@ -6,7 +6,7 @@ import ItemArt from "@/components/ItemArt";
 import TopBar from "@/components/TopBar";
 import Warrior from "@/components/Warrior";
 import { CoinIcon } from "@/components/icons";
-import { Button, Pedestal } from "@/components/ui";
+import { Button, Pedestal, Screen } from "@/components/ui";
 import { withEquipment } from "@/lib/equipment";
 import { SHOP, type ItemKind, type ShopItem } from "@/lib/game";
 import { buy, equip, isEquipped, ownsItem } from "@/lib/progress";
@@ -18,7 +18,7 @@ const TABS: { kind: ItemKind; label: string; blurb: string }[] = [
   { kind: "body", label: "Body", blurb: "Pick your warrior's frame. All bodies are free." },
   { kind: "armor", label: "Armor", blurb: "Repaint your warrior's shell." },
   { kind: "energy", label: "Energy", blurb: "Changes your classic blade, thrusters and headwear. Weapon variants keep their own colors." },
-  { kind: "weapon", label: "Weapons", blurb: "Scythes, warhammers and glaives: five colors per type. Cosmetic only; pick your style." },
+  { kind: "weapon", label: "Weapons", blurb: "One of each: sword, scythe, warhammer and glaive. Every weapon glows in your energy color." },
   { kind: "headwear", label: "Headwear", blurb: "Hats, ears, beards and wild hair. Every accessory matches your equipped energy color." },
   { kind: "finish", label: "Finish", blurb: "Special surface effects on top of your armor color." },
   { kind: "aura", label: "Auras", blurb: "An animated effect around your warrior in battles and on the map." },
@@ -26,7 +26,7 @@ const TABS: { kind: ItemKind; label: string; blurb: string }[] = [
 ];
 
 export default function ShopPage() {
-  const { account, progress, refresh } = useWarrior();
+  const { account, progress, warm, refresh } = useWarrior();
   const [tab, setTab] = useState<ItemKind>("power");
   const [preview, setPreview] = useState<ShopItem | null>(null);
   const [msg, setMsg] = useState<{ text: string; good: boolean; id: number } | null>(null);
@@ -68,7 +68,7 @@ export default function ShopPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-sky">
+    <Screen fade={!warm}>
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-12 pt-4 sm:px-5">
         <TopBar account={account} progress={progress} />
 
@@ -158,6 +158,6 @@ export default function ShopPage() {
           </section>
         </div>
       </div>
-    </div>
+    </Screen>
   );
 }

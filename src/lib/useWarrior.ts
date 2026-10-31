@@ -15,6 +15,8 @@ export function useWarrior() {
   const router = useRouter();
   const [account, setAccount] = useState<Account | null>(() => cached()?.account ?? null);
   const [progress, setProgress] = useState<Progress | null>(() => cached()?.progress ?? null);
+  // True when this screen could draw right away from memory.
+  const [warm] = useState(() => !!cached());
 
   const refresh = useCallback(async () => {
     const id = getSession();
@@ -45,6 +47,7 @@ export function useWarrior() {
   return {
     account,
     progress,
+    warm,
     refresh,
     signOut() {
       cache = null;

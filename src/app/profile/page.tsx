@@ -7,7 +7,7 @@ import ItemArt from "@/components/ItemArt";
 import TopBar from "@/components/TopBar";
 import Warrior from "@/components/Warrior";
 import { StarIcon } from "@/components/icons";
-import { Button, Pedestal } from "@/components/ui";
+import { Button, Pedestal, Screen } from "@/components/ui";
 import { BOSS, SHOP, WORLDS, key, levelFor, type ItemKind } from "@/lib/game";
 import { deleteWarrior, equip, ownsItem, exportBackup, isEquipped, makeReport, totalStars } from "@/lib/progress";
 import { play } from "@/lib/sfx";
@@ -25,7 +25,7 @@ const SLOTS: { kind: ItemKind; label: string }[] = [
 ];
 
 export default function ProfilePage() {
-  const { account, progress, refresh, signOut } = useWarrior();
+  const { account, progress, warm, refresh, signOut } = useWarrior();
   const [slot, setSlot] = useState<ItemKind>("armor");
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -68,7 +68,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-dvh bg-sky">
+    <Screen fade={!warm}>
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-12 pt-4 sm:px-5">
         <TopBar account={account} progress={progress} />
         <div>
@@ -214,7 +214,7 @@ export default function ProfilePage() {
           </section>
         </div>
       </div>
-    </div>
+    </Screen>
   );
 }
 

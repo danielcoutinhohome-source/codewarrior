@@ -62,19 +62,18 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   const storeKey = `cw.cam.${worldIndex}`;
 
   // Camera: start where the player last stood in this world, then walk to the selected battle.
-  const cam = useMotionValue(0);
+  // Start the camera where the player last stood, already on the first frame
+  // (setting it in an effect drew one frame from the wrong spot, which looked like a flash).
+  const [startCam] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(storeKey);
+      if (raw !== null && !Number.isNaN(Number(raw))) return Number(raw);
+    } catch {}
+    return camFor(selected);
+  });
+  const cam = useMotionValue(startCam);
   const [moving, setMoving] = useState(false);
-  const started = useRef(false);
   useEffect(() => {
-    let from = camFor(selected);
-    if (!started.current) {
-      started.current = true;
-      try {
-        const saved = Number(sessionStorage.getItem(storeKey));
-        if (!Number.isNaN(saved) && sessionStorage.getItem(storeKey) !== null) from = saved;
-      } catch {}
-      cam.set(from);
-    }
     const to = camFor(selected);
     if (Math.abs(cam.get() - to) < 0.01) return;
     setMoving(true);

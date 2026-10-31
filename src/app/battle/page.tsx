@@ -9,7 +9,7 @@ import Confetti from "@/components/Confetti";
 import Monster from "@/components/Monster";
 import QuestionCard, { type Phase } from "@/components/QuestionCard";
 import { CoinIcon, PowerIcon, SoundToggle, StarIcon } from "@/components/icons";
-import { Button, ButtonLink } from "@/components/ui";
+import { Button, ButtonLink, Screen } from "@/components/ui";
 import { POTION_HEAL, advance, answer, current, startBattle, summary, useHint, usePotion, useShield, useSurge, type BattleState } from "@/lib/battle";
 import { BOSS, PLAYER_HP, POWERS, SHOP, WORLDS, type Power } from "@/lib/game";
 import { battleUnlocked, recordBattle, useItem, type Rewards } from "@/lib/progress";
@@ -205,7 +205,7 @@ function Battle() {
   };
 
   return (
-    <div className="min-h-dvh bg-sky">
+    <Screen fade={true}>
       <Confetti run={!!end?.victory} />
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 pb-10 pt-4 sm:px-5">
         <header className="flex flex-wrap items-center gap-3">
@@ -338,7 +338,7 @@ function Battle() {
           </Modal>
         )}
       </AnimatePresence>
-    </div>
+    </Screen>
   );
 }
 

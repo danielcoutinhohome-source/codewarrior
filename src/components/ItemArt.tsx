@@ -14,7 +14,7 @@ export default function ItemArt({ it, avatar, size = 84 }: { it: ShopItem; avata
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const hairId = `item-hair-${uid}`;
   const spec = it.kind === "weapon" ? weaponSpec(it.value) : undefined;
-  if (spec) return <svg width={size * 0.8} height={size * 0.9} viewBox="115 -8 112 246" aria-hidden="true"><WeaponArt value={it.value} paint={(name) => name === "weapon" ? spec.color : "#64748B"}/></svg>;
+  if (spec) return <svg width={size * 0.8} height={size * 0.9} viewBox="115 -8 112 246" aria-hidden="true"><WeaponArt value={it.value} paint={(name) => name === "weapon" ? solid(avatar.energy) : "#64748B"}/></svg>;
   if (it.kind === "headwear" && it.value !== "none") {
     const color = solid(avatar.energy);
     const stops = avatar.energy === "rainbow" ? RAINBOW_STOPS : avatar.energy === "gold" ? ["#FFF6C8", "#FFC83D", "#B97F00"] : [lighten(color, 0.4), color, darken(color, 0.45)];

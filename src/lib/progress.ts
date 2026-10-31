@@ -106,7 +106,9 @@ export async function buy(id: string, itemId: string): Promise<{ ok: boolean; re
 }
 
 // Free defaults stay accessible to older saves without rewriting their inventory.
-export const ownsItem = (p: Progress, itemId: string) => p.owned.includes(itemId) || item(itemId)?.price === 0;
+// Weapons bought before they were merged into one per type (e.g. "weapon-scythe-crimson") still count.
+export const ownsItem = (p: Progress, itemId: string) =>
+  p.owned.includes(itemId) || item(itemId)?.price === 0 || (item(itemId)?.kind === "weapon" && p.owned.some((o) => o.startsWith(`${itemId}-`)));
 
 export async function equip(id: string, itemId: string) {
   const it = item(itemId);

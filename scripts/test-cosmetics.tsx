@@ -11,26 +11,28 @@ import { ownsItem } from "../src/lib/progress";
 import type { Avatar, Progress } from "../src/lib/db";
 
 Object.assign(globalThis, { React });
-assert.equal(WEAPONS.length, 15);
+assert.equal(WEAPONS.length, 3, "One weapon per type");
 assert.equal(HEADWEAR.length, 15);
 assert.equal(new Set(SHOP.map((item) => item.id)).size, SHOP.length, "Shop IDs must stay unique");
 for (const type of WEAPON_TYPES) {
   const variants = WEAPONS.filter((weapon) => weapon.type === type);
-  assert.equal(variants.length, 5);
-  assert.equal(new Set(variants.map((weapon) => weapon.color)).size, 5);
+  assert.equal(variants.length, 1);
   for (const weapon of variants) assert.ok(SHOP.some((item) => item.kind === "weapon" && item.value === weapon.value));
 }
-const geometries = WEAPON_TYPES.map((type) => renderToStaticMarkup(<svg><WeaponArt value={`${type}-crimson`} paint={() => "#123456"}/></svg>).match(/\bd="[^"]+"/g)?.join(""));
+const geometries = WEAPON_TYPES.map((type) => renderToStaticMarkup(<svg><WeaponArt value={type} paint={() => "#123456"}/></svg>).match(/\bd="[^"]+"/g)?.join(""));
 assert.equal(new Set(geometries).size, 3, "Weapon families must have different silhouettes");
 assert.equal(new Set(EXTRA_AURAS.map((aura) => aura.colors.join())).size, EXTRA_AURAS.length);
 
 const legacy: Avatar = { armor: "#6179A0", energy: "#58DFFF", title: "Byte Knight", aura: "storm", finish: "metal" };
 const original = structuredClone(legacy);
-const weaponItem = SHOP.find((item) => item.id === "weapon-scythe-crimson")!;
+const weaponItem = SHOP.find((item) => item.id === "weapon-scythe")!;
 const hatItem = SHOP.find((item) => item.id === "headwear-wizard")!;
 const geared = withEquipment(withEquipment(legacy, weaponItem), hatItem);
 assert.deepEqual(legacy, original, "Previewing must not mutate saved equipment");
-assert.deepEqual(geared, { ...legacy, weapon: "scythe-crimson", headwear: "wizard" });
+assert.deepEqual(geared, { ...legacy, weapon: "scythe", headwear: "wizard" });
+// Saves from before the merge keep their weapon: "scythe-crimson" is the scythe, and owning it owns the scythe.
+assert.ok(equipmentSelected({ ...legacy, weapon: "scythe-crimson" }, weaponItem));
+assert.ok(ownsItem({ owned: ["weapon-scythe-crimson"] } as unknown as Progress, "weapon-scythe"));
 assert.ok(equipmentSelected(geared, weaponItem) && equipmentSelected(geared, hatItem));
 assert.ok(equipmentSelected(legacy, SHOP.find((item) => item.id === "weapon-saber")!));
 assert.ok(equipmentSelected(legacy, SHOP.find((item) => item.id === "headwear-none")!));
@@ -39,7 +41,7 @@ assert.ok(ownsItem(oldInventory, "weapon-saber") && ownsItem(oldInventory, "head
 assert.ok(!ownsItem(oldInventory, weaponItem.id) && !ownsItem(oldInventory, hatItem.id));
 const changedEnergy = withEquipment(geared, SHOP.find((item) => item.id === "energy-rainbow")!);
 assert.equal(changedEnergy.headwear, "wizard");
-assert.equal(weaponSpec(changedEnergy.weapon)?.color, "#FF426C", "Weapon variants keep their own color when energy changes");
+assert.equal(weaponSpec(changedEnergy.weapon)?.type, "scythe");
 assert.equal(changedEnergy.aura, "storm");
 
 function checkSvg(svg: string) {
@@ -62,7 +64,8 @@ for (const body of bodies) for (const facing of ["front", "back"] as const) {
     }
     for (const weapon of WEAPONS) {
       const svg = renderToStaticMarkup(<Warrior {...legacy} body={body} facing={facing} energy={energy} weapon={weapon.value} idle={false}/>);
-      assert.ok(svg.includes(`data-weapon="${weapon.value}"`) && svg.includes(weapon.color));
+      const wg = svg.match(/<linearGradient id="weapon-[^"]+"[^>]*>(.*?)<\/linearGradient>/s)?.[1] || "";
+      assert.ok(svg.includes(`data-weapon="${weapon.value}"`) && wg.includes(energy === "gold" ? "#FFD65C" : energy === "rainbow" ? "#FF4D6D" : energy), "Weapons glow in the energy color");
       checkSvg(svg); renders++;
     }
     for (const finish of EXTRA_FINISHES) {
@@ -81,4 +84,4 @@ for (const body of bodies) for (const facing of ["front", "back"] as const) {
 const gallery = renderToStaticMarkup(<div>{EXTRA_COSMETICS.map((item) => <ItemArt key={item.id} it={item} avatar={geared}/>)}<Warrior {...geared} finish="galaxy" idle={false}/></div>);
 checkSvg(gallery);
 checkSvg(renderToStaticMarkup(<Warrior {...legacy} weapon="unknown" headwear="unknown" idle={false}/>));
-console.log(`cosmetics tests passed: 15 weapons, 15 headwear, ${EXTRA_AURAS.length} auras, ${EXTRA_FINISHES.length} finishes; ${renders} render combinations and legacy equipment checks`);
+console.log(`cosmetics tests passed: 3 weapons, 15 headwear, ${EXTRA_AURAS.length} auras, ${EXTRA_FINISHES.length} finishes; ${renders} render combinations and legacy equipment checks`);

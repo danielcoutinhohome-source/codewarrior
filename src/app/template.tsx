@@ -7,9 +7,9 @@ import { motion } from "framer-motion";
 export default function Template({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
-      initial={{ y: 10 }}
-      animate={{ y: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 28 }}
+      initial={{ opacity: 0.7, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

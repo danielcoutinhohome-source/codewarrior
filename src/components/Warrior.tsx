@@ -98,7 +98,6 @@ export default function Warrior({
   const [auraA, auraB] = AURA_COLORS[aura] || ["#FFFFFF", "#FFFFFF"];
 
   const v = { b, en, enS, deep, url, id, loop, finish, back, gold, weapon, headwear };
-  const weaponColor = weaponSpec(weapon)?.color || enS;
 
   return (
     <svg viewBox="-22 -60 244 308" width={size} height={size * 1.2} role="img" aria-label="Warrior avatar" className={className} style={{ overflow: "visible" }}>
@@ -144,7 +143,9 @@ export default function Warrior({
           <stop offset="100%" stopColor={enS} stopOpacity="0" />
         </linearGradient>
         <linearGradient id={id("weapon")} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={weaponColor}/><stop offset="0.45" stopColor={lighten(weaponColor, 0.75)}/><stop offset="1" stopColor={weaponColor}/>
+          {(energy === "rainbow" ? RAINBOW_STOPS : energy === "gold" ? GOLD_STOPS : [enS, lighten(enS, 0.75), enS]).map((c, i, a) => (
+            <stop key={i} offset={i / (a.length - 1)} stopColor={c} />
+          ))}
         </linearGradient>
         <linearGradient id={id("blade")} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor={enS} />
@@ -251,10 +252,10 @@ function Sword({ url, en, special, loop }: { url: ViewProps["url"]; en: string; 
       <path d="M158.8 124 V44 L160 34 L161.2 44 V124 Z" fill="#FFFFFF" />
       <rect x="155.5" y="130" width="9" height="26" rx="4" fill="#2B2F45" />
       <circle cx="160" cy="160" r="5" fill={url("gold")} stroke="#8A5E00" strokeWidth="1" />
-      <circle cx="160" cy="146" r="12" fill={url("hand")} />
-      <ellipse cx="156" cy="141" rx="4" ry="2.4" fill="#FFFFFF" opacity="0.55" />
       <path d="M134 129 Q146 119 160 125 Q174 119 186 129 Q174 137 160 133 Q146 137 134 129 Z" fill={url("gold")} stroke="#8A5E00" strokeWidth="1.2" strokeLinejoin="round" />
       <circle cx="160" cy="129" r="3.8" fill={en} stroke="#FFFFFF" strokeWidth="1" />
+      <circle cx="160" cy="147" r="12" fill={url("hand")} />
+      <ellipse cx="156" cy="142" rx="4" ry="2.4" fill="#FFFFFF" opacity="0.55" />
     </g>
   );
 }
@@ -385,7 +386,6 @@ function FrontView({ b, weapon, headwear, en, deep, url, id, loop, finish, speci
         </>
       )}
 
-      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
       <Shield url={url} en={en} front />
 
       {b !== "valkyrie" && headwear === "none" && (
@@ -438,6 +438,8 @@ function FrontView({ b, weapon, headwear, en, deep, url, id, loop, finish, speci
         </motion.g>
       )}
       <Headwear kind={headwear} paint={url}/>
+      {/* the weapon goes over everything except the hand that grips it */}
+      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
     </>
   );
 }
@@ -468,7 +470,6 @@ function BackView({ b, weapon, headwear, en, deep, url, id, loop, finish, specia
       <motion.circle cx="112" cy={pack.y + pack.h - 8} r="4" fill={en} animate={loop ? { opacity: [1, 0.6, 1] } : undefined} transition={loopT(0.6)} />
 
       {halo && <Wings url={url} loop={loop} stroke="none" back />}
-      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
 
       {b !== "valkyrie" && headwear === "none" && (
         <>
@@ -508,6 +509,8 @@ function BackView({ b, weapon, headwear, en, deep, url, id, loop, finish, specia
         </>
       )}
       <Headwear kind={headwear} paint={url} back/>
+      {/* the weapon goes over everything except the hand that grips it */}
+      {weaponSpec(weapon) ? <WeaponArt value={weapon} paint={url}/> : <Sword url={url} en={en} special={special} loop={loop} />}
     </>
   );
 }

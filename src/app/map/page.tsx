@@ -7,7 +7,7 @@ import Monster from "@/components/Monster";
 import TopBar from "@/components/TopBar";
 import WorldScene, { type SceneHandle } from "@/components/WorldScene";
 import { StarIcon } from "@/components/icons";
-import { Button } from "@/components/ui";
+import { Button, Screen } from "@/components/ui";
 import { BOSS, QUESTIONS_PER_BATTLE, QUESTIONS_PER_BOSS, WORLDS, enemyHit, key } from "@/lib/game";
 import { battleUnlocked, frontier, worldUnlocked } from "@/lib/progress";
 import { play } from "@/lib/sfx";
@@ -43,7 +43,7 @@ function useBoxWidth() {
 function WorldMap() {
   const router = useRouter();
   const params = useSearchParams();
-  const { account, progress } = useWarrior();
+  const { account, progress, warm } = useWarrior();
   const scene = useRef<SceneHandle>(null);
   const [boxRef, boxW] = useBoxWidth();
   const [w, setW] = useState<number | null>(null);
@@ -97,7 +97,7 @@ function WorldMap() {
   };
 
   return (
-    <div className="min-h-dvh bg-sky">
+    <Screen fade={!warm}>
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 pb-10 pt-4 sm:px-5">
         <TopBar account={account} progress={progress} />
 
@@ -236,7 +236,7 @@ function WorldMap() {
           })}
         </nav>
       </div>
-    </div>
+    </Screen>
   );
 }
 

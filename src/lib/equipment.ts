@@ -1,5 +1,6 @@
 import type { Avatar } from "./db";
 import type { ShopItem } from "./game";
+import { weaponType } from "./cosmetics";
 
 const DEFAULTS: Partial<Avatar> = { body: "bot", finish: "standard", aura: "none", weapon: "saber", headwear: "none" };
 
@@ -10,5 +11,6 @@ export function withEquipment(avatar: Avatar, item: ShopItem): Avatar {
 }
 
 export function equipmentSelected(avatar: Avatar, item: ShopItem): boolean {
+  if (item.kind === "weapon") return weaponType(avatar.weapon || "saber") === item.value;
   return item.kind !== "power" && (avatar[item.kind] || DEFAULTS[item.kind]) === item.value;
 }
