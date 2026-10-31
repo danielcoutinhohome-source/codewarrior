@@ -22,6 +22,11 @@ const server = createServer(async (req, res) => {
 });
 
 async function capture(page: Page, name: string) {
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() => {
+    const card = document.querySelector("h2")?.closest("section");
+    return !card || Number(getComputedStyle(card).opacity) >= .99;
+  });
   await page.screenshot({ path: join(shots, `${name}.png`), fullPage: true });
 }
 async function noOverflow(page: Page, label: string) {
@@ -61,7 +66,7 @@ async function main() {
   let browser: Browser | undefined;
   try {
     browser = await chromium.launch();
-    for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+    for (const viewport of [{ width: 1366, height: 650 }, { width: 1024, height: 650 }, ...(process.env.QA_MOBILE ? [{ width: 390, height: 844 }] : [])]) {
       const name = String(viewport.width), context = await browser.newContext({ viewport });
       // Do not accidentally contact production services from a local acceptance test.
       await context.route("**/*", route => route.request().url().startsWith(origin + "/") ? route.continue() : route.abort());
@@ -81,7 +86,7 @@ async function main() {
         await page.locator("#cw-name").fill(id);
         await page.locator("#cw-pass").fill(password);
         await page.locator("#cw-confirm").fill(password);
-        await page.getByRole("button", { name: "FORGE MY WARRIOR", exact: true }).click();
+        await page.locator("#cw-confirm").press("Enter");
         await page.waitForURL(/\/map\/?(?:\?|$)/, { timeout: 30_000 });
         await page.locator("[data-boss-camera]").waitFor();
 
@@ -91,6 +96,8 @@ async function main() {
           await page.locator('[data-boss-camera="travel"]').waitFor();
           await page.getByRole("button", { name: "FIGHT!", exact: true }).waitFor();
           await noOverflow(page, `${name} ${WORLDS[w].name}`);
+          const fightBox = await page.getByRole("button", { name: "FIGHT!", exact: true }).boundingBox();
+          if (viewport.width >= 1024) assert.ok(fightBox && fightBox.y + fightBox.height <= viewport.height, `${name}: FIGHT stays above the fold`);
           const worldName = page.getByText(WORLDS[w].name, { exact: true }).first();
           assert.ok(await worldName.evaluate(e => e.scrollWidth <= e.clientWidth + 1), `${name}: world name is readable`);
           const caption = page.getByText(/seals broken · something waits ahead/);
@@ -163,6 +170,18 @@ async function main() {
         }
         await page.getByText("VICTORY!", { exact: true }).waitFor();
         await noOverflow(page, `${name} result`); await capture(page, `${name}-battle-result`);
+        // A slowed Chromium check approximates CPU pressure; it is not a real Chromebook benchmark.
+        const cdp = await context.newCDPSession(page);
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+        await checkpoint(page, id, 0, true);
+        await page.goto(`${site}/map/?w=0`);
+        await page.locator('[data-boss-camera="arrival"]').waitFor();
+        const firstTab = page.getByRole("tab", { name: "Battle 1", exact: true });
+        await firstTab.focus(); await firstTab.press("Enter");
+        await page.locator('[data-boss-camera="travel"]').waitFor({ timeout: 5000 });
+        assert.equal(await firstTab.getAttribute("aria-selected"), "true", "keyboard selection works under CPU pressure");
+        await capture(page, `${name}-keyboard-slow-cpu`);
+        await cdp.detach();
         assert.deepEqual(errors, [], `${name}: no uncaught browser errors`);
         console.log(`Quality checks passed at ${name}px: signup, seven paths/gates, hit targets, reduced motion, battle retry and victory.`);
       } catch (error) {

@@ -31,7 +31,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: 1
       - name: Install browser for visual and interaction checks
         run: npx playwright install --with-deps chromium
-      - name: Check desktop and mobile journeys
+      - name: Check Chromebook journeys
         run: npm run test:quality
       - name: Save browser screenshots
         if: always()

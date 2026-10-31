@@ -48,15 +48,6 @@ to work already in progress. Preserve the user's review-before-merge workflow.
 
 ## Currently working on
 
-- **Q1** / Codex (for David) / `codex/browser-quality-checks` (provisional claim; see PR).
-  Scope: `scripts/e2e-quality.ts`, `docs/QA.md`, `.gitignore` (QA artifacts), Playwright dev dependency/lockfile,
-  browser-check job in `.github/workflows/check-questions.yml`, and `src/app/page.tsx`
-  (account-saving copy only). Inspect map/arena visuals;
-  Q2 fixes from mobile screenshots: `src/app/map/page.tsx` (header),
-  `src/components/WorldScene.tsx` (caption placement), `src/app/create/page.tsx`
-  (preview-name wrapping). Claude Q4 and the
-  battle results page are left with Claude. Handoff: add repeatable mobile/desktop QA.
-
 - **Q4** / Claude (for Daniel) / next up. Claims `src/app/learn`, `src/lib/learn`,
   `src/lib/tutor`, `tutor-server/`, and a small post-battle "practice what you missed" link
   in `src/app/battle/page.tsx` (results screen only; reporter calls untouched). Codex: if Q2
@@ -83,3 +74,9 @@ to work already in progress. Preserve the user's review-before-merge workflow.
   reloading in hidden tabs. `src/lib/learn/bank.ts` now holds `BANK_GENS`/`gensForSkill` (import
   from there, not lessons.ts) so the teacher and Learn pages don't load the question bank.
   Deploy now fails if the classroom server's health check never answers.
+
+- David/Codex, Q1/Q2 implementation in PR #13: repeatable browser QA, Chromebook-sized
+  maps with the fight control in view, readable world/preview names and progress captions.
+  No active file claim; validation and screenshot review are recorded in the PR. Claude
+  Q4/learning/results-screen work is untouched. Playwright is now a dev dependency, also
+  supporting Claude's existing `scripts/e2e-classroom.ts`.

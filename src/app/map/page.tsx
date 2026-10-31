@@ -30,17 +30,26 @@ export default function MapPage() {
 function useBoxWidth() {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [w, setW] = useState(0);
+  const [room, setRoom] = useState(480);
   // Measure before paint so the scene never renders one blank frame at width 0.
   useLayoutEffect(() => {
-    if (el) setW(el.clientWidth);
+    if (el) {
+      setW(el.clientWidth);
+      setRoom(Math.max(320, window.innerHeight - el.getBoundingClientRect().top - 190));
+    }
   }, [el]);
   useEffect(() => {
     if (!el) return;
-    const ro = new ResizeObserver(([e]) => setW(e.contentRect.width));
+    const measure = () => {
+      setW(el.clientWidth);
+      setRoom(Math.max(320, window.innerHeight - el.getBoundingClientRect().top - 190));
+    };
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
   }, [el]);
-  return [setEl, w] as const;
+  return [setEl, w, room] as const;
 }
 
 function WorldMap() {
@@ -48,7 +57,7 @@ function WorldMap() {
   const params = useSearchParams();
   const { account, progress, warm } = useWarrior();
   const scene = useRef<SceneHandle>(null);
-  const [boxRef, boxW] = useBoxWidth();
+  const [boxRef, boxW, sceneRoom] = useBoxWidth();
   const [w, setW] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
   const [charging, setCharging] = useState(false);
@@ -64,7 +73,7 @@ function WorldMap() {
   }, [progress, params]);
 
   const mobile = boxW > 0 && boxW < 640;
-  const sceneH = mobile ? 560 : Math.round(Math.max(520, Math.min(700, boxW * 0.58)));
+  const sceneH = mobile ? 560 : Math.round(Math.max(320, Math.min(560, sceneRoom, boxW * 0.58)));
 
   if (!account || !progress || w === null)
     return (
