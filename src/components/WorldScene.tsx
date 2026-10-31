@@ -3,11 +3,13 @@
 import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
 import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import Monster from "./Monster";
+import WorldLandmark, { WorldDiscovery, WorldGroundDetails } from "./WorldLandmark";
+import { worldDetails } from "@/lib/worldDetails";
 import Warrior from "./Warrior";
 import { StarIcon } from "./icons";
 import { Ambient, Backdrop, RoadExtras, RoadMark, Scenery, roadMarkSize } from "./worldArt";
 import type { Avatar } from "@/lib/db";
-import { BOSS, type Decor, type World } from "@/lib/game";
+import { BOSS, type World } from "@/lib/game";
 
 export type SceneHandle = { charge: (battle: number) => Promise<void> };
 
@@ -36,7 +38,7 @@ const WarriorArt = memo(Warrior);
 type Geo = { W: number; H: number; horizon: number };
 
 // Places a box on the ground at depth z (relative to the camera), using only transforms.
-function Placed({ cam, z, lat, g, w, h, zIndex, children, fadeNear = true }: { cam: MotionValue<number>; z: number; lat: number; g: Geo; w: number; h: number; zIndex: number; children: ReactNode; fadeNear?: boolean }) {
+function Placed({ cam, z, lat, g, w, h, zIndex, children, fadeNear = true, decorative = false }: { cam: MotionValue<number>; z: number; lat: number; g: Geo; w: number; h: number; zIndex: number; children: ReactNode; fadeNear?: boolean; decorative?: boolean }) {
   const rel = useTransform(cam, (c) => z - c);
   const scale = useTransform(rel, (r) => 1 / Math.max(NEAR, r));
   const x = useTransform(rel, (r) => g.W / 2 + lat * (g.W / 2) / Math.max(NEAR, r) - w / 2);
@@ -44,7 +46,7 @@ function Placed({ cam, z, lat, g, w, h, zIndex, children, fadeNear = true }: { c
   const opacity = useTransform(rel, (r) => (!fadeNear ? 1 : r < 0.7 ? 0 : r < 1.05 ? (r - 0.7) / 0.35 : 1));
   const visibility = useTransform(rel, (r) => (r < 0.72 || r > 40 ? "hidden" : "visible"));
   return (
-    <motion.div className="absolute left-0 top-0" style={{ width: w, height: h, x, y, scale, opacity, visibility, zIndex, transformOrigin: "50% 100%", willChange: "transform" }}>
+    <motion.div className="absolute left-0 top-0" style={{ width: w, height: h, x, y, scale, opacity, visibility, zIndex, pointerEvents: decorative ? "none" : undefined, transformOrigin: "50% 100%", willChange: "transform" }}>
       {children}
     </motion.div>
   );
@@ -95,16 +97,9 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   }));
 
   const roadHalf0 = 0.32 * (W / 2); // road half-width at depth 1
-  const decor = useMemo(() => {
-    const out: { z: number; side: number; kind: Decor; lat: number }[] = [];
-    for (let i = 0; i < 34; i++) {
-      const z = 1 + i * 0.62;
-      out.push({ z, side: i % 2 ? 1 : -1, kind: t.decor[(i >> 1) % t.decor.length], lat: 1.18 + ((i * 37) % 6) * 0.11 });
-    }
-    return out;
-  }, [t.decor]);
-  const mark = roadMarkSize(t, W, roadHalf0);
   const mobile = W < 640;
+  const details = useMemo(() => worldDetails(t, mobile), [t, mobile]);
+  const mark = roadMarkSize(t, W, roadHalf0);
   const warriorSize = mobile ? W * 0.3 : Math.min(W * 0.2, 190);
 
   return (
@@ -114,6 +109,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
           {/* sky and ground */}
           <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${t.skyTop} 0%, ${t.skyBottom} ${(horizon / H) * 100}%, ${t.groundFar} ${(horizon / H) * 100}%, ${t.groundNear} 100%)` }} />
           <Backdrop W={W} H={H} hz={horizon} t={t} />
+          <WorldGroundDetails theme={t} width={W} height={H} />
           <svg aria-hidden className="absolute inset-0" width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
             <polygon points={`${W / 2 - roadHalf0 * 1.2},${H} ${W / 2 + roadHalf0 * 1.2},${H} ${W / 2 + 2},${horizon} ${W / 2 - 2},${horizon}`} fill={t.roadEdge} />
             <polygon points={`${W / 2 - roadHalf0 * 1.1},${H} ${W / 2 + roadHalf0 * 1.1},${H} ${W / 2 + 1.5},${horizon} ${W / 2 - 1.5},${horizon}`} fill={t.road} />
@@ -122,14 +118,21 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
 
           {/* road markings stream toward you as the camera walks */}
           {Array.from({ length: Math.round(20 / mark.gap) }).map((_, i) => (
-            <Placed key={`d${i}`} cam={cam} z={0.8 + i * mark.gap} lat={0} g={g} w={mark.w} h={mark.h} zIndex={5}>
+            <Placed decorative key={`d${i}`} cam={cam} z={0.8 + i * mark.gap} lat={0} g={g} w={mark.w} h={mark.h} zIndex={5}>
               <RoadMark t={t} />
             </Placed>
           ))}
 
-          {decor.map((d, i) => (
-            <Placed key={`s${i}`} cam={cam} z={d.z} lat={d.side * d.lat} g={g} w={W * 0.2} h={W * 0.2} zIndex={Math.round(400 - d.z * 10)}>
-              <Scenery kind={d.kind} />
+          {details.props.map((d, i) => (
+            <Placed decorative key={`s${i}`} cam={cam} z={d.z} lat={d.lat} g={g} w={W * d.size} h={W * d.size} zIndex={Math.round(400 - d.z * 10)}>
+              <div aria-hidden className="pointer-events-none h-full w-full">
+                {i % 5 === 0 ? <WorldDiscovery theme={t} variant={i % 3} /> : <Scenery kind={d.kind} />}
+              </div>
+            </Placed>
+          ))}
+          {details.landmarks.map((d, i) => (
+            <Placed decorative key={`landmark${i}`} cam={cam} z={d.z} lat={d.lat} g={g} w={W * .42} h={W * .42} zIndex={Math.round(399 - d.z * 10)}>
+              <WorldLandmark theme={t} variant={d.variant} />
             </Placed>
           ))}
 

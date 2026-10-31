@@ -11,6 +11,7 @@ import { Button, Screen } from "@/components/ui";
 import { BOSS, QUESTIONS_PER_BATTLE, QUESTIONS_PER_BOSS, WORLDS, enemyHit, key } from "@/lib/game";
 import { battleUnlocked, frontier, worldUnlocked } from "@/lib/progress";
 import { play } from "@/lib/sfx";
+import { ENEMY_MOVESETS } from "@/lib/enemyCombat";
 import { useWarrior } from "@/lib/useWarrior";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -203,7 +204,7 @@ function WorldMap() {
                       : `${QUESTIONS_PER_BATTLE} questions · hits for ${enemyHit(w, false)} · bug: ${enemy.label}`}
               </div>
               {!hiddenBoss && <p className="mt-1 hidden max-w-xl text-sm leading-snug text-ink-soft sm:block">{enemy.lore}</p>}
-              {!hiddenBoss && <div className="mt-1 text-xs font-black uppercase tracking-wide text-ocean-deep">Signature: {enemy.attackName}</div>}
+              {!hiddenBoss && <div className="mt-1 text-xs font-black uppercase tracking-wide text-ocean-deep">Finisher: {ENEMY_MOVESETS[enemy.design].finisher.name}</div>}
             </div>
             <Button size={mobile ? "md" : "lg"} onClick={fight} disabled={!unlocked[selected] || charging} tone={isBoss ? "danger" : "ember"} className="flex-none">
               {stars[selected] ? "REPLAY" : "FIGHT!"}

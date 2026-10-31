@@ -1,8 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion, useAnimate } from "framer-motion";
-import { forwardRef, memo, useCallback, useImperativeHandle, useRef, useState } from "react";
+import { AnimatePresence, motion, useAnimate, useReducedMotion } from "framer-motion";
+import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Monster from "./Monster";
+import EnemyAttackFx, { type CombatEffect } from "./EnemyAttackFx";
+import { enemyMove, ENEMY_MOVESETS, performEnemyMove } from "@/lib/enemyCombat";
 import Warrior from "./Warrior";
 import { play } from "@/lib/sfx";
 import { solid } from "@/lib/color";
@@ -12,7 +14,7 @@ import type { Enemy, Theme } from "@/lib/game";
 
 export type ArenaHandle = {
   attack: (o: { damage: number; crit: boolean; surge: boolean; finisher: boolean }) => Promise<void>;
-  hurt: (o: { damage: number; blocked: boolean; knockout: boolean }) => Promise<void>;
+  hurt: (o: { damage: number; blocked: boolean; knockout: boolean; onImpact?: () => void }) => Promise<void>;
   heal: (amount: number) => Promise<void>;
   powerUp: (kind: "shield" | "surge" | "scroll") => Promise<void>;
   enemyDefeated: () => Promise<void>;
@@ -63,6 +65,30 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const foeRef = useRef<HTMLDivElement>(null);
   const foeBody = useRef<HTMLDivElement>(null);
   const lastAttack = useRef("");
+  const reduced = !!useReducedMotion();
+  const enemyTurn = useRef(0);
+  const attackController = useRef<AbortController | null>(null);
+  const effectTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const [enemyEffects, setEnemyEffects] = useState<CombatEffect[]>([]);
+  const [moveLabel, setMoveLabel] = useState<{ name: string; ultimate: boolean } | null>(null);
+  useEffect(() => {
+    enemyTurn.current = 0;
+    return () => {
+      attackController.current?.abort();
+      effectTimers.current.forEach(clearTimeout);
+      effectTimers.current.clear();
+    };
+  }, [p.enemy.design]);
+  const later = (fn: () => void, ms: number) => {
+    const timer = setTimeout(() => { effectTimers.current.delete(timer); fn(); }, ms);
+    effectTimers.current.add(timer);
+  };
+  const enemyEffect = (effect: Omit<CombatEffect, "id" | "enemy" | "compact" | "reduced">) => {
+    const id = ++uid;
+    setEnemyEffects(v => [...v.slice(-5), { ...effect, id, enemy: p.enemy, compact: !!p.compact, reduced }]);
+    later(() => setEnemyEffects(v => v.filter(e => e.id !== id)), 1000);
+  };
+
   const [floats, setFloats] = useState<Float[]>([]);
   const [bursts, setBursts] = useState<Burst[]>([]);
   const [rings, setRings] = useState<Ring[]>([]);
@@ -320,97 +346,47 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       }
     },
 
-    async hurt({ damage, blocked, knockout }) {
+    async hurt({ damage, blocked, knockout, onImpact }) {
       const h = heroRef.current, hb = heroBody.current, f = foeRef.current, fb = foeBody.current;
       if (!h || !hb || !f || !fb) return;
-      const d = gap();
-      const kind = p.enemy.attackStyle;
-      const onHit = (strongHit = true) => {
-        const at = center(h);
-        if (blocked) {
-          play("shield");
-          burst({ x: at.x + heroSize * 0.4, y: at.y }, ["#7DF9FF", "#FFFFFF", "#A9C7FF"], 16, 90);
-          ring({ x: at.x + heroSize * 0.4, y: at.y }, "#7DF9FF", heroSize * 1.2);
-          float("BLOCKED", { x: at.x, y: at.y - 70 }, "#7DF9FF", true);
-          animate(h, { x: [0, -10, 0] }, { duration: 0.3, ease });
-          animate(f, { x: [null, -d * 0.4], rotate: [null, 14, 0] }, { duration: 0.35, ease });
-          return;
-        }
-        play("hurt");
-        setHeroHurt(true);
-        flashOn("#FF3B4A", "hero");
-        whiteFlash(hb);
-        animate(hb, { rotate: [0, -24, 8, 0], scaleY: [1, 0.86, 1.04, 1] }, { duration: 0.6, ease });
-        animate(h, { x: [0, -56, -30, 0], y: [0, -18, 0, 0] }, { duration: 0.6, ease });
-        burst(at, ["#FF5A5F", "#FFB3B6", p.enemy.color], 12, 80);
-        dust(center(h, 1));
-        float(`-${damage}`, { x: at.x, y: at.y - 50 }, "#FF5A5F", knockout);
-        punch(at, 0.05);
-        shake(knockout ? 14 : strongHit ? 10 : 6);
-        if (!knockout) setTimeout(() => setHeroHurt(false), 650);
-      };
-      // Small stagger for volley shots that don't deal the damage.
-      const graze = () => {
-        if (blocked) {
-          burst({ x: center(h).x + heroSize * 0.4, y: center(h).y }, ["#7DF9FF", "#FFFFFF"], 6, 50);
-          return;
-        }
-        whiteFlash(hb);
-        burst(center(h), [p.enemy.color, "#FFFFFF"], 6, 50);
-        animate(hb, { x: [0, -10, 0], rotate: [0, -6, 0] }, { duration: 0.18, ease });
-      };
-
-      if (kind === "lunge") {
-        // Tremble and rear back, charge in with afterimages, bite, hop away.
-        animate(fb, { x: [0, -5, 5, -5, 5, 0] }, { duration: 0.3 });
-        await animate(f, { x: 26, rotate: 10 }, { duration: 0.3, ease });
-        play("whoosh");
-        dust(center(f, 1), true);
-        streak(center(f), -1, p.enemy.color);
-        const stop = trail(f, "foe");
-        await animate(f, { x: -d, y: -14, rotate: -16 }, { duration: 0.16, ease: easeIn });
-        stop();
-        onHit();
-        animate(fb, { scaleX: [1, 1.18, 1], scaleY: [1, 0.86, 1] }, { duration: 0.25, ease });
-        await sleep(260);
-        if (!blocked) await animate(f, { x: [-d, -d * 0.5, 0], y: [-14, -54, 0], rotate: [-16, 8, 0] }, { duration: 0.46, ease: "easeInOut" });
-        else await animate(f, { x: 0, y: 0, rotate: 0 }, { duration: 0.4, ease });
-        dust(center(f, 1));
-      } else if (kind === "slam") {
-        // Squash, launch high, hang over the warrior, crash down.
-        await animate(fb, { scaleY: 0.74, scaleX: 1.16 }, { duration: 0.16, ease });
-        play("whoosh");
-        dust(center(f, 1), true);
-        animate(fb, { scaleY: [0.74, 1.16, 1], scaleX: [1.16, 0.9, 1] }, { duration: 0.4, ease });
-        await animate(f, { x: -d * 0.8, y: p.compact ? -95 : -130, rotate: -12 }, { duration: 0.4, ease: [0.2, 0.8, 0.3, 1] });
-        await sleep(100);
-        const stop = trail(f, "foe", 26);
-        await animate(f, { x: -d * 0.92, y: 0, rotate: 0 }, { duration: 0.13, ease: easeIn });
-        stop();
-        animate(fb, { scaleY: [1, 0.72, 1.06, 1], scaleX: [1, 1.2, 0.96, 1] }, { duration: 0.42, ease });
-        const at = center(h);
-        ring({ x: at.x, y: at.y + heroSize * 0.45 }, p.enemy.color, heroSize * 1.8);
-        dust({ x: at.x - heroSize * 0.4, y: at.y + heroSize * 0.5 }, true);
-        dust({ x: at.x + heroSize * 0.4, y: at.y + heroSize * 0.5 }, true);
-        onHit();
-        await sleep(240);
-        await animate(f, { x: [-d * 0.92, -d * 0.45, 0], y: [0, -64, 0] }, { duration: 0.46, ease: "easeInOut" });
-        dust(center(f, 1));
-      } else {
-        // Channel a signature-sigil volley. Only the last shot deals damage.
-        animate(fb, { x: [0, -4, 4, -4, 4, 0] }, { duration: 0.32 });
-        await animate(fb, { scaleY: 1.16, scaleX: 1.1 }, { duration: 0.3, ease });
-        for (let i = 0; i < 3; i++) {
-          play("whoosh");
-          animate(fb, { x: [0, 16, 0], scaleY: [1.16, 0.94, 1.1], scaleX: [1.1, 1.08, 1.06] }, { duration: 0.16, ease });
-          const to = center(h);
-          add<Shot>(setShots, { id: ++uid, from: center(f, 0.45), to: { x: to.x + (i - 1) * 14, y: to.y + (i - 1) * 16 }, color: p.enemy.accent, kind: "rune", ms: 300 }, 360);
-          setTimeout(i < 2 ? graze : () => onHit(false), 290);
-          await sleep(130);
-        }
-        animate(fb, { scaleY: 1, scaleX: 1, x: 0 }, { duration: 0.3, ease });
-        await sleep(520);
-      }
+      attackController.current?.abort();
+      const controller = new AbortController();
+      attackController.current = controller;
+      const move = enemyMove(p.enemy.design, enemyTurn.current++, knockout && !blocked);
+      const from = center(f, 0.45), to = center(h);
+      setMoveLabel({ name: move.name, ultimate: move.glyph === 3 });
+      await performEnemyMove(move, {
+        signal: controller.signal, distance: gap(), compact: !!p.compact, reducedMotion: reduced,
+        animate: async (actor, pose, ms) => { await animate(actor === "foe" ? f : fb, pose, { duration: ms / 1000, ease }); },
+        wait: ms => new Promise<void>(resolve => {
+          const done = () => { clearTimeout(timer); controller.signal.removeEventListener("abort", done); resolve(); };
+          const timer = setTimeout(done, ms);
+          controller.signal.addEventListener("abort", done, { once: true });
+          if (controller.signal.aborted) done();
+        }),
+        effect: phase => { if (phase === "travel") play("whoosh"); enemyEffect({ move, phase, from, to }); },
+        hit: () => {
+          onImpact?.();
+          const at = center(h);
+          if (blocked) {
+            play("shield");
+            float("BLOCKED", { x: at.x, y: at.y - 70 }, "#7DF9FF", true);
+            if (!reduced) ring(at, "#7DF9FF", heroSize * 1.2);
+            return;
+          }
+          play("hurt"); setHeroHurt(true);
+          float(`-${damage}`, { x: at.x, y: at.y - 50 }, "#FF5A5F", knockout);
+          if (!reduced) {
+            whiteFlash(hb);
+            animate(hb, { rotate: [0, -24, 8, 0], scaleY: [1, 0.86, 1.04, 1] }, { duration: 0.6, ease });
+            animate(h, { x: [0, -36, 0], y: [0, -12, 0] }, { duration: 0.6, ease });
+            burst(at, [p.enemy.accent, "#FFFFFF", p.enemy.color], 12, 80);
+            shake(knockout ? 10 : 5);
+          }
+          if (!knockout) later(() => setHeroHurt(false), 650);
+        },
+      });
+      if (!controller.signal.aborted) setMoveLabel(null);
     },
 
     async heal(amount) {
@@ -438,10 +414,17 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       if (!f) return;
       const at = center(f);
       setFoeHurt(true);
-      await sleep(120);
-      burst(at, [p.enemy.color, "#FFFFFF", "#FFE066"], 24, 170);
-      ring(at, "#FFFFFF", foeSize * 2.2);
-      await animate(f, { scale: [1, 1.12, 0], rotate: [0, -6, 24], opacity: [1, 1, 0], y: [0, -8, 30] }, { duration: 0.55, ease: easeIn });
+      const moveset = ENEMY_MOVESETS[p.enemy.design];
+      enemyEffect({ move: moveset.finisher, phase: "defeat", from: at, to: at });
+      if (reduced) { await animate(f, { opacity: 0 }, { duration: 0.2 }); return; }
+      const poses = {
+        shatter: { scale: [1, 1.15, 0], rotate: [0, -6, 24], y: [0, -8, 30] },
+        sink: { scaleY: [1, 0.8, 0], y: [0, 20, 90], rotate: [0, -10, -18] },
+        unravel: { scaleX: [1, 1.25, 0], scaleY: [1, 0.8, 1.4], rotate: [0, 12, -30] },
+        decompile: { x: [0, -12, 12, -8, 0], scaleY: [1, 1, 0.05], y: [0, 0, 35] },
+        eclipse: { scale: [1, 0.8, 0], y: [0, -20, -50], rotate: [0, -12, -60] },
+      };
+      await animate(f, { ...poses[moveset.defeat], opacity: [1, 1, 0] }, { duration: 0.65, ease: easeIn });
     },
 
     async playerDefeated() {
@@ -460,6 +443,11 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
       className="relative overflow-hidden rounded-[26px] border-[3px]"
       style={{ height: p.compact ? 268 : 400, background: `linear-gradient(180deg, ${p.theme.skyTop} 0%, ${p.theme.skyBottom} 62%)`, borderColor: p.theme.roadEdge, willChange: "transform" }}
     >
+      {moveLabel && <div role="status" className="pointer-events-none absolute inset-x-3 top-16 z-50 text-center">
+        <span className="inline-block rounded-xl border border-white/40 bg-slate-950/90 px-3 py-1 text-xs font-bold text-white shadow-lg">
+          {moveLabel.ultimate && <span className="mr-2 text-amber-300">FINISHER</span>}{moveLabel.name}
+        </span>
+      </div>}
       <div ref={stageRef} className="absolute inset-0" style={{ willChange: "transform" }}>
         {p.theme.night &&
           [12, 28, 47, 66, 84].map((x, i) => (
@@ -505,6 +493,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
         </div>
 
         {/* effects */}
+        {enemyEffects.map(fx => <EnemyAttackFx key={fx.id} fx={fx} />)}
         {rings.map((r) => (
           <motion.div key={r.id} className="pointer-events-none absolute z-20 rounded-[50%] border-[5px]" style={{ left: r.at.x - r.size / 2, top: r.at.y - (r.inward ? r.size / 2 : r.size * 0.18), width: r.size, height: r.inward ? r.size : r.size * 0.36, borderColor: r.color, boxShadow: `0 0 12px ${r.color}` }} initial={r.inward ? { scale: 1.3, opacity: 0 } : { scale: 0.2, opacity: 1 }} animate={r.inward ? { scale: 0.15, opacity: [0, 1, 0.8] } : { scale: 1, opacity: 0 }} transition={{ duration: r.inward ? 0.45 : 0.6, ease: r.inward ? easeIn : ease }} />
         ))}
