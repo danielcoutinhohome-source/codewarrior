@@ -217,11 +217,13 @@ export function mergeProgress(a: ProgressDoc, b: ProgressDoc): ProgressDoc {
   return {
     avatar: newer.avatar,
     xp: Math.max(a.xp, b.xp),
-    coins: Math.max(a.coins, b.coins),
+    // Spendable values follow the newer copy so a purchase or used power-up isn't refunded by
+    // an older copy. (Coins earned on a copy that is older and never synced are lost; rare.)
+    coins: newer.coins,
     streak: Math.max(a.streak, b.streak),
     lastActiveDay: a.lastActiveDay > b.lastActiveDay ? a.lastActiveDay : b.lastActiveDay,
     stars: maxRec(a.stars || {}, b.stars || {}),
-    inventory: maxRec(a.inventory || {}, b.inventory || {}),
+    inventory: { ...(newer.inventory || {}) },
     owned: [...new Set([...(a.owned || []), ...(b.owned || [])])],
     stats: maxRec(a.stats || {}, b.stats || {}),
     skills,
