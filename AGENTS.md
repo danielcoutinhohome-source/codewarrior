@@ -15,6 +15,15 @@ David with ChatGPT/Codex). These rules keep us from overwriting each other.
    - `npx tsx scripts/test-classroom.ts` (classroom server, starts its own local server)
 4. Update **Currently working on** below when you start something big, and clear it when done.
 
+## Shared planning and handoffs
+
+Read [docs/TEAM_PLAN.md](docs/TEAM_PLAN.md) before choosing improvement work. It contains
+proposed ownership, priorities, acceptance checks, and a handoff template. Proposed Claude
+tasks require Claude's acknowledgment; never assume another agent is already implementing
+them. Record the task ID, branch/PR, and exact file scope under **Currently working on**.
+Keep one implementation owner per file; discuss overlapping changes in the task PR and adapt
+to work already in progress. Preserve the user's review-before-merge workflow.
+
 ## Areas and what not to break
 
 - **Game** (`src/app/battle`, `src/app/map`, `src/components/*Arena*`, world art): animations,
@@ -46,3 +55,6 @@ David with ChatGPT/Codex). These rules keep us from overwriting each other.
 - Daniel/Claude: question bank is now 100 templates per world (`src/lib/questions/more-w*.ts`),
   and battles use the device's answer history (`src/lib/questions/history.ts`) so question
   types don't repeat unless the student keeps missing them.
+
+- David/Codex: proposed shared improvement plan in `docs/TEAM_PLAN.md` (planning only;
+  implementation tasks still need explicit ownership claims).
