@@ -1,7 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion, useAnimate } from "framer-motion";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
+import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import Monster from "./Monster";
 import Warrior from "./Warrior";
 import { StarIcon } from "./icons";
@@ -11,19 +11,27 @@ import { BOSS, type Decor, type World } from "@/lib/game";
 export type SceneHandle = { charge: (battle: number) => Promise<void> };
 
 type Props = {
+  worldIndex: number;
   world: World;
   avatar: Avatar;
-  stars: (number | undefined)[]; // per battle
-  unlocked: boolean[]; // per battle
+  stars: (number | undefined)[];
+  unlocked: boolean[];
   selected: number;
   onSelect: (b: number) => void;
+  height: number;
 };
 
-// Depth of each battle along the road (bigger = farther away).
-const DEPTH = [1.6, 2.4, 3.5, 5.1, 8.2];
+// Distance of each battle down the road. The camera walks forward as you win.
+export const DEPTH = [1.8, 3.6, 5.4, 7.2, 10.2];
 const SIDE = [-1, 1, -1, 1, 0];
+const camFor = (b: number) => (b === BOSS ? DEPTH[BOSS] - 2.3 : Math.max(0, DEPTH[b] - 1.6));
+const NEAR = 0.38;
+const ease = [0.22, 1, 0.36, 1] as const;
 
-function useSize<T extends HTMLElement>() {
+const MonsterArt = memo(Monster);
+const WarriorArt = memo(Warrior);
+
+function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -35,197 +43,194 @@ function useSize<T extends HTMLElement>() {
   return [ref, w] as const;
 }
 
-// A first-person view down the road: your warrior in front, each enemy waiting by its level,
-// and the boss hidden in the fog at the end.
-const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ world, avatar, stars, unlocked, selected, onSelect }, ref) {
-  const [box, W] = useSize<HTMLDivElement>();
-  const [scope, animate] = useAnimate();
-  const H = Math.round(Math.max(440, Math.min(660, W * 0.62)));
-  const horizon = H * 0.36;
+type Geo = { W: number; H: number; horizon: number };
+
+// Places a box on the ground at depth z (relative to the camera), using only transforms.
+function Placed({ cam, z, lat, g, w, h, zIndex, children, fadeNear = true }: { cam: MotionValue<number>; z: number; lat: number; g: Geo; w: number; h: number; zIndex: number; children: ReactNode; fadeNear?: boolean }) {
+  const rel = useTransform(cam, (c) => z - c);
+  const scale = useTransform(rel, (r) => 1 / Math.max(NEAR, r));
+  const x = useTransform(rel, (r) => g.W / 2 + lat * (g.W / 2) / Math.max(NEAR, r) - w / 2);
+  const y = useTransform(rel, (r) => g.horizon + ((g.H - g.horizon) * 0.94) / Math.max(NEAR, r) - h);
+  const opacity = useTransform(rel, (r) => (!fadeNear ? 1 : r < 0.7 ? 0 : r < 1.05 ? (r - 0.7) / 0.35 : 1));
+  const visibility = useTransform(rel, (r) => (r < 0.72 || r > 40 ? "hidden" : "visible"));
+  return (
+    <motion.div className="absolute left-0 top-0" style={{ width: w, height: h, x, y, scale, opacity, visibility, zIndex, transformOrigin: "50% 100%", willChange: "transform" }}>
+      {children}
+    </motion.div>
+  );
+}
+
+// First-person view down the road: your warrior in front, each enemy waiting by its level,
+// and the boss hidden in fog until the four battles before it are won.
+const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldIndex, world, avatar, stars, unlocked, selected, onSelect, height }, ref) {
+  const [box, W] = useWidth<HTMLDivElement>();
+  const H = height;
+  const horizon = H * 0.38;
+  const g = useMemo(() => ({ W, H, horizon }), [W, H, horizon]);
   const t = world.theme;
   const bossOpen = unlocked[BOSS];
+  const storeKey = `cw.cam.${worldIndex}`;
 
-  const proj = (z: number, lateral: number) => {
-    const s = 1 / z;
-    return { x: W / 2 + lateral * (W / 2) * s, y: horizon + (H - horizon) * s * 0.94, s };
-  };
-  const roadHalf = (z: number) => 0.32 * (W / 2) * (1 / z);
+  // Camera: start where the player last stood in this world, then walk to the selected battle.
+  const cam = useMotionValue(0);
+  const [moving, setMoving] = useState(false);
+  const started = useRef(false);
+  useEffect(() => {
+    let from = camFor(selected);
+    if (!started.current) {
+      started.current = true;
+      try {
+        const saved = Number(sessionStorage.getItem(storeKey));
+        if (!Number.isNaN(saved) && sessionStorage.getItem(storeKey) !== null) from = saved;
+      } catch {}
+      cam.set(from);
+    }
+    const to = camFor(selected);
+    if (Math.abs(cam.get() - to) < 0.01) return;
+    setMoving(true);
+    const dist = Math.abs(cam.get() - to);
+    const ctl = animate(cam, to, { duration: Math.min(2.2, 0.7 + dist * 0.35), ease, onComplete: () => setMoving(false) });
+    return () => ctl.stop();
+  }, [selected, cam, storeKey]);
+  useMotionValueEvent(cam, "change", (v) => {
+    try {
+      sessionStorage.setItem(storeKey, String(v));
+    } catch {}
+  });
 
   useImperativeHandle(ref, () => ({
     async charge(b: number) {
-      const p = proj(DEPTH[b], SIDE[b] * 0.5);
-      await animate(scope.current, { scale: [1, 2.6], filter: ["blur(0px)", "blur(6px)"], opacity: [1, 0] }, { duration: 0.6, ease: [0.5, 0, 0.75, 0] });
-      void p;
+      setMoving(true);
+      await animate(cam, DEPTH[b] - 0.95, { duration: 0.55, ease: [0.55, 0, 0.75, 0.2] });
     },
   }));
 
-  // Side scenery at fixed depths.
-  const decor: { z: number; side: number; kind: Decor; lat: number }[] = [];
-  [1.15, 1.5, 1.95, 2.5, 3.2, 4.1, 5.3, 6.8, 8.8, 11.5].forEach((z, i) => {
-    decor.push({ z, side: -1, kind: t.decor[i % t.decor.length], lat: 1.15 + ((i * 37) % 5) * 0.12 });
-    decor.push({ z: z * 1.08, side: 1, kind: t.decor[(i + 1) % t.decor.length], lat: 1.2 + ((i * 53) % 5) * 0.12 });
-  });
-
-  const base = Math.min(W * 0.34, 300);
-  const warriorSize = Math.min(W * 0.22, 200);
-
-  // Road center dashes from near to far.
-  const dashes: string[] = [];
-  for (let z = 1.05; z < 14; z *= 1.32) {
-    const a = proj(z, 0), b2 = proj(z * 1.14, 0);
-    const wa = Math.max(1, roadHalf(z) * 0.05), wb = Math.max(0.6, roadHalf(z * 1.14) * 0.05);
-    dashes.push(`${a.x - wa},${a.y} ${a.x + wa},${a.y} ${b2.x + wb},${b2.y} ${b2.x - wb},${b2.y}`);
-  }
+  const roadHalf0 = 0.32 * (W / 2); // road half-width at depth 1
+  const decor = useMemo(() => {
+    const out: { z: number; side: number; kind: Decor; lat: number }[] = [];
+    for (let i = 0; i < 34; i++) {
+      const z = 1 + i * 0.62;
+      out.push({ z, side: i % 2 ? 1 : -1, kind: t.decor[(i >> 1) % t.decor.length], lat: 1.18 + ((i * 37) % 6) * 0.11 });
+    }
+    return out;
+  }, [t.decor]);
+  const mobile = W < 640;
+  const warriorSize = mobile ? W * 0.3 : Math.min(W * 0.2, 190);
 
   return (
-    <div ref={box} className="relative w-full overflow-hidden rounded-[30px] border-[3px]" style={{ height: H || 480, borderColor: t.roadEdge, boxShadow: `0 10px 0 ${t.roadEdge}` }}>
+    <div ref={box} className="relative w-full overflow-hidden" style={{ height: H }}>
       {W > 0 && (
-        <div ref={scope} className="absolute inset-0" style={{ transformOrigin: `50% ${horizon + (H - horizon) * 0.3}px` }}>
-          {/* sky */}
+        <>
+          {/* sky and ground */}
           <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${t.skyTop} 0%, ${t.skyBottom} ${(horizon / H) * 100}%, ${t.groundFar} ${(horizon / H) * 100}%, ${t.groundNear} 100%)` }} />
           {t.night ? (
             <>
-              {Array.from({ length: 28 }).map((_, i) => (
-                <motion.span key={i} aria-hidden className="absolute rounded-full bg-white" style={{ left: `${(i * 37) % 100}%`, top: ((i * 53) % 100) * (horizon / 100) * 0.9, width: i % 4 ? 2 : 3, height: i % 4 ? 2 : 3 }} animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 2 + (i % 5) * 0.6, repeat: Infinity, delay: i * 0.13 }} />
+              {Array.from({ length: 30 }).map((_, i) => (
+                <motion.span key={i} aria-hidden className="absolute rounded-full bg-white" style={{ left: `${(i * 37) % 100}%`, top: ((i * 53) % 100) * (horizon / 100) * 0.92, width: i % 4 ? 2 : 3, height: i % 4 ? 2 : 3 }} animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 2 + (i % 5) * 0.6, repeat: Infinity, delay: i * 0.13 }} />
               ))}
-              <div aria-hidden className="absolute rounded-full" style={{ right: "12%", top: horizon * 0.18, width: W * 0.07, height: W * 0.07, background: "#FFF6D6", boxShadow: "0 0 40px 10px rgba(255,246,214,.35)" }} />
+              <div aria-hidden className="absolute rounded-full" style={{ right: "14%", top: horizon * 0.22, width: W * 0.06, height: W * 0.06, background: "#FFF6D6", boxShadow: "0 0 50px 14px rgba(255,246,214,.3)" }} />
             </>
           ) : (
-            <motion.div aria-hidden className="absolute rounded-full" style={{ left: "14%", top: horizon * 0.2, width: W * 0.09, height: W * 0.09, background: "#FFF3B0", boxShadow: "0 0 60px 20px rgba(255,243,176,.6)" }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 5, repeat: Infinity }} />
+            <div aria-hidden className="absolute rounded-full" style={{ left: "16%", top: horizon * 0.24, width: W * 0.08, height: W * 0.08, background: "#FFF7C7", boxShadow: "0 0 80px 30px rgba(255,243,176,.55)" }} />
           )}
           {!t.night &&
-            [0.18, 0.62].map((x, i) => (
-              <motion.div key={x} aria-hidden className="absolute rounded-full bg-white/80" style={{ left: `${x * 100}%`, top: horizon * (0.25 + i * 0.25), width: W * 0.14, height: W * 0.035 }} animate={{ x: [0, i ? -30 : 30, 0] }} transition={{ duration: 16 + i * 4, repeat: Infinity, ease: "easeInOut" }} />
+            [0.12, 0.58, 0.82].map((x, i) => (
+              <motion.div key={x} aria-hidden className="absolute rounded-full bg-white/75" style={{ left: `${x * 100}%`, top: horizon * (0.22 + i * 0.18), width: W * (0.12 - i * 0.02), height: W * 0.026 }} animate={{ x: [0, i % 2 ? -26 : 26, 0] }} transition={{ duration: 18 + i * 5, repeat: Infinity, ease: "easeInOut" }} />
             ))}
-
-          {/* far hills or peaks */}
           <svg aria-hidden className="absolute inset-0" width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
             {t.peaks ? (
-              <path d={`M0 ${horizon} L${W * 0.12} ${horizon - H * 0.14} L${W * 0.22} ${horizon - H * 0.05} L${W * 0.36} ${horizon - H * 0.2} L${W * 0.5} ${horizon - H * 0.06} L${W * 0.66} ${horizon - H * 0.18} L${W * 0.8} ${horizon - H * 0.07} L${W * 0.92} ${horizon - H * 0.15} L${W} ${horizon - H * 0.05} L${W} ${horizon} Z`} fill={t.far} stroke="#C9D4EA" strokeWidth="2" />
+              <path d={`M0 ${horizon} L${W * 0.1} ${horizon - H * 0.13} L${W * 0.2} ${horizon - H * 0.05} L${W * 0.34} ${horizon - H * 0.19} L${W * 0.48} ${horizon - H * 0.06} L${W * 0.64} ${horizon - H * 0.17} L${W * 0.79} ${horizon - H * 0.06} L${W * 0.91} ${horizon - H * 0.14} L${W} ${horizon - H * 0.05} L${W} ${horizon} Z`} fill={t.far} />
             ) : (
-              <path d={`M0 ${horizon} Q${W * 0.12} ${horizon - H * 0.09} ${W * 0.26} ${horizon - H * 0.03} Q${W * 0.42} ${horizon - H * 0.12} ${W * 0.58} ${horizon - H * 0.02} Q${W * 0.76} ${horizon - H * 0.1} ${W} ${horizon - H * 0.03} L${W} ${horizon} Z`} fill={t.far} opacity="0.9" />
+              <path d={`M0 ${horizon} Q${W * 0.12} ${horizon - H * 0.08} ${W * 0.26} ${horizon - H * 0.03} Q${W * 0.42} ${horizon - H * 0.11} ${W * 0.58} ${horizon - H * 0.02} Q${W * 0.76} ${horizon - H * 0.09} ${W} ${horizon - H * 0.03} L${W} ${horizon} Z`} fill={t.far} opacity="0.85" />
             )}
-            {/* road */}
-            <polygon points={`${W / 2 - roadHalf(0.92) * 1.08},${H} ${W / 2 + roadHalf(0.92) * 1.08},${H} ${W / 2 + 2},${horizon} ${W / 2 - 2},${horizon}`} fill={t.roadEdge} />
-            <polygon points={`${W / 2 - roadHalf(0.92)},${H} ${W / 2 + roadHalf(0.92)},${H} ${W / 2 + 1.5},${horizon} ${W / 2 - 1.5},${horizon}`} fill={t.road} />
-            {dashes.map((d, i) => <polygon key={i} points={d} fill={t.roadLine} />)}
+            <polygon points={`${W / 2 - roadHalf0 * 1.2},${H} ${W / 2 + roadHalf0 * 1.2},${H} ${W / 2 + 2},${horizon} ${W / 2 - 2},${horizon}`} fill={t.roadEdge} />
+            <polygon points={`${W / 2 - roadHalf0 * 1.1},${H} ${W / 2 + roadHalf0 * 1.1},${H} ${W / 2 + 1.5},${horizon} ${W / 2 - 1.5},${horizon}`} fill={t.road} />
           </svg>
 
-          {/* scenery, far to near */}
-          {decor
-            .sort((a, b) => b.z - a.z)
-            .map((d, i) => {
-              const p = proj(d.z, d.side * d.lat);
-              const size = W * 0.2 * p.s;
-              return (
-                <div key={i} aria-hidden className="pointer-events-none absolute" style={{ left: p.x - size / 2, top: p.y - size, width: size, height: size, zIndex: Math.round(200 - d.z * 10) }}>
-                  <Scenery kind={d.kind} />
-                </div>
-              );
-            })}
-
-          {/* fog over the boss */}
-          <motion.div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: horizon - H * 0.16, height: H * 0.34, zIndex: 120, background: `linear-gradient(180deg, transparent, ${t.fog} 45%, transparent)` }} animate={{ opacity: bossOpen ? 0.3 : 0.85 }} transition={{ duration: 1.2 }} />
-          {[0, 1, 2].map((i) => (
-            <motion.div
-              key={i}
-              aria-hidden
-              className="pointer-events-none absolute rounded-full"
-              style={{ top: horizon - H * (0.1 - i * 0.04), left: `${10 + i * 28}%`, width: W * 0.42, height: H * 0.12, background: t.fog, filter: "blur(18px)", zIndex: 121 }}
-              animate={{ x: [0, i % 2 ? -50 : 50, 0], opacity: bossOpen ? 0.2 : [0.45, 0.7, 0.45] }}
-              transition={{ duration: 9 + i * 3, repeat: Infinity, ease: "easeInOut" }}
-            />
+          {/* center dashes stream toward you as the camera walks */}
+          {Array.from({ length: 30 }).map((_, i) => (
+            <Placed key={`d${i}`} cam={cam} z={0.8 + i * 0.7} lat={0} g={g} w={Math.max(4, W * 0.012)} h={Math.max(10, W * 0.06)} zIndex={5}>
+              <div className="h-full w-full rounded-full" style={{ background: t.roadLine }} />
+            </Placed>
           ))}
 
-          {/* battles: a level pad on the road and the enemy standing beside it */}
+          {decor.map((d, i) => (
+            <Placed key={`s${i}`} cam={cam} z={d.z} lat={d.side * d.lat} g={g} w={W * 0.2} h={W * 0.2} zIndex={Math.round(400 - d.z * 10)}>
+              <Scenery kind={d.kind} />
+            </Placed>
+          ))}
+
+          {/* fog only while the boss is still locked */}
+          {!bossOpen && (
+            <>
+              <div aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: horizon - H * 0.14, height: H * 0.3, zIndex: 290, background: `linear-gradient(180deg, transparent, ${t.fog} 48%, transparent)`, opacity: 0.8 }} />
+              {[0, 1, 2].map((i) => (
+                <motion.div key={i} aria-hidden className="pointer-events-none absolute rounded-full" style={{ top: horizon - H * (0.09 - i * 0.035), left: `${8 + i * 28}%`, width: W * 0.42, height: H * 0.11, background: t.fog, filter: "blur(18px)", zIndex: 291 }} animate={{ x: [0, i % 2 ? -50 : 50, 0], opacity: [0.45, 0.7, 0.45] }} transition={{ duration: 9 + i * 3, repeat: Infinity, ease: "easeInOut" }} />
+              ))}
+            </>
+          )}
+
+          {/* each battle: a pad on the road and its enemy standing beside it */}
           {DEPTH.map((z, b) => {
             const boss = b === BOSS;
             const enemy = world.enemies[b];
             const won = !!stars[b];
             const open = unlocked[b];
-            const isNext = open && !won;
-            const pad = proj(z, SIDE[b] * 0.12);
-            const at = proj(z, SIDE[b] * (boss ? 0 : 0.78));
-            const size = (boss ? base * 2.7 : base) * at.s * (selected === b ? 1.06 : 1);
-            const padW = Math.max(26, roadHalf(z) * 0.9);
-            const zi = boss ? 120 : Math.round(200 - z * 10);
+            const next = open && !won;
             const hidden = boss && !bossOpen;
+            const size = boss ? Math.min(W * 0.5, 460) : Math.min(W * 0.3, 270);
+            const padW = roadHalf0 * 0.95;
+            const zi = boss ? (hidden ? 285 : 400 - Math.round(z * 10)) : 400 - Math.round(z * 10);
             return (
               <div key={b}>
-                <motion.button
-                  type="button"
-                  onClick={() => onSelect(b)}
-                  aria-label={`${boss ? "Boss" : `Battle ${b + 1}`}: ${hidden ? "hidden in the fog" : enemy.name}${won ? `, won with ${stars[b]} stars` : open ? "" : ", locked"}`}
-                  className="absolute grid place-items-center rounded-[50%] border-white font-display text-white"
-                  style={{
-                    left: pad.x - padW / 2,
-                    top: pad.y - padW * 0.18,
-                    width: padW,
-                    height: padW * 0.36,
-                    zIndex: zi + 1,
-                    borderWidth: Math.max(2, 4 * pad.s),
-                    fontSize: Math.max(10, 26 * pad.s),
-                    background: won ? "#FFC83D" : isNext ? "#FF8A00" : boss ? "#E5484D" : "#A9B4C8",
-                    boxShadow: `0 ${Math.max(3, 9 * pad.s)}px 0 ${won ? "#E5A300" : isNext ? "#D96F00" : boss ? "#B3343A" : "#7D879E"}`,
-                  }}
-                  animate={isNext ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                  transition={isNext ? { duration: 1.4, repeat: Infinity } : undefined}
-                >
-                  {boss ? "!" : b + 1}
-                </motion.button>
+                <Placed cam={cam} z={z} lat={SIDE[b] * 0.1} g={g} w={padW} h={padW * 0.34} zIndex={zi + 1}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(b)}
+                    aria-label={`${boss ? "Boss" : `Battle ${b + 1}`}${hidden ? ", hidden in the fog" : `: ${enemy.name}`}${won ? `, won with ${stars[b]} stars` : open ? "" : ", locked"}`}
+                    className="grid h-full w-full place-items-center rounded-[50%] border-[6px] border-white font-display text-[34px] text-white"
+                    style={{ background: won ? "#FFC83D" : next ? "#FF8A00" : boss ? "#E5484D" : "#A9B4C8", boxShadow: `0 12px 0 ${won ? "#E5A300" : next ? "#D96F00" : boss ? "#B3343A" : "#7D879E"}${selected === b ? ", 0 0 0 8px rgba(255,255,255,.55)" : ""}` }}
+                  >
+                    {won ? "✓" : boss ? "!" : b + 1}
+                  </button>
+                </Placed>
+                <Placed cam={cam} z={z + 0.01} lat={boss ? 0 : SIDE[b] * 0.8} g={g} w={size} h={size} zIndex={zi}>
+                  <motion.button
+                    type="button"
+                    tabIndex={-1}
+                    aria-hidden
+                    onClick={() => onSelect(b)}
+                    className="relative block h-full w-full"
 
-                <motion.button
-                  type="button"
-                  tabIndex={-1}
-                  aria-hidden
-                  onClick={() => onSelect(b)}
-                  className="absolute"
-                  style={{
-                    left: at.x - size / 2,
-                    top: at.y - size * 0.98,
-                    width: size,
-                    height: size,
-                    zIndex: zi,
-                    filter: won ? "grayscale(0.7) brightness(1.05)" : !open && !hidden ? "saturate(0.55) brightness(0.92)" : undefined,
-                    opacity: won ? 0.55 : 1,
-                  }}
-                  whileHover={{ scale: 1.07 }}
-                  animate={{ rotate: won ? -10 : 0 }}
-                >
-                  <Monster enemy={enemy} boss={boss} size={size} silhouette={hidden} idle={!won} hurt={won} />
-                </motion.button>
-
-                {/* markers above enemies */}
-                {isNext && !hidden && (
-                  <motion.div className="pointer-events-none absolute grid place-items-center rounded-full bg-white font-display text-ember" style={{ left: at.x - 16, top: at.y - size - 34, width: 32, height: 32, zIndex: zi + 2, boxShadow: "0 4px 0 #D96F00", fontSize: 22 }} animate={{ y: [0, -8, 0] }} transition={{ duration: 1, repeat: Infinity }}>
-                    !
-                  </motion.div>
-                )}
-                {won && (
-                  <div className="pointer-events-none absolute flex" style={{ left: at.x - 33, top: at.y - size - 20, zIndex: zi + 2 }}>
-                    {[1, 2, 3].map((s) => <StarIcon key={s} size={22} on={s <= (stars[b] || 0)} />)}
-                  </div>
-                )}
-                {selected === b && (
-                  <motion.div layoutId="select-ring" className="pointer-events-none absolute rounded-[50%] border-4 border-white" style={{ left: at.x - size * 0.42, top: at.y - size * 0.12, width: size * 0.84, height: size * 0.26, zIndex: zi - 1, boxShadow: "0 0 0 3px rgba(255,138,0,.8)" }} transition={{ type: "spring", stiffness: 300, damping: 30 }} />
-                )}
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.25, ease }}
+                  >
+                    {selected === b && !hidden && <span className="absolute bottom-[1%] left-[16%] h-[11%] w-[68%] rounded-[50%] border-[5px] border-white/90" style={{ boxShadow: "0 0 0 5px rgba(255,138,0,.6)" }} />}
+                    <span className="block" style={{ filter: won ? "grayscale(0.75)" : !open && !hidden ? "saturate(0.6)" : undefined, opacity: won ? 0.6 : 1 }}>
+                      <MonsterArt enemy={enemy} boss={boss} size={size} silhouette={hidden} idle={!won} hurt={won} />
+                    </span>
+                    {next && !hidden && (
+                      <motion.span className="absolute left-1/2 top-[-6%] grid h-[15%] w-[15%] min-w-[26px] -translate-x-1/2 place-items-center rounded-full bg-white font-display text-ember" style={{ boxShadow: "0 4px 0 #D96F00", fontSize: size * 0.1 }} animate={{ y: [0, -8, 0] }} transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}>
+                        !
+                      </motion.span>
+                    )}
+                    {won && (
+                      <span className="absolute left-1/2 top-[-4%] flex -translate-x-1/2">
+                        {[1, 2, 3].map((s) => <StarIcon key={s} size={size * 0.13} on={s <= (stars[b] || 0)} />)}
+                      </span>
+                    )}
+                  </motion.button>
+                </Placed>
               </div>
             );
           })}
 
-          {/* your warrior, seen from behind */}
-          <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * 0.11, bottom: -warriorSize * 0.06, width: warriorSize, zIndex: 300 }} initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 140, damping: 16, delay: 0.15 }}>
-            <Warrior facing="back" armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
+          {/* your warrior from behind; it bobs faster while walking */}
+          <motion.div className="pointer-events-none absolute" style={{ left: W / 2 - warriorSize / 2 + W * (mobile ? 0.16 : 0.1), bottom: mobile ? 46 : -warriorSize * 0.08, width: warriorSize, zIndex: 600 }} initial={{ y: 60, opacity: 0 }} animate={moving ? { y: [0, -10, 0], rotate: [-2, 2, -2], opacity: 1 } : { y: 0, rotate: 0, opacity: 1 }} transition={moving ? { duration: 0.45, repeat: Infinity, ease: "easeInOut" } : { duration: 0.5, ease }}>
+            <WarriorArt facing="back" armor={avatar.armor} energy={avatar.energy} finish={avatar.finish} aura={avatar.aura} size={warriorSize} />
           </motion.div>
-
-          <AnimatePresence>
-            {!bossOpen && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#1F2440]/70 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white" style={{ top: horizon - H * 0.2, zIndex: 130 }}>
-                Something waits in the fog
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+          <div aria-hidden className="pointer-events-none absolute inset-0" style={{ zIndex: 650, background: "radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(15,18,45,.22))" }} />
+        </>
       )}
     </div>
   );

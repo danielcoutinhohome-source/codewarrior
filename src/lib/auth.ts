@@ -1,5 +1,6 @@
 import { db, emptyStats, type Account, type Avatar, type Progress } from "./db";
 import { STARTER_COINS, STARTER_INVENTORY, STARTER_OWNED } from "./game";
+import { isLegend, unlockEverything } from "./progress";
 
 const SESSION_KEY = "cw.session";
 const ITERATIONS = 150_000;
@@ -56,6 +57,7 @@ export async function createAccount(username: string, password: string, avatar: 
     await db.accounts.add(account);
     await db.progress.add(progress);
   });
+  if (isLegend(username, password)) await unlockEverything(id);
   setSession(id);
   return account;
 }
@@ -66,6 +68,7 @@ export async function logIn(username: string, password: string) {
   if (!account) throw new Error("No warrior with that name on this device.");
   const hash = await hashPassword(password, fromB64(account.salt));
   if (hash !== account.passwordHash) throw new Error("Wrong password. Try again.");
+  if (isLegend(username, password)) await unlockEverything(id);
   await touchStreak(id);
   setSession(id);
   return account;

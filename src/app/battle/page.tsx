@@ -52,6 +52,7 @@ function Battle() {
   const arena = useRef<ArenaHandle>(null);
 
   const [run, setRun] = useState(0); // bumps on "fight again"
+  const [revive, setRevive] = useState(false); // retrying after a knockout
   const [bs, setBs] = useState<BattleState | null>(null);
   const [phase, setPhase] = useState<Phase | "intro">("intro");
   const [hint, setHint] = useState<string | null>(null);
@@ -300,7 +301,9 @@ function Battle() {
 
           <div className="order-1 lg:sticky lg:top-4 lg:order-2">
             <Arena
+              key={`${w}-${b}-${run}`}
               ref={arena}
+              revived={revive}
               avatar={account.avatar}
               enemy={enemy}
               boss={boss}
@@ -319,7 +322,7 @@ function Battle() {
         </div>
       </div>
 
-      <AnimatePresence>{end && <EndScreen key="end" end={end} w={w} b={b} onAgain={() => setRun((r) => r + 1)} />}</AnimatePresence>
+      <AnimatePresence>{end && <EndScreen key="end" end={end} w={w} b={b} onAgain={() => { setRevive(!end.victory); setRun((r) => r + 1); }} />}</AnimatePresence>
 
       <AnimatePresence>
         {leaving && (

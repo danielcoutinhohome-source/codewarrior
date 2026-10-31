@@ -189,3 +189,21 @@ export function readReport(code: string): Report {
 
 export const totalStars = (stars: Record<string, number>) => Object.values(stars).reduce((a, b) => a + b, 0);
 export const ALL_ITEMS = SHOP;
+
+// ---- Test account: unlocks everything ----
+export const LEGEND_NAME = "big3lfg";
+export const LEGEND_PASS = "123456";
+export const isLegend = (username: string, password: string) => username.trim().toLowerCase() === LEGEND_NAME && password === LEGEND_PASS;
+
+export async function unlockEverything(id: string) {
+  const stars: Record<string, number> = {};
+  WORLDS.forEach((_, w) => [0, 1, 2, 3, 4].forEach((b) => (stars[key(w, b)] = 3)));
+  await db.progress.update(id, {
+    stars,
+    owned: SHOP.filter((s) => s.kind !== "power").map((s) => s.id),
+    coins: 99999,
+    xp: Math.max(3000, 0),
+    inventory: { potion: 99, shield: 99, surge: 99, scroll: 99 },
+    updatedAt: Date.now(),
+  });
+}

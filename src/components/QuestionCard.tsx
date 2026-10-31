@@ -51,6 +51,25 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
   }, [phase, shakeCtl]);
 
   const locked = phase !== "answering" && phase !== "retry";
+
+  // Number keys pick multiple-choice answers.
+  useEffect(() => {
+    if (q.kind !== "choice" || locked) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= (q.options?.length || 0)) {
+        e.preventDefault();
+        setSel(n - 1);
+      } else if (e.key === "Enter" && sel !== null) {
+        e.preventDefault();
+        onSubmit(sel);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [q, locked, sel, onSubmit]);
   const filled = q.kind === "choice" ? sel !== null : q.kind === "order" ? true : text.trim() !== "";
   const submit = () => {
     if (locked || !filled) return;
@@ -78,7 +97,7 @@ export default function QuestionCard({ q, phase, attempt, hint, resultNote, onSu
       transition={{ type: "spring", stiffness: 260, damping: 26 }}
       className="card flex min-w-0 flex-col gap-4 p-5 sm:p-6"
       onKeyDown={(e) => {
-        if (e.key === "Enter" && !(e.target as HTMLElement).closest("button")) {
+        if (e.key === "Enter" && !(e.target as HTMLElement).closest("button") && !(q.kind === "choice" && !locked)) {
           e.preventDefault();
           if (phase === "correct" || phase === "revealed") onContinue();
           else submit();
