@@ -22,6 +22,10 @@ teacher device ◄──── WebSocket "changed" + refetch ─────┘ 
   5 million rows read/day, 5 GB storage; Workers ~10 ms CPU per request. A class of 30 playing
   daily uses a small fraction of this, but it isn't unlimited: past a limit, requests fail until
   00:00 UTC and devices keep results queued and retry.
+- Measured with `npx tsx scripts/bench-classroom.ts` (30 students x 30 battles x 12 answers,
+  5 assignments): about 35 rows written per battle (so roughly 2,800 battles/day site-wide) and
+  about 3,800 rows read per teacher dashboard load (about 1,300 loads/day). Every response has an
+  `x-rows` header with its rows read/written; rerun the benchmark after changing queries.
 
 ## Permission model (enforced on the server)
 
@@ -129,6 +133,7 @@ cd classroom-server && npx wrangler dev --port 8799
 npx tsx scripts/test-classroom.ts      # API integration tests (starts its own server)
 NEXT_PUBLIC_BASE_PATH=/codewarrior NEXT_PUBLIC_CLASSROOM_URL=http://localhost:8797 npm run build
 npx tsx scripts/e2e-classroom.ts       # browser acceptance test, two "devices" (needs Playwright)
+npx tsx scripts/bench-classroom.ts     # rows read/written per request for a realistic class
 ```
 
 ## Endpoints

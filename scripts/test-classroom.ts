@@ -213,7 +213,8 @@ async function main() {
     const replay = await call("POST", "/sync", s1.token, { events });
     ok(replay.body.acks.every((a: any) => a.status === "duplicate"), "replay is acknowledged as duplicate");
     const sameIdsNewEvents = await call("POST", "/sync", s1.token, { events: battleEvents(sid, { assignmentId: asg.body.assignment.id, answers: [true, true, true, true, true], outcome: "won" }) });
-    ok(sameIdsNewEvents.body.acks.every((a: any) => a.status === "ok"), "retry with fresh event ids is accepted but can't change a finished run");
+    ok(sameIdsNewEvents.body.acks.every((a: any) => a.status === "ok" || a.status === "duplicate"), "retry with fresh event ids is accepted but can't change a finished run");
+    ok(sameIdsNewEvents.body.acks.filter((a: any) => a.status === "duplicate").length === 5, "re-sent answers are recognised by their content, not their event id");
     eq((await call("POST", "/sync", s2.token, { events: [events[0]] })).body.acks[0].status, "rejected", "another account can't reuse an event id");
     eq((await call("POST", "/sync", s2.token, { events: [{ id: uid(), type: "attempt", at: Date.now(), sessionId: sid, attempt: events[1].attempt }] })).body.acks[0].status, "rejected", "another account can't write into the run");
 

@@ -37,6 +37,9 @@ class HttpError extends Error {
   }
 }
 
+type CreditRow = { id: string; student_id: string; kind: string; world: number | null; battle: number | null; lesson_id: string | null; outcome: string; answered: number; assignment_id: string | null; t: number };
+const CREDIT_COLS = "id, student_id, kind, world, battle, lesson_id, outcome, answered, assignment_id, COALESCE(finished_at, finished_received_at, received_at) AS t";
+
 const SESSION_MS = 30 * 86_400_000;
 const DAY = 86_400_000;
 const now = () => Date.now();
@@ -75,6 +78,10 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 export class Classroom extends DurableObject<Env> {
   private sql: SqlStorage;
   private calls = 0;
+  // Rows read/written by the current request (Durable Object SQL is metered per row on the
+  // free plan); reported in the x-rows header so cost regressions are easy to measure.
+  private rowsRead = 0;
+  private rowsWritten = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -96,13 +103,21 @@ export class Classroom extends DurableObject<Env> {
   }
 
   private all<T = Row>(q: string, ...args: unknown[]): T[] {
-    return this.sql.exec(q, ...(args as SqlStorageValue[])).toArray() as T[];
+    const c = this.sql.exec(q, ...(args as SqlStorageValue[]));
+    const rows = c.toArray() as T[];
+    this.rowsRead += c.rowsRead;
+    this.rowsWritten += c.rowsWritten;
+    return rows;
   }
   private one<T = Row>(q: string, ...args: unknown[]): T | null {
     return (this.all<T>(q, ...args)[0] ?? null) as T | null;
   }
   private run(q: string, ...args: unknown[]) {
-    this.sql.exec(q, ...(args as SqlStorageValue[]));
+    const c = this.sql.exec(q, ...(args as SqlStorageValue[]));
+    c.toArray();
+    this.rowsRead += c.rowsRead;
+    this.rowsWritten += c.rowsWritten;
+    return c.rowsWritten;
   }
   private schemaVersion() {
     return Number(this.one<{ v: string }>("SELECT v FROM meta WHERE k = 'schema_version'")?.v || 0);
@@ -161,7 +176,9 @@ export class Classroom extends DurableObject<Env> {
   }
 
   private async register(body: Record<string, unknown>, ip: string) {
-    this.guard(`reg:${ip}`, 60, 3600_000, "Too many new accounts from this network. Try again later.");
+    // A whole school usually shares one address, so per-network limits leave room for several
+    // classes signing up back to back.
+    this.guard(`reg:${ip}`, 300, 3600_000, "Too many new accounts from this network. Try again later.");
     const username = str(body.username, 20, "Username", { min: 3 });
     if (!USERNAME_RE.test(username)) throw new HttpError(400, "bad_request", "Usernames are 3 to 20 letters, numbers or underscores.");
     const password = checkPassword(body.password, username);
@@ -189,7 +206,7 @@ export class Classroom extends DurableObject<Env> {
     const username = str(body.username, 40, "Username", { min: 1 });
     const password = typeof body.password === "string" ? body.password.slice(0, MAX_PASSWORD) : "";
     const lc = username.toLowerCase();
-    this.guard(`login-ip:${ip}`, 300, 600_000, "Too many sign-in attempts from this network. Wait a few minutes.");
+    this.guard(`login-ip:${ip}`, 1000, 600_000, "Too many sign-in attempts from this network. Wait a few minutes.");
     this.guard(`login-fail:${lc}`, 10, 900_000, "Too many wrong passwords for this account. Wait 15 minutes and try again.");
     this.bump(`login-ip:${ip}`, 600_000);
     const u = this.one<User>("SELECT * FROM users WHERE username_lc = ?", lc);
@@ -531,34 +548,51 @@ export class Classroom extends DurableObject<Env> {
   // (students who played ahead aren't sent back). With requireLaunch, only runs started from
   // this assignment count. Either way an unrelated battle never completes it: the run must be
   // the assigned battle or topic. Device-only progress (no recorded answers) never counts.
-  private creditFor(a: Assignment, studentId: string, target: string): Credit | null {
-    const scope = a.requireLaunch ? "assignment_id = ? AND" : "(assignment_id = ? OR 1) AND";
-    let r: { id: string; t: number; assignment_id: string | null } | null;
-    if (a.target.kind === "battles") {
-      const [w, b] = target.split("-").map(Number);
-      r = this.one(
-        `SELECT id, COALESCE(finished_at, finished_received_at) AS t, assignment_id FROM play_sessions WHERE ${scope} student_id = ? AND kind = 'battle' AND world = ? AND battle = ? AND outcome = 'won'
-         ORDER BY (assignment_id = ?1) DESC, t ASC LIMIT 1`,
-        a.id, studentId, w, b,
-      );
-    } else {
-      r = this.one(
-        `SELECT id, COALESCE(finished_at, finished_received_at) AS t, assignment_id FROM play_sessions WHERE ${scope} student_id = ? AND kind = 'practice' AND lesson_id = ? AND outcome = 'completed' AND answered >= ?
-         ORDER BY (assignment_id = ?1) DESC, t ASC LIMIT 1`,
-        a.id, studentId, a.target.lessonId, a.target.count,
-      );
+  // The runs that can matter for assignments: every win/completion, plus anything launched
+  // from an assignment (for "started"). Loaded once per student (or once for a whole roster).
+  private creditRows(studentIds: string[] | { classId: string }): Map<string, CreditRow[]> {
+    const rows = Array.isArray(studentIds)
+      ? studentIds.length === 1
+        ? this.all<CreditRow>(`SELECT ${CREDIT_COLS} FROM play_sessions WHERE student_id = ? AND (outcome IN ('won','completed') OR assignment_id IS NOT NULL)`, studentIds[0])
+        : []
+      : this.all<CreditRow>(
+          `SELECT ${CREDIT_COLS} FROM play_sessions WHERE student_id IN (SELECT student_id FROM memberships WHERE class_id = ? AND left_at IS NULL) AND (outcome IN ('won','completed') OR assignment_id IS NOT NULL)`,
+          studentIds.classId,
+        );
+    const out = new Map<string, CreditRow[]>();
+    for (const r of rows) {
+      const l = out.get(r.student_id);
+      if (l) l.push(r);
+      else out.set(r.student_id, [r]);
     }
-    return r ? { target, sessionId: r.id, at: r.t, viaAssignment: r.assignment_id === a.id } : null;
+    return out;
+  }
+  private creditFor(a: Assignment, rows: CreditRow[], target: string): Credit | null {
+    let best: CreditRow | null = null;
+    const [w, b] = a.target.kind === "battles" ? target.split("-").map(Number) : [0, 0];
+    for (const r of rows) {
+      if (a.requireLaunch && r.assignment_id !== a.id) continue;
+      const fits =
+        a.target.kind === "battles"
+          ? r.kind === "battle" && r.world === w && r.battle === b && r.outcome === "won"
+          : r.kind === "practice" && r.lesson_id === a.target.lessonId && r.outcome === "completed" && r.answered >= a.target.count;
+      if (!fits) continue;
+      // Prefer a run launched from this assignment, then the earliest.
+      const better = !best || (r.assignment_id === a.id) > (best.assignment_id === a.id) || ((r.assignment_id === a.id) === (best.assignment_id === a.id) && r.t < best.t);
+      if (better) best = r;
+    }
+    return best ? { target, sessionId: best.id, at: best.t, viaAssignment: best.assignment_id === a.id } : null;
   }
   private targetKeys(a: Assignment) {
     return a.target.kind === "battles" ? a.target.battles.map(([w, b]) => `${w}-${b}`) : [a.target.lessonId];
   }
-  private assignmentProgress(a: Assignment, studentId: string): { state: AssignmentState; done: number; needed: number; completedAt: number | null; late: boolean; credits: Credit[] } {
+  private assignmentProgress(a: Assignment, studentId: string, preloaded?: CreditRow[]): { state: AssignmentState; done: number; needed: number; completedAt: number | null; late: boolean; credits: Credit[] } {
+    const rows = preloaded ?? this.creditRows([studentId]).get(studentId) ?? [];
     const keys = this.targetKeys(a);
-    const credits = keys.map((k) => this.creditFor(a, studentId, k)).filter((c): c is Credit => !!c);
+    const credits = keys.map((k) => this.creditFor(a, rows, k)).filter((c): c is Credit => !!c);
     const needed = keys.length, done = credits.length;
     const completedAt = done ? Math.max(...credits.map((c) => c.at)) : null;
-    const started = !!this.one("SELECT 1 FROM play_sessions WHERE assignment_id = ? AND student_id = ? LIMIT 1", a.id, studentId);
+    const started = rows.some((r) => r.assignment_id === a.id);
     const complete = done >= needed;
     const state: AssignmentState = complete ? "completed" : a.dueAt && now() > a.dueAt ? "overdue" : started || done > 0 ? "in_progress" : "not_started";
     return { state, done, needed, completedAt: complete ? completedAt : null, late: !!(complete && a.dueAt && completedAt && completedAt > a.dueAt), credits };
@@ -584,6 +618,18 @@ export class Classroom extends DurableObject<Env> {
         acks.push({ id: String(id ?? ""), status: "rejected", reason: "invalid event id" });
         continue;
       }
+      // Answers are idempotent by their own key (run, question, round, try), so they skip the
+      // receipt table: that halves the rows written per answer.
+      if (raw.type === "attempt") {
+        try {
+          const r = this.ctx.storage.transactionSync(() => this.applyAttempt(u, raw, skew));
+          acks.push({ id, status: r === "dup" ? "duplicate" : "ok" });
+        } catch (e) {
+          if (!(e instanceof HttpError)) console.error("sync event failed", e);
+          acks.push({ id, status: "rejected", reason: e instanceof HttpError ? e.message : "invalid event" });
+        }
+        continue;
+      }
       const prior = this.one<{ user_id: string; status: string; reason: string | null }>("SELECT user_id, status, reason FROM receipts WHERE event_id = ?", id);
       if (prior) {
         acks.push(prior.user_id === u.id ? { id, status: "duplicate" } : { id, status: "rejected", reason: "event id already used" });
@@ -596,7 +642,7 @@ export class Classroom extends DurableObject<Env> {
           return sid;
         });
         // Teachers are notified when a run starts or ends, not for every answer.
-        if (sessionId && raw.type !== "attempt") touched.add(sessionId);
+        if (sessionId) touched.add(sessionId);
         acks.push({ id, status: "ok" });
       } catch (e) {
         const reason = e instanceof HttpError ? e.message : "invalid event";
@@ -671,24 +717,10 @@ export class Classroom extends DurableObject<Env> {
 
     const sid = (e as { sessionId?: unknown }).sessionId;
     if (!isId(sid)) throw new HttpError(400, "bad_request", "invalid session id");
-    const ses = this.one<{ student_id: string; outcome: string; started_at: number; kind: string; question_count: number }>("SELECT student_id, outcome, started_at, kind, question_count FROM play_sessions WHERE id = ?", sid);
-    if (!ses || ses.student_id !== u.id) throw new HttpError(404, "not_found", "unknown session");
+    const ses = this.ownSession(u, sid);
 
     if (e.type === "attempt") {
-      const a = e.attempt || ({} as never);
-      const index = int(a.index, 0, 200, "index"), round = int(a.round, 0, 30, "round"), tryNo = int(a.tryNo, 0, 10, "tryNo");
-      const options = Array.isArray(a.options) ? a.options.slice(0, 12).map((o) => String(o).slice(0, 600)) : null;
-      const correct = a.correct === null || a.correct === undefined ? null : a.correct ? 1 : 0;
-      this.run(
-        `INSERT OR IGNORE INTO attempts (session_id, idx, round, try_no, student_id, question_id, skill, kind, prompt, code, options_json, given, expected, correct, hinted, client_at, received_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        sid, index, round, tryNo, u.id, str(a.questionId, 120, "questionId", { min: 1 }), str(a.skill, 120, "skill", { min: 1 }), str(a.kind, 20, "kind", { min: 1 }),
-        str(a.prompt, 4000, "prompt", { trim: false }), optStr(a.code, 8000) ?? null, options ? JSON.stringify(options) : null, str(a.given, 4000, "given", { trim: false }),
-        optStr(a.expected, 4000) ?? null, correct, a.hinted ? 1 : 0, this.clampTime(e.at, ses.started_at, t), t,
-      );
-      // Totals are derived once the run ends (saves a write per answer); an answer arriving
-      // after the end (out-of-order upload) updates them right away.
-      if (ses.outcome !== "in_progress") this.recompute(sid);
+      this.applyAttempt(u, raw, skew);
       return sid;
     }
     if (e.type === "session.finish") {
@@ -717,6 +749,40 @@ export class Classroom extends DurableObject<Env> {
     throw new HttpError(400, "bad_request", "unknown event type");
   }
 
+  private ownSession(u: User, sid: string) {
+    const ses = this.one<{ student_id: string; outcome: string; started_at: number; kind: string; question_count: number }>("SELECT student_id, outcome, started_at, kind, question_count FROM play_sessions WHERE id = ?", sid);
+    if (!ses || ses.student_id !== u.id) throw new HttpError(404, "not_found", "unknown session");
+    return ses;
+  }
+
+  // One answer. Returns "dup" when this exact answer (run, question, round, try) is already stored.
+  private applyAttempt(u: User, raw: SyncEvent, skew: number): "ok" | "dup" {
+    const t = now();
+    if (raw.type !== "attempt") throw new HttpError(400, "bad_request", "not an answer");
+    const sid = (raw as { sessionId?: unknown }).sessionId;
+    if (!isId(sid)) throw new HttpError(400, "bad_request", "invalid session id");
+    const ses = this.ownSession(u, sid);
+    const at = typeof raw.at === "number" ? raw.at + skew : undefined;
+    const a = raw.attempt || ({} as never);
+    const index = int(a.index, 0, 200, "index"), round = int(a.round, 0, 30, "round"), tryNo = int(a.tryNo, 0, 10, "tryNo");
+    const options = Array.isArray(a.options) ? a.options.slice(0, 12).map((o) => String(o).slice(0, 600)) : null;
+    const correct = a.correct === null || a.correct === undefined ? null : a.correct ? 1 : 0;
+    // Free-text fields are trimmed to size rather than rejected, so a long answer isn't lost.
+    const text = (v: unknown, max: number) => (typeof v === "string" ? clean(v).slice(0, max) : "");
+    const written = this.run(
+      `INSERT OR IGNORE INTO attempts (session_id, idx, round, try_no, student_id, question_id, skill, kind, prompt, code, options_json, given, expected, correct, hinted, client_at, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sid, index, round, tryNo, u.id, str(a.questionId, 120, "questionId", { min: 1 }), str(a.skill, 120, "skill", { min: 1 }), str(a.kind, 20, "kind", { min: 1 }),
+      text(a.prompt, 4000), optStr(a.code, 8000) ?? null, options ? JSON.stringify(options) : null, text(a.given, 4000),
+      optStr(a.expected, 4000) ?? null, correct, a.hinted ? 1 : 0, this.clampTime(at, ses.started_at, t), t,
+    );
+    if (!written) return "dup";
+    // Totals are derived once the run ends (saves a write per answer); an answer arriving
+    // after the end (out-of-order upload) updates them right away.
+    if (ses.outcome !== "in_progress") this.recompute(sid);
+    return "ok";
+  }
+
   // Summary columns are always derived from the stored attempts, never from client totals.
   private recompute(sid: string) {
     const s = this.one<{ outcome: string; question_count: number; kind: string; hints_used: number }>("SELECT outcome, question_count, kind, hints_used FROM play_sessions WHERE id = ?", sid)!;
@@ -730,7 +796,16 @@ export class Classroom extends DurableObject<Env> {
       sid,
     )!;
     const stars = s.kind === "battle" && s.outcome === "won" ? starsFor(agg.first, s.question_count) : null;
-    this.run("UPDATE play_sessions SET first_try = ?, answered = ?, retries = ?, hints_used = MAX(hints_used, ?), stars = ? WHERE id = ?", agg.first, agg.answered, agg.retries || 0, agg.hinted, stars, sid);
+    const skills: Record<string, [number, number]> = {};
+    for (const r of this.all<{ skill: string; n: number; missed: number }>(
+      "SELECT skill, COUNT(*) AS n, SUM(correct = 0 OR hinted = 1) AS missed FROM attempts WHERE session_id = ? AND round = 0 AND try_no = 0 AND correct IS NOT NULL GROUP BY skill",
+      sid,
+    ))
+      skills[r.skill] = [r.n, r.missed || 0];
+    this.run(
+      "UPDATE play_sessions SET first_try = ?, answered = ?, retries = ?, hints_used = MAX(hints_used, ?), stars = ?, skills_json = ? WHERE id = ?",
+      agg.first, agg.answered, agg.retries || 0, agg.hinted, stars, JSON.stringify(skills), sid,
+    );
   }
 
   // Which classes may see a run: its assignment's class, or (for unassigned play) every class
@@ -812,54 +887,68 @@ export class Classroom extends DurableObject<Env> {
        WHERE m.class_id = ? AND m.left_at IS NULL ORDER BY u.display_name COLLATE NOCASE`,
       classId,
     );
-    const stats = new Map(
-      this.all(
-        `${Classroom.VIS}
-         SELECT student_id, COUNT(*) AS runs,
-           SUM(outcome = 'won') AS wins, SUM(outcome = 'lost') AS losses, SUM(outcome = 'abandoned') AS abandoned,
-           SUM(CASE WHEN outcome IN ('won','lost') THEN first_try ELSE 0 END) AS first_try,
-           SUM(CASE WHEN outcome IN ('won','lost') THEN question_count ELSE 0 END) AS first_total,
-           SUM(hints_used) AS hints, SUM(retries) AS retries,
-           MAX(COALESCE(finished_received_at, received_at)) AS last_activity
-         FROM vis GROUP BY student_id`,
-        classId,
-      ).map((r) => [r.student_id as string, r]),
-    );
+    // Every visible run, read once; stats, recent results and skills are computed from it
+    // (summaries are reloaded on every live update, so they must stay cheap).
+    const runs = this.all(`${Classroom.VIS} SELECT * FROM vis`, classId);
+    type Stat = { runs: number; wins: number; losses: number; abandoned: number; first_try: number; first_total: number; hints: number; retries: number; last_activity: number | null };
+    const stats = new Map<string, Stat>();
+    const perStudentSkill = new Map<string, Map<string, [number, number]>>();
+    const classSkill = new Map<string, { n: number; missed: number; students: Set<string> }>();
+    for (const r of runs) {
+      const sid = r.student_id as string;
+      let st = stats.get(sid);
+      if (!st) stats.set(sid, (st = { runs: 0, wins: 0, losses: 0, abandoned: 0, first_try: 0, first_total: 0, hints: 0, retries: 0, last_activity: null }));
+      const o = r.outcome as string;
+      st.runs++;
+      if (o === "won") st.wins++;
+      if (o === "lost") st.losses++;
+      if (o === "abandoned") st.abandoned++;
+      if (o === "won" || o === "lost") {
+        st.first_try += r.first_try as number;
+        st.first_total += r.question_count as number;
+      }
+      st.hints += r.hints_used as number;
+      st.retries += r.retries as number;
+      const act = (r.finished_received_at as number) ?? (r.received_at as number);
+      if (st.last_activity === null || act > st.last_activity) st.last_activity = act;
+      if (!r.skills_json) continue;
+      let mine = perStudentSkill.get(sid);
+      if (!mine) perStudentSkill.set(sid, (mine = new Map()));
+      for (const [skill, [n, missed]] of Object.entries(JSON.parse(r.skills_json as string) as Record<string, [number, number]>)) {
+        const p = mine.get(skill) || [0, 0];
+        mine.set(skill, [p[0] + n, p[1] + missed]);
+        const c = classSkill.get(skill) || { n: 0, missed: 0, students: new Set<string>() };
+        c.n += n;
+        c.missed += missed;
+        c.students.add(sid);
+        classSkill.set(skill, c);
+      }
+    }
     const assignments = this.all("SELECT * FROM assignments WHERE class_id = ? AND deleted_at IS NULL ORDER BY COALESCE(due_at, 9e15), created_at", classId).map((a) => this.assignmentOut(a));
     const published = assignments.filter((a) => a.status === "published");
     const states: Record<string, Record<string, ReturnType<Classroom["assignmentProgress"]>>> = {};
+    const creditRows = published.length ? this.creditRows({ classId }) : new Map<string, CreditRow[]>();
     for (const a of published) {
       states[a.id] = {};
-      for (const r of roster) states[a.id][r.student_id as string] = this.assignmentProgress(a, r.student_id as string);
+      for (const r of roster) states[a.id][r.student_id as string] = this.assignmentProgress(a, r.student_id as string, creditRows.get(r.student_id as string) ?? []);
     }
-    const recent = this.all(
-      `${Classroom.VIS}
-       SELECT vis.*, u.display_name AS student_name, a.title AS assignment_title FROM vis JOIN users u ON u.id = vis.student_id LEFT JOIN assignments a ON a.id = vis.assignment_id
-       ORDER BY COALESCE(vis.finished_received_at, vis.received_at) DESC LIMIT 40`,
-      classId,
-    ).map((s) => this.sessionOut(s));
-    const skills = this.all(
-      `${Classroom.VIS}
-       SELECT a.skill, COUNT(*) AS n, SUM(a.correct = 0 OR a.hinted = 1) AS missed, COUNT(DISTINCT a.student_id) AS students
-       FROM attempts a JOIN vis ON vis.id = a.session_id
-       WHERE a.round = 0 AND a.try_no = 0 AND a.correct IS NOT NULL
-       GROUP BY a.skill ORDER BY n DESC LIMIT 200`,
-      classId,
-    ).map((r) => ({ skill: r.skill as string, firstTries: r.n as number, missed: (r.missed as number) || 0, students: r.students as number }));
-    const studentSkills = this.all(
-      `${Classroom.VIS}
-       SELECT a.student_id, a.skill, COUNT(*) AS n, SUM(a.correct = 0 OR a.hinted = 1) AS missed
-       FROM attempts a JOIN vis ON vis.id = a.session_id
-       WHERE a.round = 0 AND a.try_no = 0 AND a.correct IS NOT NULL
-       GROUP BY a.student_id, a.skill`,
-      classId,
-    );
+    const skills = [...classSkill.entries()]
+      .map(([skill, c]) => ({ skill, firstTries: c.n, missed: c.missed, students: c.students.size }))
+      .sort((a, b) => b.firstTries - a.firstTries)
+      .slice(0, 200);
     const formerMembers = this.all(
       `SELECT m.student_id, MAX(m.left_at) AS left_at, u.display_name FROM memberships m JOIN users u ON u.id = m.student_id
        WHERE m.class_id = ? AND m.left_at IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memberships o WHERE o.class_id = m.class_id AND o.student_id = m.student_id AND o.left_at IS NULL)
        GROUP BY m.student_id ORDER BY left_at DESC`,
       classId,
     ).map((r) => ({ id: r.student_id as string, name: r.display_name as string, leftAt: r.left_at as number }));
+    const names = new Map<string, string>([...roster.map((r) => [r.student_id as string, r.display_name as string] as [string, string]), ...formerMembers.map((f) => [f.id, f.name] as [string, string])]);
+    const titles = new Map(assignments.map((a) => [a.id, a.title]));
+    const at = (r: Row) => ((r.finished_received_at as number) ?? (r.received_at as number));
+    const recent = runs
+      .sort((a, b) => at(b) - at(a))
+      .slice(0, 40)
+      .map((r) => this.sessionOut({ ...r, student_name: names.get(r.student_id as string) ?? "", assignment_title: r.assignment_id ? (titles.get(r.assignment_id as string) ?? null) : null }));
     return {
       class: this.classInfo(c, true, { memberCount: roster.length }),
       students: roster.map((r) => {
@@ -879,7 +968,7 @@ export class Classroom extends DurableObject<Env> {
           hints: Number(s?.hints || 0),
           retries: Number(s?.retries || 0),
           lastActivity: (s?.last_activity as number) ?? null,
-          skills: studentSkills.filter((k) => k.student_id === r.student_id).map((k) => ({ skill: k.skill as string, firstTries: k.n as number, missed: (k.missed as number) || 0 })),
+          skills: [...(perStudentSkill.get(r.student_id as string) ?? new Map<string, [number, number]>()).entries()].map(([skill, [n, missed]]) => ({ skill, firstTries: n, missed })),
         };
       }),
       formerMembers,
@@ -913,12 +1002,13 @@ export class Classroom extends DurableObject<Env> {
       classId, studentId,
     );
     const assignments = this.all("SELECT * FROM assignments WHERE class_id = ? AND deleted_at IS NULL AND status = 'published'", classId).map((a) => this.assignmentOut(a));
+    const credit = this.creditRows([studentId]).get(studentId) ?? [];
     return {
       student: { id: student.id, name: student.display_name, username: student.username },
       periods: periods.map((p) => ({ joinedAt: p.joined_at, leftAt: p.left_at ?? null, leftReason: p.left_reason ?? null, sharePlay: !!p.share_play })),
       sessions: sessions.map((s) => this.sessionOut(s)),
       attempts: attempts.map((a) => this.attemptOut(a)),
-      assignments: assignments.map((a) => ({ ...a, ...this.assignmentProgress(a, studentId) })),
+      assignments: assignments.map((a) => ({ ...a, ...this.assignmentProgress(a, studentId, credit) })),
       feedback: this.feedbackFor(classId, studentId),
     };
   }
@@ -936,9 +1026,10 @@ export class Classroom extends DurableObject<Env> {
   private creditedRun(classId: string, sessionId: string): Row | null {
     const s = this.one("SELECT s.*, u.display_name AS student_name FROM play_sessions s JOIN users u ON u.id = s.student_id WHERE s.id = ?", sessionId);
     if (!s || !this.one("SELECT 1 FROM memberships WHERE class_id = ? AND student_id = ?", classId, s.student_id)) return null;
+    const credit = this.creditRows([s.student_id as string]).get(s.student_id as string) ?? [];
     for (const row of this.all("SELECT * FROM assignments WHERE class_id = ? AND deleted_at IS NULL AND status = 'published' AND require_launch = 0", classId)) {
       const a = this.assignmentOut(row);
-      if (this.assignmentProgress(a, s.student_id as string).credits.some((c) => c.sessionId === sessionId)) return { ...s, assignment_title: null };
+      if (this.assignmentProgress(a, s.student_id as string, credit).credits.some((c) => c.sessionId === sessionId)) return { ...s, assignment_title: null };
     }
     return null;
   }
@@ -1012,10 +1103,11 @@ export class Classroom extends DurableObject<Env> {
       "SELECT c.*, t.display_name AS teacher_name, m.joined_at, m.share_play FROM memberships m JOIN classes c ON c.id = m.class_id JOIN users t ON t.id = c.teacher_id WHERE m.student_id = ? AND m.left_at IS NULL ORDER BY m.joined_at DESC",
       u.id,
     );
+    const credit = this.creditRows([u.id]).get(u.id) ?? [];
     const assignments = classes.flatMap((c) =>
       this.all("SELECT * FROM assignments WHERE class_id = ? AND deleted_at IS NULL AND status = 'published' ORDER BY COALESCE(due_at, 9e15), created_at", c.id).map((row) => {
         const a = this.assignmentOut(row);
-        return { ...a, className: c.name as string, ...this.assignmentProgress(a, u.id) };
+        return { ...a, className: c.name as string, ...this.assignmentProgress(a, u.id, credit) };
       }),
     );
     const feedback = classes.flatMap((c) => this.feedbackFor(c.id as string, u.id).map((f) => ({ ...f, className: c.name as string })));
@@ -1107,6 +1199,13 @@ export class Classroom extends DurableObject<Env> {
 
   // ---------- routing ----------
   async fetch(req: Request): Promise<Response> {
+    this.rowsRead = this.rowsWritten = 0;
+    const res = await this.handle(req);
+    res.headers.set("x-rows", `read=${this.rowsRead}; written=${this.rowsWritten}`);
+    return res;
+  }
+
+  private async handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const ip = req.headers.get("x-client-ip") || "unknown";
     const path = url.pathname.replace(/\/+$/, "");

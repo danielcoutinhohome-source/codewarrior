@@ -193,4 +193,21 @@ ALTER TABLE assignments ADD COLUMN require_launch INTEGER NOT NULL DEFAULT 0;
 UPDATE assignments SET require_launch = 1;
 `,
   },
+  {
+    version: 3,
+    name: "cheaper teacher summaries and uploads: per-run skill totals, drop an unused index",
+    sql: `
+-- First-try results per skill for each run, filled when the run ends, so class summaries
+-- read one row per run instead of every answer.
+ALTER TABLE play_sessions ADD COLUMN skills_json TEXT;
+UPDATE play_sessions SET skills_json = (
+  SELECT json_group_object(skill, json_array(n, missed)) FROM (
+    SELECT skill, COUNT(*) AS n, SUM(correct = 0 OR hinted = 1) AS missed FROM attempts
+    WHERE attempts.session_id = play_sessions.id AND round = 0 AND try_no = 0 AND correct IS NOT NULL
+    GROUP BY skill))
+WHERE outcome != 'in_progress';
+-- Never queried; it cost extra writes on every answer.
+DROP INDEX IF EXISTS attempts_student_skill;
+`,
+  },
 ];
