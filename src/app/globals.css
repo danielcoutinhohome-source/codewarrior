@@ -38,14 +38,13 @@ body {
   outline-offset: 3px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+/* Calm mode, switched on in the Armory (not tied to the OS setting). */
+html.cw-reduce-motion *,
+html.cw-reduce-motion *::before,
+html.cw-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
 
 /* Show code operators literally: no ligatures turning != or == into single glyphs. */

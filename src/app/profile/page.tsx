@@ -12,6 +12,7 @@ import { BOSS, SHOP, WORLDS, key, levelFor, type ItemKind } from "@/lib/game";
 import { deleteWarrior, equip, ownsItem, exportBackup, isEquipped, makeReport, totalStars } from "@/lib/progress";
 import { play } from "@/lib/sfx";
 import { useWarrior } from "@/lib/useWarrior";
+import { setReduceMotion, useReduceMotion } from "@/lib/motionPref";
 
 const SLOTS: { kind: ItemKind; label: string }[] = [
   { kind: "body", label: "Body" },
@@ -187,6 +188,8 @@ export default function ProfilePage() {
               <p className="text-sm font-bold text-ink-mute">Teachers: open the <Link href="/teacher/" className="text-ocean-deep hover:underline">teacher dashboard</Link>.</p>
             </div>
 
+            <MotionSetting />
+
             <div className="card flex flex-col gap-3 p-5">
               <h2 className="font-display text-2xl">Saves and account</h2>
               <p className="font-bold text-ink-soft">Your warrior lives in this browser. Download a backup to keep it safe or move it to another computer, then restore it from the log in page.</p>
@@ -222,6 +225,29 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="card px-4 py-3">
       <div className="text-[11px] font-black uppercase tracking-wider text-ink-mute">{label}</div>
       <div className="font-display text-3xl tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+function MotionSetting() {
+  const on = useReduceMotion();
+  return (
+    <div className="card flex items-center justify-between gap-4 p-5">
+      <div>
+        <h2 className="font-display text-2xl">Calm animations</h2>
+        <p className="font-bold text-ink-soft">Shorter attacks with no dashing, shaking or flashing. Off by default.</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label="Calm animations"
+        onClick={() => setReduceMotion(!on)}
+        className="relative h-9 w-16 flex-none rounded-full transition-colors"
+        style={{ background: on ? "#3EC46D" : "#C5D7EC" }}
+      >
+        <span className="absolute top-1 h-7 w-7 rounded-full bg-white shadow transition-all" style={{ left: on ? 32 : 4 }} />
+      </button>
     </div>
   );
 }

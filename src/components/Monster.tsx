@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { useReduceMotion } from "@/lib/motionPref";
 import { useId } from "react";
 import { darken, lighten } from "@/lib/color";
 import type { Enemy } from "@/lib/game";
@@ -20,7 +21,7 @@ export default function Monster({ enemy, boss = false, size = 200, idle = true, 
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const id = (name: string) => `enemy-${uid}-${name}`;
   const paint = (name: string) => `url(#${id(name)})`;
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReduceMotion();
   // Hidden bosses reveal a silhouette only: no name, programming cue or lore.
   const loop = idle && !reducedMotion && !hurt;
   const floating = ["division-ray", "boolean-owl", "while-jelly", "substring-wyvern", "echo-wraith", "null-lich", "bounds-bat", "constructor-raven", "stock-mage", "final-judge"].includes(enemy.design);

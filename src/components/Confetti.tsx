@@ -1,5 +1,6 @@
 "use client";
 
+import { getReduceMotion } from "@/lib/motionPref";
 import { useEffect, useRef } from "react";
 
 // One burst of confetti over the whole screen.
@@ -7,7 +8,7 @@ export default function Confetti({ run, colors = ["#2D9CDB", "#3EC46D", "#FFC83D
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (!run || !ref.current) return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (getReduceMotion()) return;
     const c = ref.current;
     const W = (c.width = window.innerWidth), H = (c.height = window.innerHeight);
     const x = c.getContext("2d");

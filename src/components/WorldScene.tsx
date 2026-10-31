@@ -1,6 +1,7 @@
 "use client";
 
-import { animate, motion, useReducedMotion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
+import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type MotionValue } from "framer-motion";
+import { useReduceMotion } from "@/lib/motionPref";
 import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import Monster from "./Monster";
 import WorldLandmark from "./WorldLandmark";
@@ -66,7 +67,7 @@ const WorldScene = forwardRef<SceneHandle, Props>(function WorldScene({ worldInd
   const furthest = Math.max(0,unlocked.lastIndexOf(true));
   const cameraBattle = Math.min(selected,furthest);
   const approach = bossApproach(stars, selected);
-  const reduced = !!useReducedMotion();
+  const reduced = !!useReduceMotion();
   const storeKey = `cw.cam.${worldIndex}`;
 
   // Camera: start where the player last stood in this world, then walk to the selected battle.

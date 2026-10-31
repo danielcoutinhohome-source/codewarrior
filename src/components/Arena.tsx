@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion, useAnimate, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useAnimate } from "framer-motion";
+import { useReduceMotion } from "@/lib/motionPref";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Monster from "./Monster";
 import DuelImpact, { type DuelSpark } from "./DuelImpact";
@@ -71,7 +72,7 @@ const Arena = forwardRef<ArenaHandle, Props>(function Arena(p, ref) {
   const [duelSparks,setDuelSparks] = useState<DuelSpark[]>([]);
   const [cinematic,setCinematic] = useState<{who:"hero"|"foe";hits:number;stage:string}|null>(null);
   const [knockoutBanner,setKnockoutBanner] = useState(false);
-  const reduced = !!useReducedMotion();
+  const reduced = !!useReduceMotion();
   const enemyTurn = useRef(0);
   const attackController = useRef<AbortController | null>(null);
   const effectTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());

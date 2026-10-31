@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { useReduceMotion } from "@/lib/motionPref";
 import { BOSS_GATES } from "@/lib/bossApproach";
 import type { Scene } from "@/lib/game";
 import { play } from "@/lib/sfx";
 export default function BossGate({ scene, onOpen, onBack }: { scene: Scene; onOpen:()=>void; onBack:()=>void }) {
-  const gate=BOSS_GATES[scene], reduce=useReducedMotion();
+  const gate=BOSS_GATES[scene], reduce=useReduceMotion();
   const [wrong,setWrong]=useState(false),[opened,setOpened]=useState(false);
   const dialog=useRef<HTMLDivElement>(null),back=useRef<HTMLButtonElement>(null);
   const openCallback=useRef(onOpen);openCallback.current=onOpen;

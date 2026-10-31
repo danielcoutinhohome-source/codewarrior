@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { useReduceMotion } from "@/lib/motionPref";
 import { useId, type ReactNode } from "react";
 import { RAINBOW_STOPS, darken, lighten, solid } from "@/lib/color";
 import { EXTRA_AURA_COLORS, HEADWEAR, weaponSpec } from "@/lib/cosmetics";
@@ -82,7 +83,7 @@ export default function Warrior({
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const id = (s: string) => `${s}-${uid}`;
   const url = (s: string) => `url(#${id(s)})`;
-  const reduce = useReducedMotion();
+  const reduce = useReduceMotion();
   const loop = idle && !reduce;
   const back = facing === "back";
   const b = body === "titan" || body === "valkyrie" ? body : "bot";
