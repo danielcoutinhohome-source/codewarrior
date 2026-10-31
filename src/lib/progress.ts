@@ -1,3 +1,4 @@
+import { withEquipment, equipmentSelected } from "./equipment";
 import { db, type Account, type Progress } from "./db";
 import { BOSS, SHOP, WORLDS, XP_PER_CORRECT, item, key, levelFor, rewardFor, type Power } from "./game";
 
@@ -104,30 +105,26 @@ export async function buy(id: string, itemId: string): Promise<{ ok: boolean; re
   });
 }
 
-// Bodies are always free to switch between.
-export const ownsItem = (p: Progress, itemId: string) => p.owned.includes(itemId) || item(itemId)?.kind === "body";
+// Free defaults stay accessible to older saves without rewriting their inventory.
+export const ownsItem = (p: Progress, itemId: string) => p.owned.includes(itemId) || item(itemId)?.price === 0;
 
 export async function equip(id: string, itemId: string) {
   const it = item(itemId);
-  const p = await db.progress.get(id);
-  const a = await db.accounts.get(id);
-  if (!it || !p || !a || !ownsItem(p, itemId) || it.kind === "power") return false;
-  const field = it.kind === "body" ? "body" : it.kind === "armor" ? "armor" : it.kind === "energy" ? "energy" : it.kind === "title" ? "title" : it.kind === "finish" ? "finish" : "aura";
-  await db.accounts.update(id, { avatar: { ...a.avatar, [field]: it.value } });
-  return true;
+  if (!it || it.kind === "power") return false;
+  // Serialize quick changes to different slots so the later save cannot
+  // overwrite another slot with a stale copy of the avatar.
+  return db.transaction("rw", db.accounts, db.progress, async () => {
+    const [p, a] = await Promise.all([db.progress.get(id), db.accounts.get(id)]);
+    if (!p || !a || !ownsItem(p, itemId)) return false;
+    await db.accounts.update(id, { avatar: withEquipment(a.avatar, it) });
+    return true;
+  });
 }
 
 export const isEquipped = (a: Account, itemId: string) => {
   const it = item(itemId);
   if (!it) return false;
-  const av = a.avatar;
-  if (it.kind === "body") return (av.body || "bot") === it.value;
-  if (it.kind === "armor") return av.armor === it.value;
-  if (it.kind === "energy") return av.energy === it.value;
-  if (it.kind === "title") return av.title === it.value;
-  if (it.kind === "finish") return (av.finish || "standard") === it.value;
-  if (it.kind === "aura") return (av.aura || "none") === it.value;
-  return false;
+  return equipmentSelected(a.avatar, it);
 };
 
 export async function useItem(id: string, power: Power) {

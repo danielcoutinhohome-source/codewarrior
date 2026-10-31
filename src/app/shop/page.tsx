@@ -7,7 +7,7 @@ import TopBar from "@/components/TopBar";
 import Warrior from "@/components/Warrior";
 import { CoinIcon } from "@/components/icons";
 import { Button, Pedestal } from "@/components/ui";
-import type { Avatar } from "@/lib/db";
+import { withEquipment } from "@/lib/equipment";
 import { SHOP, type ItemKind, type ShopItem } from "@/lib/game";
 import { buy, equip, isEquipped, ownsItem } from "@/lib/progress";
 import { play } from "@/lib/sfx";
@@ -17,7 +17,9 @@ const TABS: { kind: ItemKind; label: string; blurb: string }[] = [
   { kind: "power", label: "Power-ups", blurb: "Use these during battles. They stack up in your bag." },
   { kind: "body", label: "Body", blurb: "Pick your warrior's frame. All bodies are free." },
   { kind: "armor", label: "Armor", blurb: "Repaint your warrior's shell." },
-  { kind: "energy", label: "Energy", blurb: "Changes your blade, thruster and eye glow." },
+  { kind: "energy", label: "Energy", blurb: "Changes your classic blade, thrusters and headwear. Weapon variants keep their own colors." },
+  { kind: "weapon", label: "Weapons", blurb: "Scythes, warhammers and glaives: five colors per type. Cosmetic only; pick your style." },
+  { kind: "headwear", label: "Headwear", blurb: "Hats, ears, beards and wild hair. Every accessory matches your equipped energy color." },
   { kind: "finish", label: "Finish", blurb: "Special surface effects on top of your armor color." },
   { kind: "aura", label: "Auras", blurb: "An animated effect around your warrior in battles and on the map." },
   { kind: "title", label: "Titles", blurb: "Shown under your name. Some can only be earned by beating bosses." },
@@ -33,14 +35,7 @@ export default function ShopPage() {
   const items = useMemo(() => SHOP.filter((s) => s.kind === tab), [tab]);
   if (!account || !progress) return <div className="min-h-dvh bg-sky" />;
 
-  const look: Avatar = { ...account.avatar };
-  if (preview) {
-    if (preview.kind === "body") look.body = preview.value;
-    if (preview.kind === "armor") look.armor = preview.value;
-    if (preview.kind === "energy") look.energy = preview.value;
-    if (preview.kind === "finish") look.finish = preview.value;
-    if (preview.kind === "aura") look.aura = preview.value;
-  }
+  const look = preview ? withEquipment(account.avatar, preview) : account.avatar;
 
   const say = (text: string, good: boolean) => {
     const m = { text, good, id: Date.now() };
@@ -92,7 +87,7 @@ export default function ShopPage() {
             <Pedestal>
               <AnimatePresence mode="popLayout">
                 <motion.div key={JSON.stringify(look)} initial={{ scale: 0.9, opacity: 0.5 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 360, damping: 20 }}>
-                  <Warrior body={look.body} armor={look.armor} energy={look.energy} finish={look.finish} aura={look.aura} size={170} />
+                  <Warrior weapon={look.weapon} headwear={look.headwear} body={look.body} armor={look.armor} energy={look.energy} finish={look.finish} aura={look.aura} size={170} />
                 </motion.div>
               </AnimatePresence>
             </Pedestal>
@@ -139,9 +134,9 @@ export default function ShopPage() {
                     className="flex flex-col items-center gap-2 rounded-[22px] border-[3px] bg-white p-4 text-center"
                     style={{ borderColor: on ? "#3EC46D" : "#D5E4F5", boxShadow: `0 6px 0 ${on ? "#2BA155" : "#C5D7EC"}` }}
                   >
-                    <div className="grid h-[84px] w-full place-items-center rounded-2xl bg-sky">
+                    <button type="button" onClick={() => setPreview(it)} aria-label={`Preview ${it.name}`} className="grid h-[84px] w-full place-items-center rounded-2xl bg-sky focus-visible:outline focus-visible:outline-2 focus-visible:outline-ocean">
                       <ItemArt it={it} avatar={account.avatar} />
-                    </div>
+                    </button>
                     <div className="font-display text-lg leading-tight">{it.name}</div>
                     <p className="min-h-[2.5em] text-[13px] font-bold leading-snug text-ink-mute">{it.blurb}</p>
                     {it.kind === "power" && <div className="text-xs font-black text-ocean-deep">In your bag: {progress.inventory[it.id] || 0}</div>}

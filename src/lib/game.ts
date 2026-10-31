@@ -1,3 +1,5 @@
+import { EXTRA_COSMETICS } from "./cosmetics";
+
 // Static game data: worlds, enemies, rewards and the shop catalog.
 
 export const ENEMY_DESIGNS = ["byte-raider", "semicolon-mimic", "cast-corsair", "division-ray", "compiler-leviathan", "fork-stalker", "boolean-owl", "modulo-mantis", "nested-basilisk", "elder-else", "counter-crab", "while-jelly", "offset-angler", "break-turtle", "ouroboros", "index-yeti", "substring-wyvern", "char-sabertooth", "echo-wraith", "null-lich", "bounds-bat", "length-crawler", "swap-spider", "list-driller", "index-colossus", "grid-sentinel", "constructor-raven", "this-duelist", "base-gargoyle", "stack-tyrant", "sum-twins", "stock-mage", "mirror-paladin", "merge-minotaur", "final-judge"] as const;
@@ -184,7 +186,7 @@ export const PLAYER_HP = 100;
 export const enemyHit = (world: number, boss: boolean) => (boss ? 30 + 2 * world : 16 + 2 * world);
 
 // Shop
-export type ItemKind = "power" | "body" | "armor" | "energy" | "finish" | "aura" | "title";
+export type ItemKind = "power" | "body" | "armor" | "energy" | "finish" | "aura" | "title" | "weapon" | "headwear";
 export type ShopItem = {
   id: string;
   kind: ItemKind;
@@ -199,6 +201,7 @@ export const POWERS = ["potion", "shield", "surge", "scroll"] as const;
 export type Power = (typeof POWERS)[number];
 
 export const SHOP: ShopItem[] = [
+  ...EXTRA_COSMETICS,
   { id: "potion", kind: "power", name: "Health Potion", price: 40, value: "potion", blurb: "Heals 35 HP in battle." },
   { id: "shield", kind: "power", name: "Firewall", price: 50, value: "shield", blurb: "Raises an energy wall that blocks the next enemy hit." },
   { id: "surge", kind: "power", name: "Power Surge", price: 60, value: "surge", blurb: "Your next correct answer hits twice as hard." },

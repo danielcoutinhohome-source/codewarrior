@@ -9,7 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify": "tsx scripts/verify-questions.ts",
-    "test": "tsx scripts/test-battle.ts && tsx scripts/test-enemies.tsx"
+    "test": "tsx scripts/test-battle.ts && tsx scripts/test-enemies.tsx && tsx scripts/test-cosmetics.tsx"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.3.0",
