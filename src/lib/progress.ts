@@ -216,7 +216,12 @@ export const ALL_ITEMS = SHOP;
 // ---- Test account: unlocks everything ----
 export const LEGEND_NAME = "big3lfg";
 export const LEGEND_PASS = "123456";
-export const isLegend = (username: string, password: string) => username.trim().toLowerCase() === LEGEND_NAME && password === LEGEND_PASS;
+// More device-only test accounts with the same full access (name is case-insensitive).
+const TEST_ACCOUNTS: Record<string, string> = { [LEGEND_NAME]: LEGEND_PASS, dev_test: "12345678" };
+export const isLegend = (username: string, password: string) => {
+  const pass = TEST_ACCOUNTS[username.trim().toLowerCase()];
+  return pass !== undefined && password === pass;
+};
 
 export async function unlockEverything(id: string) {
   const stars: Record<string, number> = {};
