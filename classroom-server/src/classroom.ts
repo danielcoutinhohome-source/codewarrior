@@ -20,6 +20,7 @@ import {
   type SyncEvent,
 } from "../../src/lib/cloud/protocol";
 import { PBKDF2_ITERATIONS, hashPassword, newToken, randomCode, randomId, safeEqual, sha256, verifyPassword } from "./crypto";
+import { recordTraffic, trafficReport } from "./analytics";
 import { MIGRATIONS } from "./schema";
 
 export type Env = {
@@ -1234,6 +1235,20 @@ export class Classroom extends DurableObject<Env> {
       }
       const seg = path.split("/").slice(2); // after /v1
       const r = (method: string, ...parts: string[]) => m === method && seg.length === parts.length && parts.every((p, i) => p === "*" || p === seg[i]);
+
+      if (r("POST", "analytics", "heartbeat")) {
+        // Shared school IPs need headroom, but public ingestion must be bounded.
+        this.guard("traffic:" + ip, 600, 60_000, "Too many traffic updates.");
+        this.bump("traffic:" + ip, 60_000);
+        if (!this.ctx.storage.transactionSync(() => recordTraffic(this.sql, body))) throw new HttpError(400, "bad_request", "Invalid traffic heartbeat.");
+        return json({ ok: true });
+      }
+      if (r("GET", "analytics")) {
+        await this.teacher(req);
+        const days = Number(url.searchParams.get("days") || 30);
+        if (![7,30,90].includes(days)) throw new HttpError(400, "bad_request", "Choose 7, 30 or 90 days.");
+        return json(trafficReport(this.sql, days));
+      }
 
       if (r("POST", "auth", "register")) return json(await this.register(body, ip), 201);
       if (r("POST", "auth", "login")) return json(await this.login(body, ip));

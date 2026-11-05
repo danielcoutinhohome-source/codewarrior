@@ -104,6 +104,7 @@ async function main() {
     eq(t1.status, 200, "teacher signs in with starter password (case-insensitive username)");
     ok(t1.body.me.role === "teacher" && t1.body.me.mustChangePassword, "starter password must be changed");
     const starterToken = t1.body.token;
+    eq((await call("GET", "/analytics", starterToken)).status, 403, "traffic locked until password change");
     eq((await call("GET", "/classes", starterToken)).body.error, "password_change_required", "classroom records locked until password change");
     eq((await call("POST", "/auth/password", starterToken, { current: "nope", next: "NewSecret456" })).status, 401, "wrong current password");
     eq((await call("POST", "/auth/password", starterToken, { current: "Starter123x", next: "short" })).status, 400, "weak password rejected");
@@ -129,6 +130,21 @@ async function main() {
     const s1 = await signup("ava_student", { role: "teacher" });
     eq(s1.me.role, "student", "role in the request body is ignored");
     const s2 = await signup("ben_student");
+    eq((await call("GET", "/analytics")).status, 401, "anonymous traffic reader rejected");
+    eq((await call("GET", "/analytics", s1.token)).status, 403, "student traffic reader rejected");
+    eq((await call("GET", "/analytics?days=9999", T)).status, 400, "report window bounded");
+    eq((await call("POST", "/analytics/heartbeat", undefined, {visitor:"bad",view:true})).status, 400, "invalid heartbeat rejected");
+    const visitor = uid(), viewEvent = uid();
+    eq((await call("POST", "/analytics/heartbeat", undefined, {visitor,view:true,event:viewEvent})).status, 200, "public heartbeat accepted");
+    await call("POST", "/analytics/heartbeat", undefined, {visitor,view:true,event:viewEvent});
+    const traffic = await call("GET", "/analytics?days=7", T);
+    eq(traffic.status, 200, "teacher can read aggregates");
+    eq(traffic.body.days.length, 7, "report includes zero days");
+    eq(traffic.body.days.at(-1).visitors, 1, "browser deduplicated");
+    eq(traffic.body.days.at(-1).pageViews, 1, "view retries deduplicated");
+    eq(traffic.body.activeNow, 1, "presence counted");
+    eq((await call("POST", "/analytics/heartbeat", undefined, {visitor,view:false}, {origin:"https://untrusted.example"})).status, 403, "foreign origin rejected");
+
     eq((await call("POST", "/auth/register", undefined, { username: "Ava_Student", password: "whatever123" })).status, 409, "usernames are unique ignoring case");
     eq((await call("PATCH", "/me", s1.token, { role: "teacher", displayName: "Ava" })).body.me.role, "student", "profile update can't change role");
     eq((await call("POST", "/classes", s1.token, { name: "Hack", course: "csa" })).status, 403, "student can't create classes");

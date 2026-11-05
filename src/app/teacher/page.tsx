@@ -177,6 +177,7 @@ function Dashboard() {
     <Shell
       right={
         <div className="flex flex-wrap items-center gap-2 text-sm font-black">
+          <Link href="/analytics/" className="underline">SITE TRAFFIC</Link>
           <span className="text-ink-soft">{cloud.me.displayName}</span>
           <Link href="/account/" className="rounded-xl bg-white px-3 py-1.5 text-ink-soft hover:text-ink">Account</Link>
           <button type="button" onClick={() => void signOut()} className="rounded-xl bg-white px-3 py-1.5 text-ink-soft hover:text-ink">Sign out</button>
