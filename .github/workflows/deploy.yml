@@ -33,6 +33,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Check separate teacher provisioning
+        run: node --test scripts/test-teacher-provisioning.mjs
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -106,38 +108,20 @@ jobs:
           echo "::notice title=classroom server healthy::$health"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
-      # Starter teacher account. Runs only while the TEACHER_INITIAL_PASSWORD secret exists. A
-      # one-time admin token is generated here, set on the Worker, used once and then replaced by
-      # a random value nobody knows. Idempotent: an existing teacher is never changed, so the
-      # starter password can't overwrite a password the teacher already chose.
-      - name: Check for the starter teacher secret
-        id: teacher
-        run: echo "ready=${{ secrets.TEACHER_INITIAL_PASSWORD != '' }}" >> "$GITHUB_OUTPUT"
-      - name: Provision the starter teacher account
-        if: steps.classroom.outputs.url != '' && steps.teacher.outputs.ready == 'true'
-        continue-on-error: true
+      # Each fixed teacher has its own GitHub secret. Existing passwords are preserved
+      # unless a manual run explicitly selects that account and requests a reset.
+      - name: Provision both teacher accounts with separate initial passwords
+        if: steps.classroom.outputs.url != ''
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          TEACHER_INITIAL_PASSWORD: ${{ secrets.TEACHER_INITIAL_PASSWORD }}
+          DETRICK_INITIAL_PASSWORD: ${{ secrets.DETRICK_INITIAL_PASSWORD }}
+          BIG3LFG_INITIAL_PASSWORD: ${{ secrets.BIG3LFG_INITIAL_PASSWORD }}
           TEACHER_USERNAME: ${{ inputs.teacher_username || 'DetrickD123' }}
           URL: ${{ steps.classroom.outputs.url }}
           RESET: ${{ inputs.reset_teacher_password == true && 'true' || 'false' }}
         working-directory: classroom-server
-        run: |
-          token=$(openssl rand -hex 32)
-          echo "::add-mask::$token"
-          printf '%s' "$token" | npx wrangler secret put ADMIN_TOKEN > /dev/null
-          sleep 15
-          body=$(jq -n --arg u "$TEACHER_USERNAME" --arg p "$TEACHER_INITIAL_PASSWORD" --argjson r "$RESET" '{username: $u, password: $p, reset: $r}')
-          ok=""
-          for i in $(seq 1 6); do
-            if res=$(curl -fsS -X POST "$URL/v1/admin/provision-teacher" -H "authorization: Bearer $token" -H "content-type: application/json" --data-binary "$body"); then ok=1; break; fi
-            sleep 10
-          done
-          openssl rand -hex 32 | npx wrangler secret put ADMIN_TOKEN > /dev/null
-          if [ -z "$ok" ]; then echo "::error::Teacher provisioning failed."; exit 1; fi
-          echo "Provisioning result: $(echo "$res" | jq -r .status) ($TEACHER_USERNAME)"
+        run: node ../scripts/provision-teachers.mjs
 
       - run: npm run build
         env:

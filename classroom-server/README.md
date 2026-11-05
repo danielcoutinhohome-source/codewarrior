@@ -104,24 +104,39 @@ Uses the same Cloudflare account, token and GitHub secrets as the AI tutor (see
 3. builds the site with `NEXT_PUBLIC_CLASSROOM_URL` set to that URL (or the `CLASSROOM_URL`
    repository variable).
 
-### Starter teacher account
+### Two fixed teacher accounts
 
-Add a repository secret **`TEACHER_INITIAL_PASSWORD`** (Settings → Secrets and variables →
-Actions). On the next deploy, the workflow generates a one-time admin token, sets it on the Worker,
-creates the teacher (`DetrickD123` unless a different username is typed when running it manually), and replaces the token with a random
-value nobody knows. It's idempotent: an existing teacher is never changed. The password is never
-in the repository, the site bundle or the logs. The teacher must change it at first sign-in.
-Delete the secret afterwards; it's only needed to (re)create the account.
+Add these **two repository secrets** in Settings → Secrets and variables → Actions:
 
-To reset the starter teacher's password (forgotten, or the starter password was exposed): set
-`TEACHER_INITIAL_PASSWORD` to a new value, then run the "Deploy to GitHub Pages" workflow manually
-with that username and **Reset** ticked. All their sessions end and they must choose a new password.
+| Account | Initial password secret |
+| --- | --- |
+| `DetrickD123` | `DETRICK_INITIAL_PASSWORD` |
+| `Big3LFG` | `BIG3LFG_INITIAL_PASSWORD` |
 
-### Adding more teachers
+Choose different passwords (8–200 characters). Do not put them in the repository, workflow
+inputs, issues, or chat. The old shared `TEACHER_INITIAL_PASSWORD` is no longer used; create
+both new secrets before merging/deploying this change. Keep the new secrets for future
+provisioning/reset runs. Missing, invalid, or identical values fail provisioning before
+an account or temporary admin token is changed; a provisioning failure stops the Pages deploy.
 
-Run the "Deploy to GitHub Pages" workflow manually (Actions → Deploy to GitHub Pages → Run
-workflow) and type the new teacher's username. They get the `TEACHER_INITIAL_PASSWORD` secret as a
-starter password and must change it at first sign-in. Re-add the secret first if you deleted it.
+Every deployment with a healthy classroom server provisions both fixed accounts. An existing
+teacher returns `exists` and keeps their password, classes, and sessions. A missing teacher is
+created and must change their own initial password at first sign-in. Both use the **Teacher**
+login tab; neither needs public signup. Passwords are passed only to the server over HTTPS.
+The temporary provisioning token is rotated in a finally block, including failure paths.
+
+### Resetting one teacher
+
+Changing a secret alone does **not** change an existing account's password. To reset it, update
+that account's secret, then manually run **Deploy to GitHub Pages**, choose that username from
+the dropdown and check **Reset**. Only the selected account is reset and its sessions revoked;
+the other teacher keeps their current password. The selected teacher must choose a new
+password at next sign-in. If DetrickD123 already exists, its new secret only takes effect after
+an explicit reset; this avoids accidentally replacing a password the teacher chose.
+
+Both are teacher accounts, but traffic access is separate: the analytics allowlist remains
+`Big3LFG` only until a second owner username is explicitly supplied. `DetrickD123` does not
+automatically receive access to site-wide traffic data.
 
 ## Local development
 
