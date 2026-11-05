@@ -85,6 +85,16 @@ case insensitive; passwords and session tokens are always required. Browser-edit
 flags cannot grant API access. Public signup cannot claim a configured owner name. Existing
 classroom accounts retain their sign-in; an unclaimed owner needs server-side provisioning
 through the existing workflow. Device-only warriors do not authenticate to this server.
-Sign out and back in after deployment to refresh the owner-only navigation capability.
+The dashboard refreshes the owner-only navigation capability from the server automatically.
 Dashboard page markup is static/public, but links are hidden from other accounts and all
 actual traffic data and CSV source reads require server-side owner authorization.
+
+## Simple shared admin access
+
+The existing `Big3LFG` teacher account is the shared owner login. Sign in on the Teacher
+tab at `/codewarrior/login/?as=teacher`; site traffic appears directly at the top of its
+teacher dashboard. No class or additional account is required. If prompted on first use,
+change the starter password once, then use the chosen password on both admin devices.
+The teacher dashboard refreshes server permissions for existing sessions after deployment,
+so a cached capability flag does not hide access indefinitely. Other teachers still do not
+receive traffic access. This change does not create/reset accounts or change password secrets.

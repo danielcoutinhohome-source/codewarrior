@@ -82,7 +82,7 @@ export default function LoginPage() {
             </div>
           )}
           {mode === "student" && <p className="-mt-2 text-sm font-bold text-ink-soft">Sign in to your class account, on any device.</p>}
-          {mode === "teacher" && <p className="-mt-2 text-sm font-bold text-ink-soft">Teacher accounts are set up by CodeWarrior. There&apos;s no sign-up for teachers.</p>}
+          {mode === "teacher" && <p className="-mt-2 text-sm font-bold text-ink-soft">Teachers and admins use their existing account here. No class creation is needed to view site traffic.</p>}
           {mode === "device" && classroomEnabled() && <p className="-mt-2 text-sm font-bold text-ink-soft">Warriors saved only in this browser.</p>}
           <label className="field-label" htmlFor="li-name">
             {mode === "device" ? "Warrior name" : "Username"}
@@ -106,7 +106,7 @@ export default function LoginPage() {
             )}
           </AnimatePresence>
           <Button type="submit" size="lg" disabled={busy || !name || !pass} className="w-full">
-            {busy ? "ENTERING..." : "ENTER THE BATTLE"}
+            {busy ? "SIGNING IN…" : mode === "teacher" ? "OPEN DASHBOARD" : "ENTER THE BATTLE"}
           </Button>
         </motion.form>
 
