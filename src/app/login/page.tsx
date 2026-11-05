@@ -20,9 +20,12 @@ export default function LoginPage() {
   const [pass, setPass] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [enabled, setEnabled] = useState(false);
   const [mode, setMode] = useState<"student" | "teacher" | "device">("device");
   useEffect(() => {
-    if (classroomEnabled()) setMode(new URLSearchParams(window.location.search).get("as") === "teacher" ? "teacher" : "student");
+    const configured = classroomEnabled();
+    setEnabled(configured);
+    if (configured) setMode(new URLSearchParams(window.location.search).get("as") === "teacher" ? "teacher" : "student");
   }, []);
   const shake = useAnimationControls();
 
@@ -72,7 +75,7 @@ export default function LoginPage() {
       <main className="mx-auto flex max-w-5xl flex-wrap items-start gap-8 px-6 pb-48 pt-2">
         <motion.form onSubmit={submit} animate={shake} className="card flex min-w-0 flex-[1_1_360px] flex-col gap-5 p-8">
           <h1 className="font-display text-[44px] leading-none">Welcome back</h1>
-          {classroomEnabled() && (
+          {enabled && (
             <div className="grid grid-cols-3 gap-1 rounded-2xl bg-sky p-1" role="tablist" aria-label="Account type">
               {([["student", "Student"], ["teacher", "Teacher"], ["device", "This device"]] as const).map(([v, label]) => (
                 <button key={v} type="button" role="tab" aria-selected={mode === v} onClick={() => { setMode(v); setError(null); }} className="rounded-xl py-2 text-sm font-black" style={{ background: mode === v ? "#FFFFFF" : "transparent", color: mode === v ? "#1F2440" : "#4A5175", boxShadow: mode === v ? "0 2px 0 #D5E4F5" : undefined }}>
@@ -83,7 +86,7 @@ export default function LoginPage() {
           )}
           {mode === "student" && <p className="-mt-2 text-sm font-bold text-ink-soft">Sign in to your class account, on any device.</p>}
           {mode === "teacher" && <p className="-mt-2 text-sm font-bold text-ink-soft">Teachers and admins use their existing account here. No class creation is needed to view site traffic.</p>}
-          {mode === "device" && classroomEnabled() && <p className="-mt-2 text-sm font-bold text-ink-soft">Warriors saved only in this browser.</p>}
+          {mode === "device" && enabled && <p className="-mt-2 text-sm font-bold text-ink-soft">Warriors saved only in this browser.</p>}
           <label className="field-label" htmlFor="li-name">
             {mode === "device" ? "Warrior name" : "Username"}
             <input id="li-name" className="field" autoComplete="username" value={name} onChange={(e) => setName(e.target.value)} />
