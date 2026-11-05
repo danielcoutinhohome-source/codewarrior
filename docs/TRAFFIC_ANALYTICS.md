@@ -60,8 +60,7 @@ entries. Each accepted heartbeat writes roughly 6 metered rows (indexes included
 first-visit/day receipts. Large site-wide usage can exhaust the classroom's free quota and
 also affect class sync until the quota resets. This implementation suits an initial small
 pilot, not unlimited scale. Browser telemetry is forgeable and is not an audit or billing
-source. `x-rows` includes the classroom wrapper's queries only; analytics SQL is deliberately
-separate and must be measured independently if benchmarking total row usage.
+source. `x-rows` includes analytics SQL and can be used to measure total request row usage.
 
 ## Verification
 

@@ -1240,14 +1240,14 @@ export class Classroom extends DurableObject<Env> {
         // Shared school IPs need headroom, but public ingestion must be bounded.
         this.guard("traffic:" + ip, 600, 60_000, "Too many traffic updates.");
         this.bump("traffic:" + ip, 60_000);
-        if (!this.ctx.storage.transactionSync(() => recordTraffic(this.sql, body))) throw new HttpError(400, "bad_request", "Invalid traffic heartbeat.");
+        if (!this.ctx.storage.transactionSync(() => recordTraffic(this.sql, body, now(), (read, written) => { this.rowsRead += read; this.rowsWritten += written; }))) throw new HttpError(400, "bad_request", "Invalid traffic heartbeat.");
         return json({ ok: true });
       }
       if (r("GET", "analytics")) {
         await this.teacher(req);
         const days = Number(url.searchParams.get("days") || 30);
         if (![7,30,90].includes(days)) throw new HttpError(400, "bad_request", "Choose 7, 30 or 90 days.");
-        return json(trafficReport(this.sql, days));
+        return json(trafficReport(this.sql, days, now(), (read, written) => { this.rowsRead += read; this.rowsWritten += written; }));
       }
 
       if (r("POST", "auth", "register")) return json(await this.register(body, ip), 201);
