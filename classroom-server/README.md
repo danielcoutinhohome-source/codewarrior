@@ -110,12 +110,12 @@ Add these **two repository secrets** in Settings → Secrets and variables → A
 
 | Account | Initial password secret |
 | --- | --- |
-| `DetrickD123` | `DETRICK_INITIAL_PASSWORD` |
-| `Big3LFG` | `BIG3LFG_INITIAL_PASSWORD` |
+| `DetrickD123` | `TEACHER_INITIAL_PASSWORD` |
+| `Big3LFG` | `ADMIN_INITIAL_PASSWORD` |
 
 Choose different passwords (8–200 characters). Do not put them in the repository, workflow
-inputs, issues, or chat. The old shared `TEACHER_INITIAL_PASSWORD` is no longer used; create
-both new secrets before merging/deploying this change. Keep the new secrets for future
+inputs, issues, or chat. `TEACHER_INITIAL_PASSWORD` now belongs only to DetrickD123; configure
+`ADMIN_INITIAL_PASSWORD` separately for Big3LFG before merging/deploying this change. Keep the new secrets for future
 provisioning/reset runs. Missing, invalid, or identical values fail provisioning before
 an account or temporary admin token is changed; a provisioning failure stops the Pages deploy.
 

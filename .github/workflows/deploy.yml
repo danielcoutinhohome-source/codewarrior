@@ -6,11 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       teacher_username:
-        description: "Teacher account to create (or reset). Gets the TEACHER_INITIAL_PASSWORD secret as a starter password."
-        type: string
+        description: "Account to reset only when Reset is checked. Both fixed teachers are otherwise provisioned without resetting."
+        type: choice
+        options: [DetrickD123, Big3LFG]
         default: DetrickD123
       reset_teacher_password:
-        description: "Reset that teacher's password to the TEACHER_INITIAL_PASSWORD secret (they must change it again)"
+        description: "Reset only the selected teacher to their own initial-password secret (forces password change)"
         type: boolean
         default: false
 
@@ -115,8 +116,8 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DETRICK_INITIAL_PASSWORD: ${{ secrets.DETRICK_INITIAL_PASSWORD }}
-          BIG3LFG_INITIAL_PASSWORD: ${{ secrets.BIG3LFG_INITIAL_PASSWORD }}
+          TEACHER_INITIAL_PASSWORD: ${{ secrets.TEACHER_INITIAL_PASSWORD }}
+          ADMIN_INITIAL_PASSWORD: ${{ secrets.ADMIN_INITIAL_PASSWORD }}
           TEACHER_USERNAME: ${{ inputs.teacher_username || 'DetrickD123' }}
           URL: ${{ steps.classroom.outputs.url }}
           RESET: ${{ inputs.reset_teacher_password == true && 'true' || 'false' }}
