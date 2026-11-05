@@ -7,6 +7,7 @@ import "@fontsource/nunito/900.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/800.css";
 import "./globals.css";
+import TrafficTracker from "@/components/TrafficTracker";
 import DbStatus from "@/components/DbStatus";
 import CloudSync from "@/components/cloud/CloudSync";
 
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <DbStatus />
         <CloudSync />
+        <TrafficTracker />
       </body>
     </html>
   );

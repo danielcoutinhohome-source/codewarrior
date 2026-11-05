@@ -210,4 +210,16 @@ WHERE outcome != 'in_progress';
 DROP INDEX IF EXISTS attempts_student_skill;
 `,
   },
+  {
+    version: 4,
+    name: "anonymous traffic aggregates",
+    sql: `
+CREATE TABLE traffic_visitors(id TEXT PRIMARY KEY, first_day TEXT NOT NULL, last_seen INTEGER NOT NULL);
+CREATE INDEX traffic_active ON traffic_visitors(last_seen);
+CREATE TABLE traffic_seen(day TEXT NOT NULL, visitor TEXT NOT NULL, PRIMARY KEY(day,visitor));
+CREATE TABLE traffic_views(id TEXT PRIMARY KEY, day TEXT NOT NULL);
+CREATE INDEX traffic_views_day ON traffic_views(day);
+CREATE TABLE traffic_daily(day TEXT PRIMARY KEY, visitors INTEGER NOT NULL, new_visitors INTEGER NOT NULL, page_views INTEGER NOT NULL, peak INTEGER NOT NULL);
+`,
+  },
 ];

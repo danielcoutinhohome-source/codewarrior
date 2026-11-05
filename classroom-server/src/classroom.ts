@@ -20,11 +20,14 @@ import {
   type SyncEvent,
 } from "../../src/lib/cloud/protocol";
 import { PBKDF2_ITERATIONS, hashPassword, newToken, randomCode, randomId, safeEqual, sha256, verifyPassword } from "./crypto";
+import { canViewTraffic } from "./analytics-access";
+import { recordTraffic, trafficReport } from "./analytics";
 import { MIGRATIONS } from "./schema";
 
 export type Env = {
   CLASSROOM: DurableObjectNamespace<Classroom>;
   ALLOWED_ORIGINS?: string;
+  ANALYTICS_VIEWERS?: string; // server-only allowlist, at most two account usernames
   ADMIN_TOKEN?: string; // set only while provisioning a teacher; see README
 };
 
@@ -141,7 +144,7 @@ export class Classroom extends DurableObject<Env> {
 
   // ---------- auth ----------
   private me(u: User): Me {
-    return { id: u.id, username: u.username, displayName: u.display_name, role: u.role, mustChangePassword: !!u.must_change_pw, createdAt: u.created_at };
+    return { id: u.id, username: u.username, displayName: u.display_name, role: u.role, mustChangePassword: !!u.must_change_pw, createdAt: u.created_at, canViewAnalytics: !u.must_change_pw && canViewTraffic(u.username, this.env.ANALYTICS_VIEWERS) };
   }
 
   private async authed(req: Request, opts: { allowPasswordChange?: boolean } = {}): Promise<User> {
@@ -181,6 +184,8 @@ export class Classroom extends DurableObject<Env> {
     this.guard(`reg:${ip}`, 300, 3600_000, "Too many new accounts from this network. Try again later.");
     const username = str(body.username, 20, "Username", { min: 3 });
     if (!USERNAME_RE.test(username)) throw new HttpError(400, "bad_request", "Usernames are 3 to 20 letters, numbers or underscores.");
+    // Reserve unclaimed owner names against public signup impersonation. Existing accounts still sign in.
+    if (canViewTraffic(username, this.env.ANALYTICS_VIEWERS)) throw new HttpError(409, "username_taken", "That username is unavailable.");
     const password = checkPassword(body.password, username);
     const displayName = str(body.displayName, 40, "Name") || username;
     // Sign-up only ever makes students. Teacher accounts exist only through server-side
@@ -1234,6 +1239,21 @@ export class Classroom extends DurableObject<Env> {
       }
       const seg = path.split("/").slice(2); // after /v1
       const r = (method: string, ...parts: string[]) => m === method && seg.length === parts.length && parts.every((p, i) => p === "*" || p === seg[i]);
+
+      if (r("POST", "analytics", "heartbeat")) {
+        // Shared school IPs need headroom, but public ingestion must be bounded.
+        this.guard("traffic:" + ip, 600, 60_000, "Too many traffic updates.");
+        this.bump("traffic:" + ip, 60_000);
+        if (!this.ctx.storage.transactionSync(() => recordTraffic(this.sql, body, now(), (read, written) => { this.rowsRead += read; this.rowsWritten += written; }))) throw new HttpError(400, "bad_request", "Invalid traffic heartbeat.");
+        return json({ ok: true });
+      }
+      if (r("GET", "analytics")) {
+        const viewer = await this.authed(req);
+        if (!canViewTraffic(viewer.username, this.env.ANALYTICS_VIEWERS)) throw new HttpError(403, "forbidden", "This dashboard is private.");
+        const days = Number(url.searchParams.get("days") || 30);
+        if (![7,30,90].includes(days)) throw new HttpError(400, "bad_request", "Choose 7, 30 or 90 days.");
+        return json(trafficReport(this.sql, days, now(), (read, written) => { this.rowsRead += read; this.rowsWritten += written; }));
+      }
 
       if (r("POST", "auth", "register")) return json(await this.register(body, ip), 201);
       if (r("POST", "auth", "login")) return json(await this.login(body, ip));

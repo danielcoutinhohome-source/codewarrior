@@ -1,0 +1,42 @@
+import { canViewTraffic, trafficOwners } from "../classroom-server/src/analytics-access";
+import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
+import { MIGRATIONS } from "../classroom-server/src/schema";
+import { recordTraffic, trafficReport } from "../classroom-server/src/analytics";
+const db = new DatabaseSync(":memory:");
+db.exec("CREATE TABLE meta(k TEXT PRIMARY KEY,v TEXT NOT NULL)");
+for (const m of MIGRATIONS) db.exec(m.sql);
+const sql = { exec(query: string, ...args: (string | number)[]) { const statement = db.prepare(query); const rows = statement.all(...args); return { toArray: () => rows }; } } as unknown as Parameters<typeof recordTraffic>[0];
+const t = Date.parse("2026-11-04T23:58:00Z"), a = crypto.randomUUID(), b = crypto.randomUUID(), event = crypto.randomUUID();
+assert.equal(recordTraffic(sql, { visitor: "bad", view: true }, t), false);
+assert.equal(recordTraffic(sql, { visitor: a, view: true }, t), false);
+recordTraffic(sql, { visitor: a, view: true, event }, t);
+recordTraffic(sql, { visitor: a, view: true, event }, t+1); // repeated effect/request
+recordTraffic(sql, { visitor: b, view: true, event: crypto.randomUUID() }, t+2);
+let report = trafficReport(sql, 7, t+3);
+assert.equal(report.days.length, 7);
+assert.equal(report.days[0].visitors, 0);
+assert.deepEqual(report.days.at(-1), { day:"2026-11-04",visitors:2,newVisitors:2,returningVisitors:0,pageViews:2,peakConcurrent:2 });
+assert.equal(report.activeNow, 2);
+assert.equal(trafficReport(sql,7,t+90_003).activeNow,0);
+recordTraffic(sql, { visitor:a,view:false }, t+120_000);
+report = trafficReport(sql,7,t+120_000);
+assert.deepEqual(report.days.at(-1), { day:"2026-11-05",visitors:1,newVisitors:0,returningVisitors:1,pageViews:0,peakConcurrent:1 });
+assert.equal(report.days.at(-2)?.pageViews,2);
+recordTraffic(sql,{visitor:a,view:false},t+120_001);
+assert.equal(trafficReport(sql,7,t+120_001).days.at(-1)?.visitors,1);
+// Cleanup retains aggregates but expires old identifiers.
+const later = t+367*86_400_000;
+recordTraffic(sql,{visitor:crypto.randomUUID(),view:false},later);
+assert.equal(db.prepare('SELECT COUNT(*) AS n FROM traffic_visitors WHERE id=?').get(b)?.n,0);
+assert.equal(db.prepare('SELECT visitors FROM traffic_daily WHERE day=?').get('2026-11-04')?.visitors,2);
+db.close();
+console.log("Traffic tests passed: validation, idempotency, unique browsers, peaks, expiry, UTC rollover, retention and zero-filled history");
+
+assert.equal(canViewTraffic("Big3LFG",undefined), false);
+assert.equal(canViewTraffic("Big3LFG","Big3LFG,DanOwner"), true);
+assert.equal(canViewTraffic("danowner","Big3LFG,DanOwner"), true);
+assert.equal(canViewTraffic("other_teacher","Big3LFG,DanOwner"), false);
+assert.deepEqual(trafficOwners("owner1,owner2,owner3"), []);
+assert.deepEqual(trafficOwners("*"), []);
+console.log("Private traffic access passed: default deny, exact owner matches, two-owner limit, no wildcard");

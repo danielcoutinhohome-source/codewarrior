@@ -15,3 +15,7 @@ new_sqlite_classes = ["Classroom"]
 
 [vars]
 ALLOWED_ORIGINS = "https://danielcoutinhohome-source.github.io"
+
+# Private traffic dashboard owners. At most two, authenticated on the classroom server.
+# Blank or invalid configuration denies everyone. Reserved against new public signups.
+ANALYTICS_VIEWERS = "Big3LFG"
