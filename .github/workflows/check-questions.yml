@@ -24,6 +24,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
+      - name: Check separate teacher provisioning
+        run: node --test scripts/test-teacher-provisioning.mjs
       - run: npm run typecheck
       - run: npm run verify
       - run: npm test
