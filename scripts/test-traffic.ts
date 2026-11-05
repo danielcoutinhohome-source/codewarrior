@@ -1,3 +1,4 @@
+import { canViewTraffic, trafficOwners } from "../classroom-server/src/analytics-access";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { MIGRATIONS } from "../classroom-server/src/schema";
@@ -31,3 +32,11 @@ assert.equal(db.prepare('SELECT COUNT(*) AS n FROM traffic_visitors WHERE id=?')
 assert.equal(db.prepare('SELECT visitors FROM traffic_daily WHERE day=?').get('2026-11-04')?.visitors,2);
 db.close();
 console.log("Traffic tests passed: validation, idempotency, unique browsers, peaks, expiry, UTC rollover, retention and zero-filled history");
+
+assert.equal(canViewTraffic("Big3LFG",undefined), false);
+assert.equal(canViewTraffic("Big3LFG","Big3LFG,DanOwner"), true);
+assert.equal(canViewTraffic("danowner","Big3LFG,DanOwner"), true);
+assert.equal(canViewTraffic("other_teacher","Big3LFG,DanOwner"), false);
+assert.deepEqual(trafficOwners("owner1,owner2,owner3"), []);
+assert.deepEqual(trafficOwners("*"), []);
+console.log("Private traffic access passed: default deny, exact owner matches, two-owner limit, no wildcard");

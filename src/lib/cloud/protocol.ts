@@ -14,6 +14,7 @@ export const CLASS_CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/;
 export const normalizeCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
 export type Me = {
+  canViewAnalytics?: boolean; // display hint only; server enforces every traffic read
   id: string;
   username: string;
   displayName: string;

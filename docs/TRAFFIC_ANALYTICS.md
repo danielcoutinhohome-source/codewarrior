@@ -1,8 +1,8 @@
 # Site traffic
 
 After this PR is merged and the Pages + classroom Worker deployment succeeds, sign in
-with an existing provisioned teacher account and choose **SITE TRAFFIC** on the teacher
-dashboard, or open `/codewarrior/analytics/`. No additional account, token, service,
+with an allowlisted classroom account and choose **SITE TRAFFIC** in Account settings
+(or the teacher dashboard for owner teachers), or open `/codewarrior/analytics/`. No additional account, token, service,
 repository variable or subscription is needed. The existing Cloudflare deployment secrets
 must already be configured. A deployment without a classroom server cannot collect visits.
 
@@ -13,8 +13,9 @@ must already be configured. A deployment without a classroom server cannot colle
 - A graph and exact daily table for 7, 30 or 90 days, with a CSV download.
 - Updates every minute while the dashboard is visible. Today's aggregates are updated as
   heartbeats arrive; there is no daily job to configure or keep running.
-- All provisioned teachers can read site-wide **aggregates only**. Students and anonymous
-  visitors cannot read them; the server enforces this, including starter-password changes.
+- Only the at-most-two usernames in the server-only `ANALYTICS_VIEWERS` configuration can read
+  aggregates after authentication. Other accounts (including teachers) and anonymous visitors
+  cannot read them; the server enforces this, including starter-password changes.
   This does not grant any new access to classroom records.
 
 ## Definitions and limits
@@ -73,3 +74,17 @@ source. `x-rows` includes analytics SQL and can be used to measure total request
   and confirm active count and visitors increase; hide both profiles, wait 90 seconds, and
   refresh the dashboard. The dashboard's own browser also counts unless opted out. Download
   CSV and compare today's row with the table. New/returning counts need a later UTC day.
+
+## Owner-only access
+
+`classroom-server/wrangler.toml` currently permits only `Big3LFG`. Dan's website username
+is pending; do not substitute a GitHub username or assume any teacher is an owner.
+Add the second exact username to `ANALYTICS_VIEWERS`, comma separated, and deploy.
+Missing, malformed or more-than-two-owner configuration denies everyone. Usernames are
+case insensitive; passwords and session tokens are always required. Browser-edited capability
+flags cannot grant API access. Public signup cannot claim a configured owner name. Existing
+classroom accounts retain their sign-in; an unclaimed owner needs server-side provisioning
+through the existing workflow. Device-only warriors do not authenticate to this server.
+Sign out and back in after deployment to refresh the owner-only navigation capability.
+Dashboard page markup is static/public, but links are hidden from other accounts and all
+actual traffic data and CSV source reads require server-side owner authorization.

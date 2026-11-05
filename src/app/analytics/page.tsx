@@ -14,7 +14,7 @@ export default function AnalyticsPage() {
   useEffect(() => { try { setOptOut(localStorage.getItem("cw.traffic.optOut") === "1"); } catch {} }, []);
   useEffect(() => {
     setData(null);
-    if (cloud?.me.role !== "teacher" || cloud.me.mustChangePassword) return;
+    if (!cloud?.me.canViewAnalytics || cloud.me.mustChangePassword) return;
     let alive = true, busy = false;
     const load = async () => {
       if (busy || document.visibilityState !== "visible") return;
@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
     const timer = setInterval(load, 60_000);
     document.addEventListener("visibilitychange", load);
     return () => { alive = false; clearInterval(timer); document.removeEventListener("visibilitychange", load); };
-  }, [cloud?.token, cloud?.me.role, cloud?.me.mustChangePassword, days]);
+  }, [cloud?.token, cloud?.me.canViewAnalytics, cloud?.me.mustChangePassword, days]);
   const exportCsv = () => {
     if (!data) return;
     const csv = ["date_utc,visitors,new_browsers,returning_browsers,page_views,peak_concurrent", ...data.days.map(r => [r.day,r.visitors,r.newVisitors,r.returningVisitors,r.pageViews,r.peakConcurrent].join(","))].join("\n");
@@ -37,11 +37,11 @@ export default function AnalyticsPage() {
   const today = data?.days.at(-1);
   const max = Math.max(1, ...data?.days.map(r => r[metric]) || []);
   return <main className="min-h-dvh bg-sky p-4 text-ink sm:p-8"><div className="mx-auto max-w-5xl space-y-6">
-    <Link href="/teacher/" className="font-bold underline">← Teacher dashboard</Link>
+    <Link href="/account/" className="font-bold underline">← Account</Link>
     <h1 className="text-3xl font-black">Site traffic</h1>
     <p>Anonymous browser counts across CodeWarrior. Days use UTC. Updates every minute while this page is visible.</p>
     <label className="flex items-center gap-2"><input type="checkbox" checked={optOut} onChange={e => { setOptOut(e.target.checked); try { localStorage.setItem("cw.traffic.optOut", e.target.checked ? "1" : "0"); } catch { setError("Browser storage is blocked. Use Do Not Track to disable analytics."); } }} />Exclude this browser from future traffic updates</label>
-    {cloud?.me.role !== "teacher" ? <p><Link href="/login/?as=teacher" className="underline">Sign in with a teacher account</Link> to view site traffic.</p> : cloud.me.mustChangePassword ? <p><Link href="/account/" className="underline">Change your starter password</Link> to continue.</p> : <>
+    {!cloud ? <p>This dashboard is private. <Link href="/login/" className="underline">Sign in</Link> with an authorized account.</p> : cloud.me.mustChangePassword ? <p><Link href="/account/" className="underline">Change your starter password</Link> to continue.</p> : !cloud.me.canViewAnalytics ? <p>This dashboard is private. Your account does not have access.</p> : <>
       {error && <p role="alert" className="rounded-xl bg-white p-4">{error} {data && "Showing older data; updates will retry."}</p>}
       {!data && !error && <p role="status">Loading traffic…</p>}
       {data && <>

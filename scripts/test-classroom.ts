@@ -35,7 +35,7 @@ async function start(): Promise<{ proc: ChildProcess; dir: string }> {
     if (String(e).includes("already in use")) throw e;
   }
   // detached: the server gets its own process group so it can be stopped with its children.
-  const proc = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--persist-to", dir, "--var", `ADMIN_TOKEN:${ADMIN}`, "--log-level", "warn"], { cwd: join(__dirname, "..", "classroom-server"), stdio: ["ignore", "pipe", "pipe"], detached: true, env: { ...process.env, WRANGLER_SEND_METRICS: "false" } });
+  const proc = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--persist-to", dir, "--var", `ADMIN_TOKEN:${ADMIN}`, "--var", "ANALYTICS_VIEWERS:DetrickTest,ReservedOwner", "--log-level", "warn"], { cwd: join(__dirname, "..", "classroom-server"), stdio: ["ignore", "pipe", "pipe"], detached: true, env: { ...process.env, WRANGLER_SEND_METRICS: "false" } });
   let log = "";
   proc.stdout?.on("data", (d) => (log += d));
   proc.stderr?.on("data", (d) => (log += d));
@@ -134,6 +134,11 @@ async function main() {
     eq((await call("GET", "/analytics", s1.token)).status, 403, "student traffic reader rejected");
     eq((await call("GET", "/analytics?days=9999", T)).status, 400, "report window bounded");
     eq((await call("POST", "/analytics/heartbeat", undefined, {visitor:"bad",view:true})).status, 400, "invalid heartbeat rejected");
+    eq((await call("GET", "/me", T)).body.me.canViewAnalytics, true, "only owner receives navigation capability");
+    eq((await call("GET", "/me", s1.token)).body.me.canViewAnalytics, false, "student has no traffic capability");
+    eq((await call("POST", "/auth/register", undefined, {username:"ReservedOwner",password:"cannot-claim-owner"})).status, 409, "owner names cannot be claimed by public signup");
+    await call("PATCH", "/me", s1.token, {displayName:"Ava",canViewAnalytics:true});
+    eq((await call("GET", "/analytics", s1.token)).status, 403, "browser-supplied capability cannot grant access");
     const visitor = uid(), viewEvent = uid();
     eq((await call("POST", "/analytics/heartbeat", undefined, {visitor,view:true,event:viewEvent})).status, 200, "public heartbeat accepted");
     await call("POST", "/analytics/heartbeat", undefined, {visitor,view:true,event:viewEvent});
@@ -181,6 +186,8 @@ async function main() {
     const t2pre = await call("POST", "/auth/login", undefined, { username: "other_teacher", password: "password456" });
     const t2 = await call("POST", "/auth/password", t2pre.body.token, { current: "password456", next: "password789" });
     eq(t2.body.me.role, "teacher", "second teacher signed in");
+    eq((await call("GET", "/analytics", t2pre.body.token)).status, 403, "unlisted teacher cannot read traffic");
+    eq(t2.body.me.canViewAnalytics, false, "unlisted teacher has no traffic navigation capability");
     t2.body.token = t2pre.body.token;
     const T2 = t2.body.token;
     eq((await call("GET", `/classes/${cls.id}/summary`, T2)).status, 404, "other teacher can't see the class");

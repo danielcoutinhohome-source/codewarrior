@@ -51,6 +51,7 @@ function AccountSettings() {
       <div>
         <div className="text-[13px] font-black uppercase tracking-[0.15em] text-ocean-deep">{me.role === "teacher" ? "Teacher account" : "Class account"}</div>
         <h1 className="font-display text-[clamp(32px,5vw,44px)] leading-none">{me.displayName}</h1>
+        {me.canViewAnalytics && <Link href="/analytics/" className="font-bold underline">SITE TRAFFIC</Link>}
         <p className="font-bold text-ink-mute">Signed in as {me.username}</p>
       </div>
       {me.mustChangePassword && (
