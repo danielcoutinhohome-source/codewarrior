@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TrafficDashboard from "@/components/TrafficDashboard";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Button, ButtonLink, Logo } from "@/components/ui";
@@ -15,7 +16,7 @@ import { runLabel } from "@/components/teacher/labels";
 import type { Summary } from "@/components/teacher/types";
 import { api, classroomEnabled, errorText, setCloud, useCloud } from "@/lib/cloud/client";
 import { useLive } from "@/lib/cloud/live";
-import type { ClassInfo } from "@/lib/cloud/protocol";
+import type { Me, ClassInfo } from "@/lib/cloud/protocol";
 
 const TABS = [
   ["overview", "Overview"],
@@ -50,6 +51,14 @@ function Dashboard() {
 
   useEffect(() => setReady(true), []);
   const isTeacher = cloud?.me.role === "teacher";
+  // Refresh server capabilities for already-signed-in admins after a deploy.
+  useEffect(() => {
+    if (!cloud?.token) return;
+    const token = cloud.token;
+    let active = true;
+    void api<{ me: Me }>("GET", "/me").then(r => { if (active) setCloud({ token, me: r.me }); }).catch(() => {});
+    return () => { active = false; };
+  }, [cloud?.token]);
   useEffect(() => {
     if (cloud?.me.mustChangePassword) router.replace("/account/?change=1");
   }, [cloud, router]);
@@ -177,13 +186,14 @@ function Dashboard() {
     <Shell
       right={
         <div className="flex flex-wrap items-center gap-2 text-sm font-black">
-          {cloud.me.canViewAnalytics && <Link href="/analytics/" className="underline">SITE TRAFFIC</Link>}
+          {cloud.me.canViewAnalytics && <a href="#site-traffic" className="rounded-xl bg-ocean-soft px-3 py-1.5 text-ocean-deep">SITE TRAFFIC</a>}
           <span className="text-ink-soft">{cloud.me.displayName}</span>
           <Link href="/account/" className="rounded-xl bg-white px-3 py-1.5 text-ink-soft hover:text-ink">Account</Link>
           <button type="button" onClick={() => void signOut()} className="rounded-xl bg-white px-3 py-1.5 text-ink-soft hover:text-ink">Sign out</button>
         </div>
       }
     >
+      {cloud.me.canViewAnalytics && <TrafficDashboard embedded />}
       <div className="grid items-start gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="card flex flex-col gap-2 p-4" aria-label="Classes">
           <h2 className="text-[13px] font-black uppercase tracking-wider text-ink-mute">Classes</h2>
