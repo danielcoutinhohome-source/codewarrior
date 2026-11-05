@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { teacherPlan } from "./teacher-provisioning.mjs";
-const env = { DETRICK_INITIAL_PASSWORD: "test-detrick-only-123", BIG3LFG_INITIAL_PASSWORD: "test-owner-only-456" };
+const env = { TEACHER_INITIAL_PASSWORD: "test-detrick-only-123", ADMIN_INITIAL_PASSWORD: "test-owner-only-456" };
 test("both fixed accounts get independent initial passwords and no automatic resets", () => {
   assert.deepEqual(teacherPlan(env), [
-    {username:"DetrickD123", password:env.DETRICK_INITIAL_PASSWORD, reset:false},
-    {username:"Big3LFG", password:env.BIG3LFG_INITIAL_PASSWORD, reset:false},
+    {username:"DetrickD123", password:env.TEACHER_INITIAL_PASSWORD, reset:false},
+    {username:"Big3LFG", password:env.ADMIN_INITIAL_PASSWORD, reset:false},
   ]);
 });
 test("reset only the explicitly selected account", () => {
@@ -15,11 +15,11 @@ test("reset only the explicitly selected account", () => {
   assert.throws(() => teacherPlan({...env,RESET:"true",TEACHER_USERNAME:"other"}));
 });
 test("fail before provisioning if secrets are missing, shared or invalid", () => {
-  for (const input of [{}, {...env,BIG3LFG_INITIAL_PASSWORD:undefined}, {...env,DETRICK_INITIAL_PASSWORD:"short"}, {...env,BIG3LFG_INITIAL_PASSWORD:env.DETRICK_INITIAL_PASSWORD}, {...env,BIG3LFG_INITIAL_PASSWORD:"Big3LFG"}, {...env,BIG3LFG_INITIAL_PASSWORD:"x".repeat(201)}]) assert.throws(() => teacherPlan(input));
+  for (const input of [{}, {...env,ADMIN_INITIAL_PASSWORD:undefined}, {...env,TEACHER_INITIAL_PASSWORD:"short"}, {...env,ADMIN_INITIAL_PASSWORD:env.TEACHER_INITIAL_PASSWORD}, {...env,ADMIN_INITIAL_PASSWORD:"Big3LFG"}, {...env,ADMIN_INITIAL_PASSWORD:"x".repeat(201)}]) assert.throws(() => teacherPlan(input));
 });
-test("legacy shared secret is never a fallback; errors contain no secret values", () => {
+test("teacher secret alone cannot provision the admin; errors contain no secret values", () => {
   assert.throws(() => teacherPlan({TEACHER_INITIAL_PASSWORD:"legacy-test-password"}));
-  try { teacherPlan({...env,BIG3LFG_INITIAL_PASSWORD:env.DETRICK_INITIAL_PASSWORD}); } catch(e) { assert.ok(!e.message.includes(env.DETRICK_INITIAL_PASSWORD)); }
+  try { teacherPlan({...env,ADMIN_INITIAL_PASSWORD:env.TEACHER_INITIAL_PASSWORD}); } catch(e) { assert.ok(!e.message.includes(env.TEACHER_INITIAL_PASSWORD)); }
 });
 
 import { provisionTeachers } from "./provision-teachers.mjs";

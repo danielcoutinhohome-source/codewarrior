@@ -70,6 +70,8 @@ are useful approximations, not proof of performance on school hardware.
 
 ## Recently finished
 
+- David/Codex: small follow-up on `codex/admin-password-secret` uses `ADMIN_INITIAL_PASSWORD` for Big3LFG and `TEACHER_INITIAL_PASSWORD` for DetrickD123 across the deploy workflow, planner, tests and setup docs. No active file claim; account usernames and owner permissions are unchanged.
+
 - Daniel/Claude: question bank is now 100 templates per world (`src/lib/questions/more-w*.ts`),
   and battles use the device's answer history (`src/lib/questions/history.ts`) so question
   types don't repeat unless the student keeps missing them.
