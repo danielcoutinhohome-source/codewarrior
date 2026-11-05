@@ -59,6 +59,8 @@ are useful approximations, not proof of performance on school hardware.
 
 ## Currently working on
 
+- **Q7 traffic analytics** / David/Codex / `codex/traffic-dashboard` (provisional until merged). Scope: new analytics client, dashboard, server analytics module, migration v4, layout mount and classroom router hooks, analytics tests/docs. No overlap with Q4 learning/battle files.
+
 - **Q4** / Claude (for Daniel) / next up. Claims `src/app/learn`, `src/lib/learn`,
   `src/lib/tutor`, `tutor-server/`, and a small post-battle "practice what you missed" link
   in `src/app/battle/page.tsx` (results screen only; reporter calls untouched). Codex: if Q2
