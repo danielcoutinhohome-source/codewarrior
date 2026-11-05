@@ -58,7 +58,7 @@ async function main() {
             await page.locator("#li-name").fill("Big3LFG");
             await page.locator("#li-pass").fill("fixture-only-password");
             await page.getByRole("button",{name:"OPEN DASHBOARD",exact:true}).click();
-            await page.waitForURL(/\/teacher\//);
+            await page.waitForURL(/\/teacher\/?(?:\?|#|$)/);
           }
           if(owner) {
             await page.getByRole("heading",{name:"Site traffic",exact:true}).waitFor();
@@ -76,6 +76,9 @@ async function main() {
             assert.equal(trafficReads,0);
           }
           assert.deepEqual(errors,[]);
+        } catch (error) {
+          await page.screenshot({path:join(shots,`admin-traffic-${width}-${scenario}-failure.png`),fullPage:true}).catch(()=>{});
+          throw error;
         } finally {await context.close();}
       }
     }
